@@ -1,8 +1,8 @@
 """gnomAD population-frequency client.
 
-Resolution order: memory cache -> on-disk cache -> live GraphQL API (if online
-and httpx available) -> bundled local snapshot. Returns popmax AF, AC/AN, and
-homozygote count. All fields the report/ACMG engine cite come from here.
+Resolution order: on-disk cache -> live GraphQL API (unless OFFLINE) -> bundled
+local snapshot. Returns popmax AF, AC/AN, and homozygote count. All fields the
+report/ACMG engine cite come from here.
 """
 from __future__ import annotations
 
@@ -20,8 +20,9 @@ _local: Optional[dict] = None
 _GRAPHQL = """
 query Variant($variantId: String!, $dataset: DatasetId!) {
   variant(variantId: $variantId, dataset: $dataset) {
-    genome { af ac an homozygote_count populations { id af ac an } }
-    exome  { af ac an homozygote_count populations { id af ac an } }
+    variant_id
+    genome { ac an homozygote_count populations { id ac an } }
+    exome  { ac an homozygote_count populations { id ac an } }
   }
 }
 """
@@ -35,8 +36,21 @@ def _load_local() -> dict:
     return _local
 
 
+# Population ids to exclude from popmax (bottleneck / non-continental groups),
+# mirroring gnomAD's own popmax convention.
+_POPMAX_EXCLUDE = {"asj", "fin", "oth", "remaining", "mid", "ami", "sas"}
+
+
+def _af(ac: int, an: int) -> float:
+    return (ac / an) if an else 0.0
+
+
 def _from_payload(payload: dict) -> dict:
-    """Reduce a gnomAD variant payload to popmax AF + counts."""
+    """Reduce a gnomAD variant payload to popmax AF + counts.
+
+    AF is computed from ac/an (robust to schema differences) and popmax is the
+    highest per-population AF across exome+genome, excluding bottleneck groups.
+    """
     best = {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "pop": None}
     for src in ("exome", "genome"):
         block = payload.get(src)
@@ -44,31 +58,36 @@ def _from_payload(payload: dict) -> dict:
             continue
         best["hom"] = max(best["hom"], block.get("homozygote_count") or 0)
         for pop in block.get("populations", []) or []:
-            if (pop.get("af") or 0.0) > best["af"]:
-                best = {"af": pop["af"], "ac": pop.get("ac", 0),
-                        "an": pop.get("an", 0), "hom": best["hom"], "pop": pop.get("id")}
+            pid = (pop.get("id") or "").lower()
+            # gnomAD population ids can be suffixed (e.g. "nfe_bgr"); keep the
+            # top-level ancestry groups only (no underscore) for popmax.
+            if "_" in pid or pid in _POPMAX_EXCLUDE:
+                continue
+            ac, an = pop.get("ac") or 0, pop.get("an") or 0
+            af = _af(ac, an)
+            if af > best["af"]:
+                best = {"af": af, "ac": ac, "an": an, "hom": best["hom"], "pop": pid}
     return best
 
 
-def _live(variant: Variant) -> Optional[dict]:  # pragma: no cover - network
-    try:
-        import httpx
-    except ImportError:
-        return None
-    try:
-        resp = httpx.post(
-            config.GNOMAD_API,
-            json={"query": _GRAPHQL,
-                  "variables": {"variantId": variant.key, "dataset": config.GNOMAD_DATASET}},
-            timeout=15.0,
-        )
-        resp.raise_for_status()
-        data = resp.json().get("data", {}).get("variant")
-        if not data:
-            return {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "pop": None}
-        return _from_payload(data)
-    except Exception:
-        return None
+def _live(variant: Variant) -> Optional[dict]:
+    """Query the gnomAD GraphQL API. Returns absent-record dict if not found."""
+    from . import _http
+
+    resp = _http.post_json(
+        config.GNOMAD_API,
+        {"query": _GRAPHQL,
+         "variables": {"variantId": variant.key, "dataset": config.GNOMAD_DATASET}},
+        timeout=15.0,
+    )
+    if resp is None:
+        return None  # network/transport error -> let caller fall back
+    # A "variant not found" comes back as data.variant == null (often with an
+    # errors block); that means the allele is absent from gnomAD, not a failure.
+    data = (resp.get("data") or {}).get("variant")
+    if not data:
+        return {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "pop": None}
+    return _from_payload(data)
 
 
 def lookup(variant: Variant) -> dict:

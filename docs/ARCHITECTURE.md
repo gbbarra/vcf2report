@@ -36,10 +36,12 @@ src/vcf2report/
 
 ## Real APIs + local fallback
 
-Each annotator resolves: memory cache → on-disk cache (`data/cache/`) → live API
-(if online and the client dep is installed) → bundled local snapshot. Set
-`OFFLINE=1` to force cache/local-only. `scripts/warm_cache.py` pre-fills the cache
-so a demo is network-independent while the code stays capable of real calls.
+Each annotator resolves: on-disk cache (`data/cache/`) → live API (unless
+`OFFLINE=1`) → bundled local snapshot. The live gnomAD (GraphQL) and ClinVar
+(E-utilities) clients use only the standard library (`urllib`), so real calls need
+no extra dependency. Set `OFFLINE=1` to force cache/local-only.
+`scripts/warm_cache.py` pre-fills the cache so a demo is network-independent while
+the code stays capable of real calls.
 
 | Source | Live | Local fallback |
 |---|---|---|

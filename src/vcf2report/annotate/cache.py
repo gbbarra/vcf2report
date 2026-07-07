@@ -10,12 +10,13 @@ import json
 from pathlib import Path
 from typing import Any, Optional
 
-from ..config import CACHE_DIR
+from .. import config
 
 
 def _cache_file(source: str) -> Path:
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    return CACHE_DIR / f"{source}.json"
+    # Read config.CACHE_DIR at call time so overrides (env / tests) take effect.
+    config.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    return config.CACHE_DIR / f"{source}.json"
 
 
 def load(source: str) -> dict[str, Any]:
