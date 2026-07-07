@@ -1,0 +1,10 @@
+# gnomAD gene constraint (subset). Columns: gene pli loeuf
+# LoF-intolerant if pLI>=0.9 or LOEUF<0.35 (drives PVS1).
+gene	pli	loeuf
+SCN1A	1.0	0.04
+KCNQ2	1.0	0.07
+CACNA1A	1.0	0.10
+OBSCN	0.0	1.35
+TTN	0.0	1.52
+CFTR	0.0	0.62
+HBB	0.11	0.85

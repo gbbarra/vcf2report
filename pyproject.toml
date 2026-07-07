@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vcf2report"
+version = "0.1.0"
+description = "Turn a raw exome VCF into a clinical-grade, auditable ACMG variant report — driven from Claude Desktop via Skills + MCP."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Gustavo Barra" }]
+keywords = ["genomics", "vcf", "acmg", "clinvar", "gnomad", "mcp", "claude"]
+
+# Core runtime deps are intentionally light so the pipeline runs headless
+# (tests + run_headless) without heavy bioinformatics wheels. cyvcf2/bcftools
+# accelerate parsing in production but a pure-Python reader is the fallback.
+dependencies = [
+    "jinja2>=3.0",
+]
+
+[project.optional-dependencies]
+# Faster/robust VCF handling for production (htslib-backed).
+fast = ["cyvcf2>=0.30"]
+# The MCP server that Claude Desktop connects to.
+mcp = ["mcp[cli]>=1.2"]
+# Live annotation API clients.
+live = ["httpx>=0.27"]
+dev = ["pytest>=7.0"]
+all = ["cyvcf2>=0.30", "mcp[cli]>=1.2", "httpx>=0.27", "pytest>=7.0"]
+
+[project.scripts]
+vcf2report = "vcf2report.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

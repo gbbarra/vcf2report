@@ -1,0 +1,65 @@
+{# Lab report template. Edit this to match your lab's sign-out layout. #}
+# Variant Interpretation Report — {{ r.sample_id }}
+
+> **DRAFT — for expert review. Not for clinical use.** Auto-generated candidate
+> interpretation to be verified and signed out by a qualified professional.
+
+- **Genome build:** {{ r.build }}
+- **Pipeline:** vcf2report v{{ r.tool_version }}
+- **Generated:** {{ r.generated }}
+- **Patient HPO terms:** {{ r.hpo_terms | join(', ') if r.hpo_terms else 'none provided' }}
+
+## Quality control & filtering funnel
+
+- Total variants: **{{ r.qc.total_variants }}**
+- PASS filter: **{{ r.qc.pass_filter }}**
+- After QC (DP/GQ/AB): **{{ r.qc.after_qc }}**
+- After rarity: **{{ r.qc.after_rarity }}**
+- After coding/splice impact: **{{ r.qc.after_impact }}**
+- **Candidates classified: {{ r.qc.candidates }}**
+{% for w in r.qc.warnings %}
+- ⚠️ {{ w }}
+{% endfor %}
+{% if r.qc.abraom_filtered %}
+
+### Brazilian-frequency filtering (ABraOM)
+
+Spurious candidates a gnomAD-only pipeline would have kept, removed using ABraOM (SABE) local frequencies:
+{% for note in r.qc.abraom_filtered %}
+- {{ note }}
+{% endfor %}
+{% endif %}
+
+## Reportable findings
+
+| Gene | Variant (c./p.) | Zyg | Consequence | ClinVar | gnomAD AF | ABraOM AF | HPO | ACMG |
+|---|---|---|---|---|---|---|---|---|
+{% for c in r.classifications %}
+| {{ c.variant.gene or '?' }} | {{ [c.variant.hgvs_c, c.variant.hgvs_p] | select | join(' ') or c.variant.key }} | {{ c.variant.zygosity or '?' }} | {{ c.variant.consequence or '?' }} | {{ c.annotation.clinvar_significance or '—' }} | {{ c.annotation.gnomad_af | pct }} | {{ c.annotation.abraom_af | pct }} | {{ c.annotation.hpo_match_score if c.annotation.hpo_match_score is not none else '—' }} | **{{ c.tier }}** |
+{% endfor %}
+
+## Per-variant ACMG rationale (auditable)
+{% for c in r.classifications %}
+
+### {{ c.variant.gene or '?' }} — {{ c.variant.hgvs_p or c.variant.hgvs_c or c.variant.key }} → {{ c.tier }}
+
+**Rule path:** `{{ c.rule_path }}`
+
+| Criterion | Applied | Strength | Evidence | Source | By | Reasoning |
+|---|---|---|---|---|---|---|
+{% for cr in c.criteria %}
+| **{{ cr.code }}** | {{ 'N/A' if not cr.applies else ('✅ met' if cr.met else '—') }} | {{ cr.applied_strength or cr.default_strength }} | {{ cr.evidence | kvjoin }} | {{ cr.citation | join('; ') or '—' }} | {{ cr.adjudicated_by }} | {{ cr.reasoning }} |
+{% endfor %}
+{% endfor %}
+
+## Methods
+{% for k, v in r.methods.items() %}
+- **{{ k }}:** {{ v }}
+{% endfor %}
+
+## Limitations & disclaimers
+
+- Single-proband analysis: criteria requiring parental/segregation/phasing data (PS2, PM3, PM6, PP1, BS4) are reported as N/A.
+- Judgment criteria (PM1, PS3, PP2, PM5) are surfaced for expert/model adjudication and default to not-met unless explicitly supported.
+- Population and clinical databases are versioned snapshots; re-check before sign-out.
+- **This is a draft-generation aid, not a diagnostic device.**

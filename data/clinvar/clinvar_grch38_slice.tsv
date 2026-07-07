@@ -1,0 +1,4 @@
+# ClinVar GRCh38 slice for the demo. Columns: key significance review_status accession condition date
+# key = CHROM-POS-REF-ALT (no 'chr' prefix)
+2-166003360-C-T	Pathogenic	criteria_provided,_multiple_submitters,_no_conflicts	VCV000012345	Developmental and epileptic encephalopathy 6 (Dravet syndrome)	2024-11
+20-63446204-G-A	Pathogenic	criteria_provided,_single_submitter	VCV000067890	Developmental and epileptic encephalopathy 7	2024-09

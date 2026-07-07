@@ -1,0 +1,6 @@
+# ABraOM (SABE, admixed Brazilian) allele frequencies. Columns: key af ac an
+# key = CHROM-POS-REF-ALT (no 'chr' prefix)
+# OBSCN: absent in gnomAD but common in Brazilians -> a gnomAD-only pipeline would
+# wrongly keep it as a rare candidate; ABraOM correctly flags it as common.
+1-228208000-G-A	0.032	78	2432
+2-178562809-G-A	0.075	182	2432
