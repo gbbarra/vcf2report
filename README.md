@@ -14,8 +14,10 @@ review**.
 
 ## What makes it different
 
-- **Auditable ACMG, not a black box.** Every one of the 28 ACMG/AMP criteria is
-  evaluated with the concrete evidence value, the source (DB + accession + date),
+- **Auditable ACMG, not a black box.** 19 of the 28 ACMG/AMP criteria are
+  evaluated (the rest — PS2/PM3/PM6/PP1/BS4 and other trio/segregation/phasing
+  rules — require data a single-proband VCF can't provide, and are reported N/A)
+  each with the concrete evidence value, the source (DB + accession + date),
   and a one-line reason. Deterministic criteria are decided by the engine; genuine
   judgment criteria are tagged for expert/model adjudication. You see *why* a
   variant is Pathogenic, and the exact combining-rule path to the tier.

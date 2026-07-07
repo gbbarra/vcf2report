@@ -30,7 +30,9 @@ src/vcf2report/
    (REVEL/CADD), HPO phenotype match. Every field records its source.
 4. **filter** — funnel: rarity (gnomAD **and** ABraOM) → coding/splice impact →
    phenotype ranking. ClinVar P/LP bypass the funnel. Records ABraOM-specific drops.
-5. **acmg** — evaluate all 28 criteria, apply the combining rules → 5-tier call
+5. **acmg** — evaluate 19 of the 28 criteria (the rest need trio/segregation/
+   phasing data unavailable from a single proband and are reported N/A), apply
+   the combining rules → 5-tier call
    with the full auditable trail.
 6. **report** — assemble a `ReportModel`, render Markdown (native in Claude Desktop).
 

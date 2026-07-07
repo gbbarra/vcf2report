@@ -29,7 +29,7 @@ final clinical result.
    `gnomad_frequency`, `clinvar_lookup`, `abraom_frequency`, and
    `hpo_phenotype_match`, then `classify_variant`.
 3. For each classified variant, invoke the **acmg-classify** skill's rules when you
-   need to explain or adjudicate judgment criteria (PM1, PS3, PP2, PM5). Never
+   need to explain or adjudicate judgment criteria (PS3, PS4, PM1, PM5, PP2). Never
    invent evidence; every criterion you assert must cite a source + accession + date.
 4. Invoke the **variant-report** skill to present the draft, keeping the auditable
    ACMG criterion tables verbatim.

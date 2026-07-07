@@ -1,8 +1,10 @@
 """MCP server exposing the vcf2report pipeline to Claude Desktop.
 
 Thin adapter: every tool delegates to the importable ``vcf2report`` package and
-returns compact JSON-friendly dicts (never large blobs — big data stays on disk,
-we pass keys and paths). Run with::
+returns compact JSON-friendly dicts — big per-variant data stays on disk and we
+pass keys/paths. The one deliberate exception is ``run_report``, which also
+returns the finished Markdown report inline so the reviewer sees it immediately
+in Claude Desktop (the report is the product). Run with::
 
     python -m vcf2report.mcp_server
 
@@ -53,9 +55,11 @@ def parse_vcf(vcf_path: str) -> dict:
     """
     variants, build, _ = _parse_vcf(vcf_path)
     kept, dropped = apply_qc(variants)
+    pass_filter = sum(1 for v in variants if v.filter_status in ("PASS", ".", "", None))
     return {
         "build": build,
         "total_variants": len(variants),
+        "pass_filter": pass_filter,
         "qc_passing": len(kept),
         "qc_dropped": [{"key": v.key, "reason": r} for v, r in dropped],
         "variants": [

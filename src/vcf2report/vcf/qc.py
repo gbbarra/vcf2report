@@ -11,6 +11,12 @@ from ..models import Variant
 
 
 def passes_qc(v: Variant) -> tuple[bool, str]:
+    # Carrier gate: the proband must actually carry this ALT allele. zygosity is
+    # None for a hom-ref (0/0), a no-call (./.), or a variant present only as a
+    # *different* ALT. Non-carriers must never reach candidates/report — not even
+    # via the ClinVar P/LP rarity/impact bypass in the filter step.
+    if v.zygosity is None:
+        return False, "non-carrier (hom-ref / no-call / other allele)"
     if v.filter_status and v.filter_status not in ("PASS", ".", ""):
         return False, f"FILTER={v.filter_status}"
     if v.depth is not None and v.depth < QC_MIN_DP:

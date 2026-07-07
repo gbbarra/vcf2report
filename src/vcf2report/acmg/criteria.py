@@ -220,12 +220,31 @@ def pp2(v: Variant, a: Annotation) -> CriterionResult:
     )
 
 
+def _insilico_direction(a: Annotation) -> Optional[str]:
+    """'pathogenic' | 'benign' | 'conflicting' | None from REVEL/CADD.
+
+    PP3 and BP4 are mutually exclusive: if predictors disagree (one deleterious,
+    one benign) neither fires, so a variant can never earn both a pathogenic- and
+    a benign-supporting line from the same in-silico evidence.
+    """
+    patho = (a.revel is not None and a.revel >= REVEL_PATHOGENIC) or \
+            (a.cadd_phred is not None and a.cadd_phred >= CADD_PATHOGENIC)
+    benign = (a.revel is not None and a.revel <= REVEL_BENIGN) or \
+             (a.cadd_phred is not None and a.cadd_phred <= CADD_BENIGN)
+    if patho and benign:
+        return "conflicting"
+    if patho:
+        return "pathogenic"
+    if benign:
+        return "benign"
+    return None
+
+
 @criterion("PP3")
 def pp3(v: Variant, a: Annotation) -> CriterionResult:
     name = "Multiple in-silico lines of evidence support a deleterious effect"
-    revel_hit = a.revel is not None and a.revel >= REVEL_PATHOGENIC
-    cadd_hit = a.cadd_phred is not None and a.cadd_phred >= CADD_PATHOGENIC
-    met = bool(revel_hit or cadd_hit)
+    direction = _insilico_direction(a)
+    met = direction == "pathogenic"
     return CriterionResult(
         "PP3", name, "supporting", applies=True, met=met,
         applied_strength="supporting" if met else None,
@@ -233,7 +252,9 @@ def pp3(v: Variant, a: Annotation) -> CriterionResult:
                   "revel_cutoff": REVEL_PATHOGENIC, "cadd_cutoff": CADD_PATHOGENIC},
         citation=[c for c in [a.source.get("insilico")] if c],
         reasoning=(f"REVEL={a.revel}, CADD={a.cadd_phred} above deleterious cutoffs"
-                   if met else "in-silico predictors below deleterious cutoffs / unavailable"),
+                   if met else ("in-silico predictors conflict — neither PP3 nor BP4 applied"
+                                if _insilico_direction(a) == "conflicting"
+                                else "in-silico predictors below deleterious cutoffs / unavailable")),
     )
 
 
@@ -303,16 +324,17 @@ def bs2(v: Variant, a: Annotation) -> CriterionResult:
 @criterion("BP4")
 def bp4(v: Variant, a: Annotation) -> CriterionResult:
     name = "Multiple in-silico lines of evidence suggest no impact"
-    revel_hit = a.revel is not None and a.revel <= REVEL_BENIGN
-    cadd_hit = a.cadd_phred is not None and a.cadd_phred <= CADD_BENIGN
-    met = bool(revel_hit or cadd_hit)
+    direction = _insilico_direction(a)
+    met = direction == "benign"
     return CriterionResult(
         "BP4", name, "supporting", applies=True, met=met,
         applied_strength="supporting" if met else None,
         evidence={"revel": a.revel, "cadd_phred": a.cadd_phred,
                   "revel_cutoff": REVEL_BENIGN, "cadd_cutoff": CADD_BENIGN},
         reasoning=(f"REVEL={a.revel}, CADD={a.cadd_phred} below benign cutoffs"
-                   if met else "in-silico predictors not benign / unavailable"),
+                   if met else ("in-silico predictors conflict — neither PP3 nor BP4 applied"
+                                if direction == "conflicting"
+                                else "in-silico predictors not benign / unavailable")),
     )
 
 

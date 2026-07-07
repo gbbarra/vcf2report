@@ -31,11 +31,16 @@ def run_pipeline(
     variants, build, _header = parse_vcf(vcf_path)
     qc = QCSummary(total_variants=len(variants), build=build or "unknown")
 
-    # Genome-build guard: everything downstream assumes GRCh38.
+    # Genome-build guard: everything downstream assumes GRCh38. A *confirmed*
+    # different build is not trusted for coordinate-keyed annotation (skip the
+    # GRCh38 DBs); an undeclared build is assumed GRCh38 with a warning.
+    build_trusted = True
     if build and build != config.GENOME_BUILD:
+        build_trusted = False
         qc.warnings.append(
             f"VCF build detected as {build}, expected {config.GENOME_BUILD}; "
-            "annotations may be mismatched — re-lift before clinical use."
+            "coordinate-based annotation (gnomAD/ClinVar/ABraOM) was SKIPPED — "
+            "re-lift to GRCh38 before clinical use."
         )
     if build is None:
         qc.warnings.append(
@@ -49,7 +54,8 @@ def run_pipeline(
     kept, _dropped = apply_qc(variants)
     qc.after_qc = len(kept)
 
-    annotated = [(v, annotate_variant(v, hpo_terms)) for v in kept]
+    annotated = [(v, annotate_variant(v, hpo_terms, build_trusted=build_trusted))
+                 for v in kept]
     candidates, funnel = filter_variants(annotated, max_af=max_af)
     qc.after_rarity = funnel.after_rarity
     qc.after_impact = funnel.after_impact

@@ -10,14 +10,31 @@ from ..models import Annotation, Variant
 from . import abraom, clinvar, extra, gnomad, hpo
 
 
-def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None) -> Annotation:
+def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
+                     build_trusted: bool = True) -> Annotation:
+    """Merge all sources into an :class:`Annotation`.
+
+    ``build_trusted=False`` (a detected genome-build mismatch) means the variant's
+    coordinates cannot be trusted against the GRCh38 databases, so all
+    coordinate-keyed lookups are skipped and gnomAD AF is left unknown (None) —
+    this prevents PM2 firing on a cross-build "absent" that is really a
+    wrong-position miss. Gene-level (constraint, HPO) evidence stays valid.
+    """
     patient_hpo = patient_hpo or []
 
-    g = gnomad.lookup(variant)
-    cv = clinvar.lookup(variant)
-    ab = abraom.lookup(variant)
+    if build_trusted:
+        g = gnomad.lookup(variant)
+        cv = clinvar.lookup(variant)
+        ab = abraom.lookup(variant)
+        isi = extra.insilico(variant)
+    else:
+        note = "skipped — genome-build mismatch (coordinates not GRCh38)"
+        g = {"af": None, "ac": None, "an": None, "hom": None, "pop": None, "_source": note}
+        cv = {"significance": None, "review_status": None, "accession": None,
+              "condition": None, "date": None, "_source": note}
+        ab = {"af": None, "_source": note}
+        isi = {"revel": None, "cadd": None, "_source": note}
     con = extra.gene_constraint(variant.gene)
-    isi = extra.insilico(variant)
     ph = hpo.match(variant.gene, patient_hpo)
 
     return Annotation(

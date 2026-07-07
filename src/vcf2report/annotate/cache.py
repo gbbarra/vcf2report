@@ -7,6 +7,8 @@ Set ``OFFLINE=1`` to force cache/local-only (no network at all).
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any, Optional
 
@@ -36,4 +38,14 @@ def get(source: str, key: str) -> Optional[dict]:
 def put(source: str, key: str, value: dict) -> None:
     data = load(source)
     data[key] = value
-    _cache_file(source).write_text(json.dumps(data, indent=2, sort_keys=True))
+    fp = _cache_file(source)
+    # Atomic write (temp file + os.replace) so a crash/concurrent writer can never
+    # leave a truncated JSON that would silently discard the whole cache.
+    fd, tmp = tempfile.mkstemp(dir=str(fp.parent), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as fh:
+            json.dump(data, fh, indent=2, sort_keys=True)
+        os.replace(tmp, fp)
+    except OSError:
+        if os.path.exists(tmp):
+            os.unlink(tmp)

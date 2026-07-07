@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 
 from .. import __version__
@@ -18,7 +19,7 @@ class ReportModel:
     classifications: list[Classification]  # ranked candidates, classified
     build: str = GENOME_BUILD
     tool_version: str = __version__
-    generated: str = "(timestamp filled by caller)"
+    generated: str = ""
     methods: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -48,5 +49,6 @@ def build_report(sample_id: str, hpo_terms: list[str], qc: QCSummary,
     order = {"Pathogenic": 0, "Likely Pathogenic": 1,
              "Uncertain Significance (VUS)": 2, "Likely Benign": 3, "Benign": 4}
     ranked = sorted(classifications, key=lambda c: order.get(c.tier, 9))
+    generated = datetime.now(timezone.utc).isoformat(timespec="seconds")
     return ReportModel(sample_id=sample_id, hpo_terms=hpo_terms, qc=qc,
-                       classifications=ranked, methods=methods)
+                       classifications=ranked, methods=methods, generated=generated)
