@@ -34,10 +34,34 @@ def test_gnomad_live_popmax(monkeypatch):
     monkeypatch.setattr(_http, "post_json", lambda *a, **k: _GNOMAD_PAYLOAD)
     v = Variant(chrom="2", pos=166003360, ref="C", alt="T")
     r = gnomad.lookup(v)
-    assert r["pop"] == "nfe"                 # sas/nfe_bgr excluded despite higher counts
-    assert abs(r["af"] - 3 / 68000) < 1e-12
+    # sas is a full continental group INCLUDED in popmax; nfe_bgr (underscore) is
+    # a sub-population and excluded.
+    assert r["pop"] == "sas"
+    assert abs(r["af"] - 5 / 10000) < 1e-12
     assert r["hom"] == 1
     assert "live" in r["_source"]
+
+
+def test_gnomad_errors_block_falls_back(monkeypatch):
+    """A 200 carrying a non-'not found' GraphQL error must fall back, not fake AF 0."""
+    monkeypatch.setenv("OFFLINE", "")
+    monkeypatch.setattr(_http, "post_json", lambda *a, **k: {
+        "data": {"variant": None},
+        "errors": [{"message": "Query timed out. Please try again."}],
+    })
+    v = Variant(chrom="2", pos=178562809, ref="G", alt="A")   # TTN, in local snapshot
+    r = gnomad.lookup(v)
+    assert r["af"] == 0.081
+    assert "local snapshot" in r["_source"]
+
+
+def test_gnomad_unknown_when_lookup_fails_and_no_local(monkeypatch):
+    """Transport failure with no local record -> AF None (unknown), not absent."""
+    monkeypatch.setenv("OFFLINE", "")
+    monkeypatch.setattr(_http, "post_json", lambda *a, **k: None)
+    r = gnomad.lookup(Variant(chrom="9", pos=999999, ref="A", alt="G"))
+    assert r["af"] is None
+    assert "unavailable" in r["_source"]
 
 
 def test_gnomad_not_found_is_absent(monkeypatch):
@@ -122,3 +146,55 @@ def test_clinvar_legacy_field_shape():
     out = clinvar._extract(docsum)
     assert out["significance"] == "Benign"
     assert out["review_status"] == "single submitter"
+
+
+def test_clinvar_empty_search_falls_back_to_local(monkeypatch):
+    """esearch with no hits must fall back to the local slice, not cache a miss."""
+    monkeypatch.setenv("OFFLINE", "")
+    monkeypatch.setattr(_http, "throttle", lambda *a, **k: None)
+    monkeypatch.setattr(_http, "get_json",
+                        lambda url, params, **k: {"esearchresult": {"idlist": []}})
+    v = Variant(chrom="2", pos=166003360, ref="C", alt="T", gene="SCN1A")
+    r = clinvar.lookup(v)
+    assert r["significance"] == "Pathogenic"   # from local slice
+    assert "slice" in r["_source"]
+
+
+def test_clinvar_rejects_same_pos_unconfirmed_allele(monkeypatch):
+    """Same position but no confirmable ref/alt must be REJECTED (not attached)."""
+    monkeypatch.setenv("OFFLINE", "")
+    monkeypatch.setattr(_http, "throttle", lambda *a, **k: None)
+    summary = {"result": {"uids": ["1"], "1": {
+        "accession": "VCV_OTHER",
+        "germline_classification": {"description": "Benign"},
+        # matching chr/pos but NO ref/alt and NO canonical_spdi -> cannot confirm
+        "variation_set": [{"variation_loc": [{
+            "assembly_name": "GRCh38", "chr": "2", "start": "166003360"}]}],
+    }}}
+    monkeypatch.setattr(_http, "get_json", lambda url, params, **k: (
+        {"esearchresult": {"idlist": ["1"]}} if "esearch" in url else summary))
+    v = Variant(chrom="2", pos=166003360, ref="C", alt="T", gene="SCN1A")
+    r = clinvar.lookup(v)
+    # Rejected the unconfirmed record -> fell back to authoritative local slice.
+    assert r["accession"] == "VCV000012345"
+    assert "slice" in r["_source"]
+
+
+def test_clinvar_matches_via_canonical_spdi(monkeypatch):
+    """Allele can be positively confirmed from canonical_spdi when loc lacks alt."""
+    monkeypatch.setenv("OFFLINE", "")
+    monkeypatch.setattr(_http, "throttle", lambda *a, **k: None)
+    summary = {"result": {"uids": ["1"], "1": {
+        "accession": "VCV000012345",
+        "germline_classification": {"description": "Pathogenic"},
+        "variation_set": [{
+            "canonical_spdi": "NC_000002.12:166003359:C:T",
+            "variation_loc": [{"assembly_name": "GRCh38", "chr": "2",
+                               "start": "166003360"}]}],
+    }}}
+    monkeypatch.setattr(_http, "get_json", lambda url, params, **k: (
+        {"esearchresult": {"idlist": ["1"]}} if "esearch" in url else summary))
+    v = Variant(chrom="2", pos=166003360, ref="C", alt="T", gene="SCN1A")
+    r = clinvar.lookup(v)
+    assert r["significance"] == "Pathogenic"
+    assert "live" in r["_source"]

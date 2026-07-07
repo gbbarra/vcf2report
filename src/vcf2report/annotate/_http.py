@@ -41,7 +41,10 @@ def _request(req: urllib.request.Request, timeout: float, retries: int) -> Optio
                 time.sleep(2 ** attempt)
                 continue
             return None
-        except (urllib.error.URLError, TimeoutError, ValueError, OSError):
+        except Exception:
+            # Final safety net: any transport/read/parse failure (URLError,
+            # timeout, JSON error, http.client.IncompleteRead, ...) becomes None
+            # so callers always fall back cleanly instead of crashing.
             if attempt < retries:
                 time.sleep(2 ** attempt)
                 continue

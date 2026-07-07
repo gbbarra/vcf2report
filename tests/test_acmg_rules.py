@@ -40,6 +40,17 @@ def test_abraom_blocks_pm2():
     assert pm2.met is False, "ABraOM presence should block PM2"
 
 
+def test_pm2_not_met_when_gnomad_frequency_unknown():
+    """Unknown gnomAD AF (None) must not be treated as absence -> PM2 not met."""
+    v = Variant(chrom="1", pos=228208000, ref="G", alt="A", gene="OBSCN",
+                consequence="missense_variant")
+    a = Annotation(gnomad_af=None, abraom_af=0.0)  # frequency unavailable
+    result = classify(v, a)
+    pm2 = next(c for c in result.criteria if c.code == "PM2")
+    assert pm2.met is False
+    assert pm2.confidence == "low"
+
+
 def test_conflicting_evidence_is_vus():
     """Pathogenic + benign evidence resolves to VUS, not a forced call."""
     crits = [

@@ -145,12 +145,23 @@ def pm2(v: Variant, a: Annotation) -> CriterionResult:
     must NOT earn PM2, which prevents a real class of local misclassifications.
     """
     name = "Absent or ultra-rare in population databases (gnomAD + ABraOM)"
-    gaf = a.gnomad_af if a.gnomad_af is not None else 0.0
+    # gnomAD AF None means 'frequency unavailable' (lookup failed), NOT absence —
+    # PM2 must not fire because we cannot assert the variant is rare.
+    gnomad_unknown = a.gnomad_af is None
     baf = a.abraom_af if a.abraom_af is not None else 0.0
+    cites = [c for c in (a.source.get("gnomad"), a.source.get("abraom")) if c]
+    if gnomad_unknown:
+        return CriterionResult(
+            "PM2", name, "moderate", applies=True, met=False, adjudicated_by="engine",
+            confidence="low",
+            evidence={"gnomad_af": None, "abraom_af": a.abraom_af},
+            citation=cites,
+            reasoning="gnomAD frequency unavailable — cannot assert population absence",
+        )
+    gaf = a.gnomad_af
     rare_global = gaf <= PM2_RARE_AF
     rare_local = baf <= PM2_RARE_AF
     met = rare_global and rare_local
-    cites = [c for c in (a.source.get("gnomad"), a.source.get("abraom")) if c]
     reason = (
         f"gnomAD popmax AF={gaf:.6f}, ABraOM AF={baf:.6f} — both at/under {PM2_RARE_AF:g}"
         if met else

@@ -45,10 +45,27 @@ def _ncbi_params() -> dict:
             "email": config.NCBI_EMAIL, "api_key": config.NCBI_API_KEY}
 
 
+def _spdi_alleles(vset: dict) -> tuple[Optional[str], Optional[str]]:
+    """Extract (ref, alt) from a canonical SPDI 'ACC:pos:deletion:insertion'."""
+    spdi = vset.get("canonical_spdi") or ""
+    parts = spdi.split(":")
+    if len(parts) >= 4:
+        return parts[-2] or None, parts[-1] or None
+    return None, None
+
+
 def _loc_matches(variant: Variant, docsum: dict) -> bool:
-    """True if the ClinVar record's location matches this variant's chr/pos(/alt)."""
+    """True only on a POSITIVE chr+pos+ref+alt match.
+
+    A clinical tool must never attach a classification for a different allele to
+    the patient's variant, so a record whose ref/alt cannot be positively
+    confirmed (missing from both variation_loc and the SPDI) is REJECTED — the
+    caller then falls back to the authoritative local slice.
+    """
     chrom = variant.chrom[3:] if variant.chrom.lower().startswith("chr") else variant.chrom
+    want_ref, want_alt = variant.ref.upper(), variant.alt.upper()
     for vset in docsum.get("variation_set", []) or []:
+        spdi_ref, spdi_alt = _spdi_alleles(vset)
         for loc in vset.get("variation_loc", []) or []:
             if (loc.get("assembly_name") or "").upper() != config.GENOME_BUILD.upper():
                 continue
@@ -56,10 +73,12 @@ def _loc_matches(variant: Variant, docsum: dict) -> bool:
                 continue
             if str(loc.get("start")) != str(variant.pos):
                 continue
-            alt = loc.get("alt")
-            if alt and str(alt).upper() != variant.alt.upper():
-                continue  # position matched but a different alt allele
-            return True
+            ref = loc.get("ref") or spdi_ref
+            alt = loc.get("alt") or spdi_alt
+            if not ref or not alt:
+                continue  # cannot positively confirm the allele -> reject
+            if str(ref).upper() == want_ref and str(alt).upper() == want_alt:
+                return True
     return False
 
 
@@ -74,7 +93,7 @@ def _extract(docsum: dict) -> dict:
     condition = "; ".join(
         t.get("trait_name", "") for t in traits if t.get("trait_name")
     ) or None
-    accession = docsum.get("accession") or docsum.get("obj_type")
+    accession = docsum.get("accession")  # VCV...; do not fall back to obj_type
     return {"significance": significance, "review_status": review,
             "accession": accession, "condition": condition, "date": date}
 
@@ -82,10 +101,10 @@ def _extract(docsum: dict) -> dict:
 def _live(variant: Variant) -> Optional[dict]:
     """Best-effort ClinVar lookup via NCBI E-utilities (esearch -> esummary).
 
-    Coordinate-driven and conservative: only returns a record whose location
-    (assembly/chr/pos and, when present, alt) matches the query variant. Any
-    ambiguity, transport error, or no-match returns None so the caller falls
-    back to the authoritative local ClinVar slice.
+    Coordinate-driven and conservative: returns a record ONLY on a positive
+    chr+pos+ref+alt match. Any transport error, empty search, or no exact match
+    returns None so the caller falls back to the authoritative local ClinVar
+    slice — a live 'not found' must never override bundled local data.
     """
     from . import _http
 
@@ -103,8 +122,7 @@ def _live(variant: Variant) -> Optional[dict]:
         return None
     ids = (((search.get("esearchresult") or {}).get("idlist")) or [])
     if not ids:
-        return {"significance": None, "review_status": None, "accession": None,
-                "condition": None, "date": None}  # searched, genuinely absent
+        return None  # no live enrichment -> fall back to the local slice
 
     _http.throttle("ncbi", interval)
     summary = _http.get_json(
@@ -128,7 +146,9 @@ def lookup(variant: Variant) -> dict:
 
     if not config.offline():
         live = _live(variant)
-        if live is not None:
+        # Only accept/cache a positive live hit; never let a live miss override
+        # or poison the authoritative local slice.
+        if live is not None and live.get("significance"):
             cache.put(_SOURCE, variant.key, live)
             return {**live, "_source": "ClinVar (live E-utilities)"}
 
