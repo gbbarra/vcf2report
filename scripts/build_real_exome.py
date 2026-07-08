@@ -55,7 +55,11 @@ VEP_FORMAT = ("Allele|Consequence|IMPACT|SYMBOL|Gene|Feature_type|Feature|BIOTYP
 _ALLELE_NUM_IDX = VEP_FORMAT.split("|").index("ALLELE_NUM")
 
 AUTOSOMES = [f"chr{i}" for i in range(1, 23)] + ["chrX"]
-MERGE_GAP = 2000   # merge exome intervals within this gap → fewer remote fetches
+# Merge exome intervals within this gap into one *fetch* window. A large gap means
+# far fewer remote range-requests (round-trip latency dominates); the intronic
+# records swept in are cheaply discarded by the exome-membership test on emit, so
+# the output stays a true exome while the network cost collapses.
+MERGE_GAP = 100000
 
 
 def load_intervals(path: Path) -> dict[str, list[tuple[int, int]]]:
@@ -66,9 +70,11 @@ def load_intervals(path: Path) -> dict[str, list[tuple[int, int]]]:
                 continue
             c, s, e, *_ = line.split("\t")
             by_chrom.setdefault(c, []).append((int(s), int(e)))
+    raw: dict[str, list[tuple[int, int]]] = {}
     merged: dict[str, list[tuple[int, int]]] = {}
     for c, ivs in by_chrom.items():
         ivs.sort()
+        raw[c] = ivs
         out: list[tuple[int, int]] = []
         cs, ce = ivs[0]
         for s, e in ivs[1:]:
@@ -79,7 +85,14 @@ def load_intervals(path: Path) -> dict[str, list[tuple[int, int]]]:
                 cs, ce = s, e
         out.append((cs, ce))
         merged[c] = out
-    return merged
+    return raw, merged
+
+
+def _in_exome(starts: list[int], ivs: list[tuple[int, int]], pos: int) -> bool:
+    """True if 1-based ``pos`` falls within any exome interval (bisect on starts)."""
+    import bisect
+    i = bisect.bisect_right(starts, pos) - 1   # rightmost interval starting <= pos
+    return i >= 0 and pos <= ivs[i][1]
 
 
 def _num_a(info, key: str, alt_idx0: int):
@@ -102,7 +115,7 @@ def _fmt_num(x) -> str:
 
 
 def process_batch(chrom: str, sample: str, windows: list[tuple[int, int]],
-                  out_path: Path) -> tuple[str, int, int]:
+                  raw_ivs: list[tuple[int, int]], out_path: Path) -> tuple[str, int, int]:
     """Stream a batch of one chromosome's exome windows; write carrier rows.
 
     Batching a chromosome into several tasks lets the big chromosomes run across
@@ -129,6 +142,7 @@ def process_batch(chrom: str, sample: str, windows: list[tuple[int, int]],
     if sample not in vf.header.samples:
         raise SystemExit(f"sample {sample!r} not in callset")
 
+    starts = [s for s, _ in raw_ivs]
     rows: list[tuple[int, str]] = []
     n_seen = 0
     for (start, end) in windows:
@@ -143,6 +157,8 @@ def process_batch(chrom: str, sample: str, windows: list[tuple[int, int]],
                 time.sleep(1.5 * (attempt + 1))
         for rec in recs:
             n_seen += 1
+            if not _in_exome(starts, raw_ivs, rec.pos):
+                continue  # intronic record swept in by the wide fetch → discard
             smp = rec.samples[sample]
             gt = smp.get("GT")
             if not gt or all(a in (0, None) for a in gt):
@@ -210,16 +226,16 @@ def main() -> int:
     if config.offline():
         raise SystemExit("network egress required: set VCF2REPORT_ALLOW_NETWORK=1")
 
-    intervals = load_intervals(Path(args.intervals))
-    chroms = [c for c in args.chroms.split(",") if c in intervals]
+    raw_intervals, windows_by_chrom = load_intervals(Path(args.intervals))
+    chroms = [c for c in args.chroms.split(",") if c in windows_by_chrom]
     tmp = Path(args.tmp)
     tmp.mkdir(parents=True, exist_ok=True)
 
-    # Split each chromosome's windows into batches so big chromosomes fan out
+    # Split each chromosome's fetch windows into batches so big chromosomes fan out
     # across many workers instead of monopolising one thread.
     tasks: list[tuple[str, int, list[tuple[int, int]]]] = []
     for c in chroms:
-        wins = intervals[c]
+        wins = windows_by_chrom[c]
         for bi in range(0, len(wins), args.batch):
             tasks.append((c, bi // args.batch, wins[bi:bi + args.batch]))
 
@@ -229,7 +245,7 @@ def main() -> int:
     per_batch: dict[tuple[str, int], int] = {}
     done = 0
     with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        futs = {ex.submit(process_batch, c, args.sample, wins,
+        futs = {ex.submit(process_batch, c, args.sample, wins, raw_intervals[c],
                           tmp / f"{c}.{bi}.rows"): (c, bi)
                 for (c, bi, wins) in tasks}
         failed = 0
@@ -255,7 +271,7 @@ def main() -> int:
     with open(out, "w") as w:
         w.write(_header(args.sample, chroms))
         for c in chroms:
-            n_batches = (len(intervals[c]) + args.batch - 1) // args.batch
+            n_batches = (len(windows_by_chrom[c]) + args.batch - 1) // args.batch
             rows: list[tuple[int, str]] = []
             for bi in range(n_batches):       # iterate all batches; skip gaps
                 bf = tmp / f"{c}.{bi}.rows"
