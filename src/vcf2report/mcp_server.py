@@ -13,6 +13,8 @@ Requires ``pip install "mcp[cli]"``.
 """
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Optional
 
@@ -130,6 +132,73 @@ def run_report(vcf_path: str, hpo_terms: Optional[list[str]] = None,
                    "tier": c.tier, "rule_path": c.rule_path} for c in report.classifications],
         "markdown": render_markdown(report),
     }
+
+
+@mcp.tool()
+def data_status() -> dict:
+    """Report readiness: annotation tools on PATH + bundled local datasets.
+
+    Call this first on a new machine to see what's ready. The bundled data runs
+    the offline demo immediately; the annotation tools + downloaded databases are
+    needed to annotate a raw real exome (see docs/SETUP.md, docs/ANNOTATION.md).
+    """
+    tools = {t: bool(shutil.which(t)) for t in ("bcftools", "snpEff", "vcfanno")}
+    bundled = {
+        "sample_vcf": config.SAMPLE_VCF.exists(),
+        "clinvar_slice": config.CLINVAR_LOCAL.exists(),
+        "gnomad_snapshot": config.GNOMAD_LOCAL.exists(),
+        "abraom": config.ABRAOM_LOCAL.exists(),
+        "hpo": config.HPO_GENES_LOCAL.exists(),
+    }
+    return {
+        "annotation_tools": tools,
+        "bundled_local_data": bundled,
+        "ready_for_offline_demo": all(bundled.values()),
+        "ready_to_annotate_real_exome": all(tools.values()),
+        "offline_mode": config.offline(),
+    }
+
+
+def _looks_annotated(variants) -> bool:
+    sample = variants[:200]
+    if any(v.consequence for v in sample):
+        return True
+    keys = ("ANN", "CSQ", "gnomad_AF", "CLNSIG", "REVEL")
+    return any(any(k in (v.info or {}) for k in keys) for v in sample)
+
+
+@mcp.tool()
+def annotate_and_report(vcf_path: str, hpo_terms: Optional[list[str]] = None,
+                        reference: str = "", out_dir: str = "") -> dict:
+    """One-call path for a bench scientist: raw VCF -> draft report.
+
+    If the VCF is already annotated (ANN/CSQ or population fields in INFO) it is
+    classified directly. Otherwise, if the annotation tools and a GRCh38
+    ``reference`` FASTA are available, it is annotated locally (SnpEff + vcfanno)
+    first. Returns the report path, tiers, timings, and the rendered Markdown.
+    """
+    variants, _build, _ = _parse_vcf(vcf_path)
+    used = vcf_path
+    steps: list[str] = []
+    if not _looks_annotated(variants):
+        have_tools = all(shutil.which(t) for t in ("bcftools", "snpEff", "vcfanno"))
+        if reference and have_tools:
+            out = Path(out_dir) if out_dir else config.OUTPUT_DIR
+            out.mkdir(parents=True, exist_ok=True)
+            annotated = out / (Path(vcf_path).stem.replace(".vcf", "") + ".annotated.vcf.gz")
+            script = str(config.REPO_ROOT / "scripts" / "annotate_vcf.sh")
+            subprocess.run(["bash", script, vcf_path, reference, str(annotated)], check=True)
+            used = str(annotated)
+            steps.append("annotated locally via bcftools norm + SnpEff + vcfanno")
+        else:
+            steps.append(
+                "VCF is not annotated and (tools or reference) are unavailable; "
+                "classified on coordinates only — consequence-based criteria are "
+                "limited. See docs/ANNOTATION.md to annotate first.")
+    result = run_report(used, hpo_terms=hpo_terms, out_dir=out_dir)
+    result["steps"] = steps
+    result["annotated_input"] = used
+    return result
 
 
 def main() -> None:  # pragma: no cover

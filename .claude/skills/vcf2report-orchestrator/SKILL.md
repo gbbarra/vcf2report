@@ -20,14 +20,18 @@ final clinical result.
    HPO. Phenotype drives candidate ranking and the PP4 criterion, so do not skip it.
 
 ## Steps (use the MCP tools of the `vcf2report` server)
+0. On a new machine, call `data_status()` to confirm what's ready (bundled data
+   runs the demo; the annotation tools are needed for a raw real exome).
 1. `parse_vcf(vcf_path)` → report the genome build and the QC funnel (total →
    PASS → QC-passing). If the build is not GRCh38, warn the user and stop unless
    they confirm — annotations assume GRCh38.
-2. Decide candidates. The fastest path is `run_report(vcf_path, hpo_terms)`, which
-   runs the whole pipeline and returns the tiers, the ABraOM-filtered list, and
-   the rendered Markdown. For a guided walkthrough instead, per candidate call
-   `gnomad_frequency`, `clinvar_lookup`, `abraom_frequency`, and
-   `hpo_phenotype_match`, then `classify_variant`.
+2. Produce the report. The one-call path is `annotate_and_report(vcf_path,
+   hpo_terms, reference)`: it annotates a raw VCF locally (SnpEff + vcfanno) if
+   needed, else classifies an already-annotated VCF directly, and returns tiers,
+   the ABraOM-filtered list, per-stage timings, and the Markdown. (If the VCF is
+   already annotated you can also call `run_report(vcf_path, hpo_terms)`.) For a
+   guided walkthrough of one candidate, call `gnomad_frequency`, `clinvar_lookup`,
+   `abraom_frequency`, `hpo_phenotype_match`, then `classify_variant`.
 3. For each classified variant, invoke the **acmg-classify** skill's rules when you
    need to explain or adjudicate judgment criteria (PS3, PS4, PM1, PM5, PP2). Never
    invent evidence; every criterion you assert must cite a source + accession + date.
