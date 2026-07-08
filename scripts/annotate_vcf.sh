@@ -23,20 +23,43 @@ SNPEFF_DB="${SNPEFF_DB:-GRCh38.105}"
 VCFANNO_CONF="${VCFANNO_CONF:-$(dirname "$0")/vcfanno.conf.toml}"
 THREADS="${THREADS:-4}"
 
-for tool in bcftools bgzip tabix vcfanno snpEff; do
+# SnpEff can be a PATH command (conda) OR a downloaded jar. Set SNPEFF_JAR=/path/
+# snpEff.jar to use the zip install without any wrapper on PATH.
+if [[ -n "${SNPEFF_JAR:-}" ]]; then
+  SNPEFF=(java -Xmx8g -jar "$SNPEFF_JAR")
+else
+  SNPEFF=(snpEff)
+fi
+
+# RENAME_CHR=1 strips the "chr" prefix before SnpEff (DRAGEN VCFs are chr1.., the
+# Ensembl SnpEff DB is 1..; mismatched names => SnpEff annotates nothing).
+_norm_out="$RAW"
+
+for tool in bcftools bgzip tabix vcfanno; do
   command -v "$tool" >/dev/null 2>&1 || { echo "ERROR: '$tool' not found on PATH" >&2; exit 1; }
 done
+if [[ -z "${SNPEFF_JAR:-}" ]]; then
+  command -v snpEff >/dev/null 2>&1 || { echo "ERROR: 'snpEff' not on PATH (or set SNPEFF_JAR=/path/snpEff.jar)" >&2; exit 1; }
+fi
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 echo "[1/3] Normalizing (split multiallelics + left-align) ..."
-bcftools norm -m -any -f "$REF" --threads "$THREADS" -Oz -o "$tmp/norm.vcf.gz" "$RAW"
+IN="$RAW"
+if [[ "${RENAME_CHR:-0}" == "1" ]]; then
+  echo "      RENAME_CHR=1 -> stripping 'chr' prefix to match the Ensembl SnpEff DB"
+  bcftools annotate --rename-chrs \
+    <(for c in $(seq 1 22) X Y MT; do echo "chr$c $c"; done; echo "chrM MT") \
+    "$RAW" -Oz -o "$tmp/renamed.vcf.gz"
+  IN="$tmp/renamed.vcf.gz"
+fi
+bcftools norm -m -any -f "$REF" --threads "$THREADS" -Oz -o "$tmp/norm.vcf.gz" "$IN"
 bcftools index -t "$tmp/norm.vcf.gz"
 
 echo "[2/3] SnpEff consequence + HGVS ($SNPEFF_DB) ..."
 # -hgvs (default) emits HGVS.c/HGVS.p; -canon restricts to canonical transcripts.
-snpEff -noStats -hgvs "$SNPEFF_DB" "$tmp/norm.vcf.gz" | bgzip > "$tmp/snpeff.vcf.gz"
+"${SNPEFF[@]}" -noStats -hgvs "$SNPEFF_DB" "$tmp/norm.vcf.gz" | bgzip > "$tmp/snpeff.vcf.gz"
 bcftools index -t "$tmp/snpeff.vcf.gz"
 
 echo "[3/3] vcfanno population + clinical annotations ..."
