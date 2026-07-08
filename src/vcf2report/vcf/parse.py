@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Iterator, Optional
 
 from ..models import Variant
+from . import annparse
 
 _MISSING = {".", "-1"}
 
@@ -124,12 +125,17 @@ def parse_vcf(path: str | Path) -> tuple[list[Variant], str | None, list[str]]:
 def _parse_pure(path: Path) -> tuple[list[Variant], str | None, list[str]]:
     variants: list[Variant] = []
     header: list[str] = []
+    csq_format = None
+    csq_done = False
     with _open(path) as fh:
         for line in fh:
             line = line.rstrip("\n")
             if line.startswith("#"):
                 header.append(line)
                 continue
+            if not csq_done:  # header is complete once data starts
+                csq_format = annparse.parse_csq_format(header)
+                csq_done = True
             cols = line.split("\t")
             if len(cols) < 8:
                 continue
@@ -139,17 +145,19 @@ def _parse_pure(path: Path) -> tuple[list[Variant], str | None, list[str]]:
             sample = cols[9] if len(cols) > 9 else ""
             for i, alt_allele in enumerate(alt.split(",")):  # split multiallelics
                 metrics = _sample_metrics(fmt, sample, i) if fmt and sample else {}
+                ann = annparse.extract(info_d, alt_allele, csq_format) or {}
                 variants.append(Variant(
                     chrom=chrom, pos=int(pos), ref=ref, alt=alt_allele,
-                    gene=info_d.get("GENE"),
-                    hgvs_c=info_d.get("HGVSC"),
-                    hgvs_p=info_d.get("HGVSP"),
-                    consequence=info_d.get("CSQ"),
+                    gene=ann.get("gene"),
+                    hgvs_c=ann.get("hgvs_c"),
+                    hgvs_p=ann.get("hgvs_p"),
+                    consequence=ann.get("consequence"),
                     filter_status=filt,
                     zygosity=metrics.get("zygosity"),
                     depth=metrics.get("depth"),
                     gq=metrics.get("gq"),
                     allele_balance=metrics.get("allele_balance"),
+                    info=info_d,
                 ))
     return variants, detect_build(header), header
 
@@ -159,6 +167,7 @@ def _parse_cyvcf2(path: Path) -> tuple[list[Variant], str | None, list[str]]:  #
 
     vcf = VCF(str(path))
     header = [str(h) for h in vcf.raw_header.splitlines()]
+    csq_format = annparse.parse_csq_format(header)
     variants: list[Variant] = []
     for rec in vcf:
         gts = rec.genotypes[0][:2] if rec.genotypes else None
@@ -183,13 +192,14 @@ def _parse_cyvcf2(path: Path) -> tuple[list[Variant], str | None, list[str]]:  #
                         allele_balance = round(ad[i + 1] / total, 3)
                 except (TypeError, ValueError, IndexError):
                     allele_balance = None
-            info = dict(rec.INFO)
+            info = {k: str(v) for k, v in dict(rec.INFO).items()}
+            ann = annparse.extract(info, str(alt_allele), csq_format) or {}
             variants.append(Variant(
                 chrom=rec.CHROM, pos=rec.POS, ref=rec.REF, alt=alt_allele,
-                gene=info.get("GENE"), hgvs_c=info.get("HGVSC"),
-                hgvs_p=info.get("HGVSP"), consequence=info.get("CSQ"),
+                gene=ann.get("gene"), hgvs_c=ann.get("hgvs_c"),
+                hgvs_p=ann.get("hgvs_p"), consequence=ann.get("consequence"),
                 filter_status=rec.FILTER or "PASS", zygosity=zyg,
-                depth=depth, gq=gq, allele_balance=allele_balance,
+                depth=depth, gq=gq, allele_balance=allele_balance, info=info,
             ))
     return variants, detect_build(header), header
 

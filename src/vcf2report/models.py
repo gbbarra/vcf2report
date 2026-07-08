@@ -30,6 +30,7 @@ class Variant:
     gq: Optional[int] = None           # genotype quality
     allele_balance: Optional[float] = None
     filter_status: Optional[str] = None  # VCF FILTER column
+    info: dict[str, str] = field(default_factory=dict)  # raw INFO (annotator fields)
 
     @property
     def key(self) -> str:
@@ -47,6 +48,7 @@ class Variant:
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
+        d.pop("info", None)  # keep MCP/JSON output compact
         d["key"] = self.key
         return d
 

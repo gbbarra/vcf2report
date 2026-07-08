@@ -64,3 +64,22 @@ AF_DOMINANT_MAX = 0.001
 AF_RECESSIVE_MAX = 0.005
 # BA1 stand-alone benign threshold (Richards 2015).
 AF_BA1 = 0.05
+
+# ---------------------------------------------------------------------------
+# INFO field aliases for reading a *pre-annotated* VCF (SnpEff/VEP + vcfanno/
+# bcftools). First matching key wins. Lets vcf2report consume a real annotated
+# VCF fully offline — no per-variant DB lookups. Extend for your annotation.
+# ---------------------------------------------------------------------------
+INFO_ALIASES = {
+    "gnomad_af": ["gnomad_AF", "gnomAD_AF", "gnomADg_AF", "gnomad4_AF", "AF_gnomad", "gnomad_af"],
+    "gnomad_ac": ["gnomad_AC", "gnomAD_AC", "gnomad_ac"],
+    "gnomad_an": ["gnomad_AN", "gnomAD_AN", "gnomad_an"],
+    "gnomad_hom": ["gnomad_nhomalt", "gnomAD_nhomalt", "gnomad_hom", "nhomalt"],
+    "abraom_af": ["ABraOM_AF", "abraom_AF", "ABRAOM_AF", "abraom_af"],
+    "clinvar_sig": ["CLNSIG", "clinvar_CLNSIG", "clinvar_sig"],
+    "clinvar_review": ["CLNREVSTAT", "clinvar_CLNREVSTAT"],
+    "clinvar_disease": ["CLNDN", "clinvar_CLNDN"],
+    "clinvar_accession": ["CLNVI", "ALLELEID", "clinvar_VCV"],
+    "revel": ["REVEL", "dbNSFP_REVEL_score", "revel"],
+    "cadd": ["CADD_PHRED", "CADD_phred", "cadd_phred", "CADD_PHRED_score"],
+}

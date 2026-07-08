@@ -7,7 +7,7 @@ from so the ACMG criteria and the report can cite provenance.
 from __future__ import annotations
 
 from ..models import Annotation, Variant
-from . import abraom, clinvar, extra, gnomad, hpo
+from . import abraom, clinvar, extra, from_vcf, gnomad, hpo
 
 
 def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
@@ -23,10 +23,30 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
     patient_hpo = patient_hpo or []
 
     if build_trusted:
-        g = gnomad.lookup(variant)
-        cv = clinvar.lookup(variant)
-        ab = abraom.lookup(variant)
-        isi = extra.insilico(variant)
+        # Prefer annotations already in the VCF INFO (SnpEff/VEP + vcfanno) — the
+        # fast, offline path for a real pre-annotated exome — then fall back to the
+        # local snapshots / live clients only for whatever INFO didn't provide.
+        vi = from_vcf.extract(variant)
+        if "gnomad_af" in vi:
+            g = {"af": vi["gnomad_af"], "ac": vi.get("gnomad_ac"),
+                 "an": vi.get("gnomad_an"), "hom": vi.get("gnomad_hom"),
+                 "pop": None, "_source": "VCF INFO"}
+        else:
+            g = gnomad.lookup(variant)
+        if "clinvar_significance" in vi:
+            cv = {"significance": vi["clinvar_significance"],
+                  "review_status": vi.get("clinvar_review_status"),
+                  "accession": vi.get("clinvar_accession"),
+                  "condition": vi.get("clinvar_condition"), "date": None,
+                  "_source": "VCF INFO"}
+        else:
+            cv = clinvar.lookup(variant)
+        ab = {"af": vi["abraom_af"], "_source": "VCF INFO"} if "abraom_af" in vi \
+            else abraom.lookup(variant)
+        if "revel" in vi or "cadd" in vi:
+            isi = {"revel": vi.get("revel"), "cadd": vi.get("cadd"), "_source": "VCF INFO"}
+        else:
+            isi = extra.insilico(variant)
     else:
         note = "skipped — genome-build mismatch (coordinates not GRCh38)"
         g = {"af": None, "ac": None, "an": None, "hom": None, "pop": None, "_source": note}
