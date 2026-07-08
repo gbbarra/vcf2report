@@ -68,14 +68,17 @@ def test_pipeline_warns_on_multisample_without_selection(tmp_path):
 
 
 # --- report build reflects the DETECTED build (found via real-VCF validation) --
+_ROW = "2\t100\t.\tA\tG\t.\tPASS\tGENE=X;CSQ=missense_variant\tGT\t0/1\n"
+_CHROM = "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS\n"
+
+
 def test_report_build_matches_detected_build(tmp_path):
-    body = "2\t100\t.\tA\tG\t.\tPASS\tGENE=X;CSQ=missense_variant\tGT\t0/1\n"
-    p37 = _w(tmp_path, body, name="b37.vcf", header_extra="##reference=hg19\n")
-    r37 = run_pipeline(p37, hpo_terms=[])
-    assert r37.build == "GRCh37"        # not the assumed GRCh38
+    p37 = tmp_path / "b37.vcf"
+    p37.write_text("##fileformat=VCFv4.2\n##reference=hg19\n" + _CHROM + _ROW)
+    assert run_pipeline(p37, hpo_terms=[]).build == "GRCh37"   # not the assumed GRCh38
+
     p_unknown = tmp_path / "u.vcf"
-    p_unknown.write_text("##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\t"
-                         "FILTER\tINFO\tFORMAT\tS\n" + body)
+    p_unknown.write_text("##fileformat=VCFv4.2\n" + _CHROM + _ROW)
     assert run_pipeline(p_unknown, hpo_terms=[]).build == "unknown"
 
 
