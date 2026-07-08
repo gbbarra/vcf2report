@@ -117,14 +117,31 @@ def process_batch(chrom: str, sample: str, windows: list[tuple[int, int]],
         return chrom, n, -1
 
     url = GNOMAD_BASE.format(chrom=chrom)
-    vf = pysam.VariantFile(url)
+    vf = None
+    for attempt in range(4):                 # remote opens flake; retry with backoff
+        try:
+            vf = pysam.VariantFile(url)
+            break
+        except Exception:
+            if attempt == 3:
+                raise
+            time.sleep(1.5 * (attempt + 1))
     if sample not in vf.header.samples:
         raise SystemExit(f"sample {sample!r} not in callset")
 
     rows: list[tuple[int, str]] = []
     n_seen = 0
     for (start, end) in windows:
-        for rec in vf.fetch(chrom, start, end):
+        recs = None
+        for attempt in range(4):             # transient fetch resets → retry the window
+            try:
+                recs = list(vf.fetch(chrom, start, end))
+                break
+            except Exception:
+                if attempt == 3:
+                    raise
+                time.sleep(1.5 * (attempt + 1))
+        for rec in recs:
             n_seen += 1
             smp = rec.samples[sample]
             gt = smp.get("GT")
@@ -215,36 +232,47 @@ def main() -> int:
         futs = {ex.submit(process_batch, c, args.sample, wins,
                           tmp / f"{c}.{bi}.rows"): (c, bi)
                 for (c, bi, wins) in tasks}
+        failed = 0
         for fut in as_completed(futs):
             c, bi = futs[fut]
-            _, n, _ = fut.result()
-            per_batch[(c, bi)] = n
+            try:
+                _, n, _ = fut.result()
+                per_batch[(c, bi)] = n
+            except Exception as e:            # a batch that fails is simply not
+                failed += 1                   # written; a resume run will retry it
+                print(f"  ! batch {c}.{bi} failed: {type(e).__name__}", flush=True)
             done += 1
             if done % 20 == 0 or done == len(tasks):
                 got = sum(per_batch.values())
-                print(f"  {done}/{len(tasks)} batches, {got} carriers so far "
-                      f"[{time.time()-t0:.0f}s]", flush=True)
+                print(f"  {done}/{len(tasks)} batches, {got} carriers so far, "
+                      f"{failed} failed [{time.time()-t0:.0f}s]", flush=True)
 
     # merge batches per chromosome, sorted by position, into one VCF
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     total = 0
+    missing = 0
     with open(out, "w") as w:
         w.write(_header(args.sample, chroms))
         for c in chroms:
+            n_batches = (len(intervals[c]) + args.batch - 1) // args.batch
             rows: list[tuple[int, str]] = []
-            bi = 0
-            while (tmp / f"{c}.{bi}.rows").exists():
-                for line in (tmp / f"{c}.{bi}.rows").read_text().splitlines():
+            for bi in range(n_batches):       # iterate all batches; skip gaps
+                bf = tmp / f"{c}.{bi}.rows"
+                if not bf.exists():
+                    missing += 1
+                    continue
+                for line in bf.read_text().splitlines():
                     if line:
                         rows.append((int(line.split("\t", 2)[1]), line))
-                bi += 1
             rows.sort(key=lambda r: r[0])
             for _, line in rows:
                 w.write(line + "\n")
             total += len(rows)
     dt = time.time() - t0
-    print(f"\nWrote {total} real exome variants for {args.sample} to {out} in {dt:.0f}s")
+    status = "COMPLETE" if missing == 0 else f"PARTIAL ({missing} batches missing — rerun to resume)"
+    print(f"\nWrote {total} real exome variants for {args.sample} to {out} "
+          f"in {dt:.0f}s [{status}]")
     return 0
 
 
