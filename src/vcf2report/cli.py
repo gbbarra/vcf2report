@@ -40,6 +40,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default=None, help="Output directory for the report.")
     parser.add_argument("--stdout", action="store_true",
                         help="Print the Markdown report to stdout instead of writing a file.")
+    parser.add_argument("--timing", action="store_true",
+                        help="Print per-stage timings (parse/QC/annotate/filter/classify).")
     args = parser.parse_args(argv)
 
     hpo_path = args.hpo
@@ -49,8 +51,17 @@ def main(argv: list[str] | None = None) -> int:
 
     report = run_pipeline(args.vcf, hpo_terms=hpo_terms, sample_id=args.sample_id)
 
+    def _print_timing() -> None:
+        if not report.timings:
+            return
+        print("  timing (s):")
+        for k, v in report.timings.items():
+            print(f"    {k}: {v}")
+
     if args.stdout:
         sys.stdout.write(render_markdown(report))
+        if args.timing:
+            _print_timing()
         return 0
 
     out_dir = Path(args.out) if args.out else config.OUTPUT_DIR
@@ -59,6 +70,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  candidates classified: {report.qc.candidates}")
     for c in report.classifications:
         print(f"  - {c.variant.gene}: {c.tier}")
+    if args.timing:
+        _print_timing()
     return 0
 
 

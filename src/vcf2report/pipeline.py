@@ -6,6 +6,7 @@ owns it (parse / qc / annotate / filter / acmg / report).
 """
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from . import config
@@ -28,7 +29,17 @@ def run_pipeline(
     vcf_path = Path(vcf_path)
     sample_id = sample_id or vcf_path.stem.replace(".vcf", "")
 
+    timings: dict[str, float] = {}
+    _t = time.perf_counter()
+
+    def _mark(stage: str) -> None:
+        nonlocal _t
+        now = time.perf_counter()
+        timings[stage] = round(now - _t, 4)
+        _t = now
+
     variants, build, _header = parse_vcf(vcf_path)
+    _mark("parse_s")
     qc = QCSummary(total_variants=len(variants), build=build or "unknown")
 
     # Genome-build guard: everything downstream assumes GRCh38. A *confirmed*
@@ -53,14 +64,25 @@ def run_pipeline(
 
     kept, _dropped = apply_qc(variants)
     qc.after_qc = len(kept)
+    _mark("qc_s")
 
     annotated = [(v, annotate_variant(v, hpo_terms, build_trusted=build_trusted))
                  for v in kept]
+    _mark("annotate_s")
     candidates, funnel = filter_variants(annotated, max_af=max_af)
     qc.after_rarity = funnel.after_rarity
     qc.after_impact = funnel.after_impact
     qc.candidates = funnel.candidates
     qc.abraom_filtered = funnel.abraom_filtered
+    _mark("filter_s")
 
     classifications: list[Classification] = [classify(v, a) for v, a in candidates]
-    return build_report(sample_id, hpo_terms, qc, classifications)
+    _mark("classify_s")
+
+    report = build_report(sample_id, hpo_terms, qc, classifications)
+    total = round(sum(timings.values()), 4)
+    timings["total_s"] = total
+    if total > 0:
+        timings["variants_per_s"] = round(len(variants) / total, 1)
+    report.timings = timings
+    return report

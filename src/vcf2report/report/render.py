@@ -116,6 +116,14 @@ def _render_markdown_builtin(report: ReportModel) -> str:
         L.append(f"- **{k}:** {val}")
     L.append("")
 
+    if report.timings:
+        L.append("## Performance (this run)")
+        L.append("")
+        for k, val in report.timings.items():
+            unit = "" if k in ("variants_per_s",) else " s"
+            L.append(f"- **{k.replace('_s', '').replace('_', ' ')}:** {val}{unit}")
+        L.append("")
+
     L.append("## Limitations & disclaimers")
     L.append("")
     L.append("- Single-proband analysis: criteria requiring parental/segregation/"

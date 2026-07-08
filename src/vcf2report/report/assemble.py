@@ -21,6 +21,7 @@ class ReportModel:
     tool_version: str = __version__
     generated: str = ""
     methods: dict[str, Any] = field(default_factory=dict)
+    timings: dict[str, float] = field(default_factory=dict)  # per-stage seconds
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -31,6 +32,7 @@ class ReportModel:
             "generated": self.generated,
             "qc": self.qc.to_dict(),
             "methods": self.methods,
+            "timings": self.timings,
             "classifications": [c.to_dict() for c in self.classifications],
         }
 

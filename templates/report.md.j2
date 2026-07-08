@@ -56,6 +56,13 @@ Spurious candidates a gnomAD-only pipeline would have kept, removed using ABraOM
 {% for k, v in r.methods.items() %}
 - **{{ k }}:** {{ v }}
 {% endfor %}
+{% if r.timings %}
+
+## Performance (this run)
+{% for k, v in r.timings.items() %}
+- **{{ k | replace('_s', '') | replace('_', ' ') }}:** {{ v }}{% if k != 'variants_per_s' %} s{% endif %}
+{% endfor %}
+{% endif %}
 
 ## Limitations & disclaimers
 

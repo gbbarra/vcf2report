@@ -107,6 +107,14 @@ def test_report_render_no_placeholder_and_expected_content():
     assert "Candidates classified: 4" in md
 
 
+def test_pipeline_reports_per_stage_timings():
+    report = run_pipeline(config.SAMPLE_VCF, hpo_terms=["HP:0001250"])
+    for stage in ("parse_s", "qc_s", "annotate_s", "filter_s", "classify_s", "total_s"):
+        assert stage in report.timings
+    assert report.timings["total_s"] >= 0
+    assert "variants_per_s" in report.timings
+
+
 # --- #13 ClinVar modeled as PP5 (supporting), PS1 no longer strong ----------
 def test_clinvar_is_pp5_supporting_not_ps1_strong():
     v = Variant(chrom="20", pos=63446204, ref="G", alt="A", gene="KCNQ2",
