@@ -1,0 +1,43 @@
+{
+  "id": "vcf2report-demo-case-1",
+  "subject": { "id": "DEMO-001", "sex": "FEMALE" },
+  "phenotypicFeatures": [
+    { "type": { "id": "HP:0001250", "label": "Seizure" } },
+    { "type": { "id": "HP:0001263", "label": "Global developmental delay" } },
+    { "type": { "id": "HP:0002133", "label": "Status epilepticus" } },
+    { "type": { "id": "HP:0000238", "label": "Hydrocephalus" }, "excluded": true }
+  ],
+  "interpretations": [
+    {
+      "id": "interpretation-1",
+      "progressStatus": "SOLVED",
+      "diagnosis": {
+        "disease": { "id": "OMIM:607208", "label": "Developmental and epileptic encephalopathy 6 (Dravet)" },
+        "genomicInterpretations": [
+          {
+            "interpretationStatus": "CAUSATIVE",
+            "variantInterpretation": {
+              "variationDescriptor": {
+                "id": "var-1",
+                "geneContext": { "valueId": "HGNC:10585", "symbol": "SCN1A" },
+                "vcfRecord": { "genomeAssembly": "GRCh38", "chrom": "2", "pos": 166003360, "ref": "C", "alt": "T" },
+                "expressions": [
+                  { "syntax": "hgvs.c", "value": "NM_001165963.4:c.1834C>T" },
+                  { "syntax": "hgvs.p", "value": "p.Arg612Ter" }
+                ],
+                "allelicState": { "id": "GENO:0000135", "label": "heterozygous" }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "metaData": {
+    "created": "2024-11-01T00:00:00Z",
+    "phenopacketSchemaVersion": "2.0",
+    "resources": [
+      { "id": "hp", "name": "Human Phenotype Ontology", "namespacePrefix": "HP" }
+    ]
+  }
+}
