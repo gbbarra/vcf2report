@@ -137,6 +137,15 @@ def lookup(variant: Variant) -> dict:
 
     live_failed = False
     if not config.offline():
+        # Prefer remote tabix over the public GCS bucket: it carries no API rate
+        # limit and works in networks where only storage.googleapis.com is
+        # reachable. Fall back to the GraphQL API if tabix can't run.
+        from . import gnomad_remote
+        remote = gnomad_remote.query(variant)
+        if remote is not None:
+            cache.put(_SOURCE, variant.key, remote)
+            return {**remote,
+                    "_source": f"gnomAD v{gnomad_remote.RELEASE} (remote tabix)"}
         live = _live(variant)
         if live is not None:
             cache.put(_SOURCE, variant.key, live)

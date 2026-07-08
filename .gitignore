@@ -27,3 +27,10 @@ annotation_data/
 
 # OS
 .DS_Store
+
+# Remote-tabix index files pysam downloads into cwd, scratch working dir, and the
+# reproducible (script-generated) real-exome outputs — all regenerable, not tracked.
+/*.tbi
+*.bgz.tbi
+scratch/
+data/real/
