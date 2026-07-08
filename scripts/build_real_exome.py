@@ -101,12 +101,17 @@ def _fmt_num(x) -> str:
     return str(x)
 
 
-def process_chrom(chrom: str, sample: str, windows: list[tuple[int, int]],
+def process_batch(chrom: str, sample: str, windows: list[tuple[int, int]],
                   out_path: Path) -> tuple[str, int, int]:
-    """Stream one chromosome's exome windows; write this sample's carrier rows."""
+    """Stream a batch of one chromosome's exome windows; write carrier rows.
+
+    Batching a chromosome into several tasks lets the big chromosomes run across
+    many workers at once, so wall time is bounded by the slowest *batch*, not the
+    slowest whole chromosome.
+    """
     import pysam
 
-    # Resume: a completed chromosome already has its rows on disk.
+    # Resume: a completed batch already has its rows on disk.
     if out_path.exists() and out_path.stat().st_size > 0:
         n = sum(1 for _ in out_path.open())
         return chrom, n, -1
@@ -178,7 +183,9 @@ def main() -> int:
     ap.add_argument("--out", default=str(REPO / "data" / "real" / "HG01565_exome.vcf"))
     ap.add_argument("--chroms", default=",".join(AUTOSOMES))
     ap.add_argument("--intervals", default=str(REPO / "scratch" / "exome.interval_list"))
-    ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--workers", type=int, default=16)
+    ap.add_argument("--batch", type=int, default=120,
+                    help="exome windows per task (smaller -> more parallelism)")
     ap.add_argument("--tmp", default=str(REPO / "scratch" / "real"))
     args = ap.parse_args()
 
@@ -191,30 +198,51 @@ def main() -> int:
     tmp = Path(args.tmp)
     tmp.mkdir(parents=True, exist_ok=True)
 
-    print(f"sample={args.sample} chroms={len(chroms)} workers={args.workers}", flush=True)
-    t0 = time.time()
-    results: dict[str, int] = {}
-    with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        futs = {ex.submit(process_chrom, c, args.sample, intervals[c],
-                          tmp / f"{c}.rows"): c for c in chroms}
-        for fut in as_completed(futs):
-            c = futs[fut]
-            chrom, n, seen = fut.result()
-            results[chrom] = n
-            print(f"  {chrom}: {n:>6} carrier variants "
-                  f"({seen} sites scanned)  [{time.time()-t0:.0f}s]", flush=True)
+    # Split each chromosome's windows into batches so big chromosomes fan out
+    # across many workers instead of monopolising one thread.
+    tasks: list[tuple[str, int, list[tuple[int, int]]]] = []
+    for c in chroms:
+        wins = intervals[c]
+        for bi in range(0, len(wins), args.batch):
+            tasks.append((c, bi // args.batch, wins[bi:bi + args.batch]))
 
-    # merge per-chromosome temp files into one sorted VCF
+    print(f"sample={args.sample} chroms={len(chroms)} tasks={len(tasks)} "
+          f"workers={args.workers}", flush=True)
+    t0 = time.time()
+    per_batch: dict[tuple[str, int], int] = {}
+    done = 0
+    with ThreadPoolExecutor(max_workers=args.workers) as ex:
+        futs = {ex.submit(process_batch, c, args.sample, wins,
+                          tmp / f"{c}.{bi}.rows"): (c, bi)
+                for (c, bi, wins) in tasks}
+        for fut in as_completed(futs):
+            c, bi = futs[fut]
+            _, n, _ = fut.result()
+            per_batch[(c, bi)] = n
+            done += 1
+            if done % 20 == 0 or done == len(tasks):
+                got = sum(per_batch.values())
+                print(f"  {done}/{len(tasks)} batches, {got} carriers so far "
+                      f"[{time.time()-t0:.0f}s]", flush=True)
+
+    # merge batches per chromosome, sorted by position, into one VCF
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     total = 0
     with open(out, "w") as w:
         w.write(_header(args.sample, chroms))
         for c in chroms:
-            body = (tmp / f"{c}.rows").read_text()
-            if body.strip():
-                w.write(body)
-                total += results[c]
+            rows: list[tuple[int, str]] = []
+            bi = 0
+            while (tmp / f"{c}.{bi}.rows").exists():
+                for line in (tmp / f"{c}.{bi}.rows").read_text().splitlines():
+                    if line:
+                        rows.append((int(line.split("\t", 2)[1]), line))
+                bi += 1
+            rows.sort(key=lambda r: r[0])
+            for _, line in rows:
+                w.write(line + "\n")
+            total += len(rows)
     dt = time.time() - t0
     print(f"\nWrote {total} real exome variants for {args.sample} to {out} in {dt:.0f}s")
     return 0
