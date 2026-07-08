@@ -99,18 +99,19 @@ def _render_markdown_builtin(report: ReportModel) -> str:
     L.append("")
     _findings_table(primary)
 
-    L.append("## Secondary / incidental findings")
+    L.append("## Secondary findings (ACMG SF v3.2)")
     L.append("")
-    L.append("_P/LP variants unrelated to the patient's indication. Review each "
-             "against the ACMG SF v3.2 gene list and your lab's opt-in reporting "
-             "policy before returning._")
+    L.append("_P/LP variants in ACMG SF v3.2 genes, unrelated to the indication — "
+             "reportable actionable secondary findings, subject to the patient's "
+             "opt-in policy._")
     L.append("")
     _findings_table(secondary)
 
     if other:
         L.append("## Other candidates")
         L.append("")
-        L.append("_Uncertain/benign candidates not matching the phenotype._")
+        L.append("_Incidental P/LP not on the ACMG SF list, plus phenotype-unrelated "
+                 "uncertain/benign candidates. Not routinely reported._")
         L.append("")
         _findings_table(other)
 

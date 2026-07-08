@@ -39,5 +39,6 @@ def test_end_to_end_pipeline_tiers():
     # OBSCN dropped by ABraOM, TTN dropped by rarity -> not classified
     assert "OBSCN" not in tiers
     assert "TTN" not in tiers
-    assert report.qc.candidates == 4
+    assert tiers["MSH2"] == "Likely Pathogenic"   # incidental ACMG SF finding
+    assert report.qc.candidates == 5
     assert any("OBSCN" in n for n in report.qc.abraom_filtered)

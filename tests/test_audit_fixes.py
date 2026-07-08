@@ -101,10 +101,10 @@ def test_report_render_no_placeholder_and_expected_content():
     md = render_markdown(report)
     assert "(timestamp filled by caller)" not in md
     assert report.generated                       # real ISO timestamp
-    for gene in ("SCN1A", "PAX6", "KCNQ2", "CACNA1A"):
+    for gene in ("SCN1A", "PAX6", "MSH2", "KCNQ2", "CACNA1A"):
         assert gene in md
     assert "ABraOM" in md and "OBSCN" in md        # differentiator callout
-    assert "Candidates classified: 4" in md
+    assert "Candidates classified: 5" in md
 
 
 def test_primary_vs_secondary_findings_split():
@@ -114,8 +114,10 @@ def test_primary_vs_secondary_findings_split():
     primary, secondary, other = split_findings(report.classifications)
     pg = {c.variant.gene for c in primary}
     sg = {c.variant.gene for c in secondary}
+    og = {c.variant.gene for c in other}
     assert {"SCN1A", "KCNQ2", "CACNA1A"} <= pg   # phenotype-related
-    assert "PAX6" in sg                          # incidental P/LP, no phenotype match
+    assert "MSH2" in sg                          # unrelated P/LP in an ACMG SF gene
+    assert "PAX6" in og                          # unrelated P/LP but NOT on the SF list
     assert all(c.tier in ("Pathogenic", "Likely Pathogenic") for c in secondary)
 
 

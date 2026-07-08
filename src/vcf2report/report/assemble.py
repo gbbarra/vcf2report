@@ -70,16 +70,20 @@ def split_findings(classifications):
     """Partition reported candidates into (primary, secondary, other).
 
     * **primary** — phenotype-related (HPO overlap) AND not benign: diagnostic.
-    * **secondary/incidental** — no phenotype overlap AND P/LP (an incidental
-      medically-relevant finding; review against ACMG SF v3.2 + lab opt-in).
-    * **other** — everything else (phenotype-matched benign, unrelated VUS/benign).
+    * **secondary** — an unrelated P/LP variant in an **ACMG SF v3.2 gene**: a
+      reportable, actionable secondary finding (subject to patient opt-in).
+    * **other** — everything else, incl. unrelated P/LP in a non-SF gene (an
+      incidental finding that is not on the actionable SF list), phenotype-matched
+      benign, and unrelated VUS/benign.
     """
+    from ..config import ACMG_SF_GENES
     primary, secondary, other = [], [], []
     for c in classifications:
         related = (c.annotation.hpo_match_score or 0) > 0
+        is_sf = c.variant.gene in ACMG_SF_GENES
         if related and c.tier not in _BENIGN:
             primary.append(c)
-        elif not related and c.tier in _PLP:
+        elif not related and c.tier in _PLP and is_sf:
             secondary.append(c)
         else:
             other.append(c)

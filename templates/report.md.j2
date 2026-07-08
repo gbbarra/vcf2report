@@ -47,14 +47,14 @@ _None._
 _Variants in genes overlapping the patient's phenotype._
 {{ findings(primary) }}
 
-## Secondary / incidental findings
+## Secondary findings (ACMG SF v3.2)
 
-_P/LP variants unrelated to the patient's indication. Review each against the ACMG SF v3.2 gene list and your lab's opt-in reporting policy before returning._
+_P/LP variants in ACMG SF v3.2 genes, unrelated to the indication — reportable actionable secondary findings, subject to the patient's opt-in policy._
 {{ findings(secondary) }}
 {% if other %}
 ## Other candidates
 
-_Uncertain/benign candidates not matching the phenotype._
+_Incidental P/LP not on the ACMG SF list, plus phenotype-unrelated uncertain/benign candidates. Not routinely reported._
 {{ findings(other) }}
 {% endif %}
 

@@ -82,6 +82,28 @@ AF_RECESSIVE_MAX = 0.005
 AF_BA1 = 0.05
 
 # ---------------------------------------------------------------------------
+# ACMG SF v3.2 (Miller et al., 2023) secondary-findings genes. A P/LP variant in
+# one of these, unrelated to the indication, is a reportable secondary finding
+# (subject to the patient's opt-in). Curated subset of the ~81-gene list — verify
+# and update against the current ACMG SF publication before clinical use.
+# ---------------------------------------------------------------------------
+ACMG_SF_GENES = {
+    # Hereditary cancer
+    "APC", "MUTYH", "BMPR1A", "SMAD4", "BRCA1", "BRCA2", "PALB2", "MLH1", "MSH2",
+    "MSH6", "PMS2", "MEN1", "RET", "NF2", "SDHB", "SDHC", "SDHD", "SDHAF2", "MAX",
+    "TMEM127", "VHL", "WT1", "TP53", "STK11", "PTEN", "CDH1", "RB1", "TSC1", "TSC2",
+    # Cardiovascular
+    "FBN1", "TGFBR1", "TGFBR2", "SMAD3", "ACTA2", "MYH11", "COL3A1", "LDLR", "APOB",
+    "PCSK9", "MYH7", "MYBPC3", "TNNT2", "TNNI3", "TPM1", "MYL3", "ACTC1", "PRKAG2",
+    "MYL2", "LMNA", "RYR2", "PKP2", "DSP", "DSC2", "TMEM43", "DSG2", "KCNQ1", "KCNH2",
+    "SCN5A", "CASQ2", "TRDN", "CALM1", "CALM2", "CALM3", "TNNC1", "BAG3", "DES", "FLNC",
+    "RBM20", "TTN",
+    # Malignant hyperthermia, metabolic, other
+    "RYR1", "CACNA1S", "OTC", "GAA", "GLA", "ATP7B", "BTD", "RPE65", "TTR",
+    "HFE", "ACVRL1", "ENG", "HNF1A",
+}
+
+# ---------------------------------------------------------------------------
 # INFO field aliases for reading a *pre-annotated* VCF (SnpEff/VEP + vcfanno/
 # bcftools). First matching key wins. Lets vcf2report consume a real annotated
 # VCF fully offline — no per-variant DB lookups. Extend for your annotation.

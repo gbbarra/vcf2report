@@ -79,18 +79,19 @@ The Agent Skills in `.claude/skills/` encode the SOP; the MCP tools (`parse_vcf`
 The bundled synthetic sample (`data/sample/sample_exome.vcf`, phenotype: seizures
 + developmental delay) yields:
 
-| Gene | Variant | ACMG tier | Why |
-|---|---|---|---|
-| SCN1A | p.Arg612Ter | **Pathogenic** | PVS1 + PM2 + PP4 + PP5 (matches the seizure phenotype) |
-| PAX6 | p.Arg68Ter | **Likely Pathogenic** | PVS1 + PM2 — incidental LoF finding, no phenotype match so not over-called |
-| KCNQ2 | p.Arg213Trp | **VUS** | PM2 + PP3 + PP4 + PP5 (ClinVar P is supporting, not strong) |
-| CACNA1A | p.Ser34Pro | **VUS** | PM2 only |
-| OBSCN | p.Val100Ile | *dropped* | common in ABraOM, absent in gnomAD |
+| Gene | Variant | ACMG tier | Bucket | Why |
+|---|---|---|---|---|
+| SCN1A | p.Arg612Ter | **Pathogenic** | Primary | PVS1 + PM2 + PP4 + PP5 (matches the seizure phenotype) |
+| KCNQ2 | p.Arg213Trp | **VUS** | Primary | PM2 + PP3 + PP4 + PP5 (ClinVar P is supporting, not strong) |
+| CACNA1A | p.Ser34Pro | **VUS** | Primary | PM2 only |
+| MSH2 | p.Arg406Ter | **Likely Pathogenic** | **Secondary (ACMG SF)** | PVS1 + PM2 — actionable incidental finding on an SF v3.2 gene |
+| PAX6 | p.Arg68Ter | **Likely Pathogenic** | Other | PVS1 + PM2 — incidental, but PAX6 is not on the ACMG SF list |
+| OBSCN | p.Val100Ile | *dropped* | — | common in ABraOM, absent in gnomAD |
 
-The tier spectrum is honest: a clear **Pathogenic** call on-phenotype, an incidental
-**Likely Pathogenic** correctly *not* escalated to Pathogenic (no phenotype/ClinVar
-support), two **VUS**, and a spurious candidate removed by Brazilian frequencies —
-each with its full sourced ACMG derivation.
+The report separates **primary** (phenotype-related) from **secondary** findings
+gated on the real **ACMG SF v3.2** gene list — so MSH2 (Lynch, actionable) is a
+reportable secondary finding while PAX6 (aniridia, not on the SF list) is routed to
+"other". Each call carries its full sourced ACMG derivation.
 
 See [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) for the walkthrough.
 

@@ -7,7 +7,7 @@ from vcf2report.vcf.qc import apply_qc
 def test_sample_parses():
     variants, build, header = parse_vcf(config.SAMPLE_VCF)
     assert build == "GRCh38"
-    assert len(variants) == 10
+    assert len(variants) == 11
     scn1a = next(v for v in variants if v.gene == "SCN1A")
     assert scn1a.key == "2-166003360-C-T"
     assert scn1a.consequence == "stop_gained"
@@ -21,7 +21,7 @@ def test_qc_drops_low_depth_and_lowqual():
     dropped_genes = {v.gene for v, _ in dropped}
     assert "CFTR" in dropped_genes   # DP=6 < 10
     assert "HBB" in dropped_genes    # FILTER=LowQual
-    assert len(kept) == 8
+    assert len(kept) == 9
 
 
 def test_variant_key_strips_chr_prefix():

@@ -49,6 +49,9 @@ ROWS = [
     # seizure indication (no phenotype match -> no PP4, no ClinVar -> no PP5) so it
     # lands at LP (PVS1 + PM2), not over-called to Pathogenic.
     ("11", 31806340, "G", "A", "PAX6", "stop_gained", "c.202C>T", "p.Arg68Ter", "PASS", "0/1:46:99:23,23"),
+    # Incidental finding on an ACMG SF v3.2 gene (MSH2 / Lynch syndrome): a
+    # reportable, actionable secondary finding, unrelated to the seizure indication.
+    ("2", 47476300, "C", "T", "MSH2", "stop_gained", "c.1216C>T", "p.Arg406Ter", "PASS", "0/1:44:99:22,22"),
     ("1", 228208000, "G", "A", "OBSCN", "missense_variant", "c.298G>A", "p.Val100Ile", "PASS", "0/1:50:99:26,24"),
     ("2", 178562809, "G", "A", "TTN", "missense_variant", "c.1000G>A", "p.Val334Ile", "PASS", "0/1:60:99:30,30"),
     ("1", 11790000, "A", "G", "MTOR", "intron_variant", "", "", "PASS", "0/1:42:99:21,21"),
