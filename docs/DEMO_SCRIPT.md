@@ -29,6 +29,11 @@ export OFFLINE=1                      # dress-rehearsal: no network needed
    - **SCN1A p.Arg612Ter → Pathogenic**, with the criterion table: PVS1 (LoF in a
      LoF-intolerant gene) + PM2 (absent in gnomAD **and** ABraOM) + PP4 (phenotype
      match 1.0) + PP5 (reviewed ClinVar). Not a score — a sourced derivation.
+   - **PAX6 p.Arg68Ter → Likely Pathogenic** — an incidental LoF finding
+     (PVS1 + PM2) in a gene unrelated to the seizure indication. It is correctly
+     *not* escalated to Pathogenic because there is no phenotype match (no PP4)
+     and no ClinVar assertion (no PP5). Shows the tool catches actionable
+     secondary findings and tiers them honestly.
    - **ABraOM callout**: *OBSCN was dropped — absent from gnomAD but 3.2% in
      Brazilians. A gnomAD-only pipeline would have chased it.*
    - **KCNQ2 → VUS even though ClinVar says Pathogenic** — the engine derives the

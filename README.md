@@ -81,13 +81,16 @@ The bundled synthetic sample (`data/sample/sample_exome.vcf`, phenotype: seizure
 
 | Gene | Variant | ACMG tier | Why |
 |---|---|---|---|
-| SCN1A | p.Arg612Ter | **Pathogenic** | PVS1 + PM2 + PP4 + PP5 |
+| SCN1A | p.Arg612Ter | **Pathogenic** | PVS1 + PM2 + PP4 + PP5 (matches the seizure phenotype) |
+| PAX6 | p.Arg68Ter | **Likely Pathogenic** | PVS1 + PM2 — incidental LoF finding, no phenotype match so not over-called |
 | KCNQ2 | p.Arg213Trp | **VUS** | PM2 + PP3 + PP4 + PP5 (ClinVar P is supporting, not strong) |
 | CACNA1A | p.Ser34Pro | **VUS** | PM2 only |
 | OBSCN | p.Val100Ile | *dropped* | common in ABraOM, absent in gnomAD |
 
-(Most real candidates are VUS — the tool surfaces the one clear Pathogenic call
-and shows the full sourced ACMG derivation for each.)
+The tier spectrum is honest: a clear **Pathogenic** call on-phenotype, an incidental
+**Likely Pathogenic** correctly *not* escalated to Pathogenic (no phenotype/ClinVar
+support), two **VUS**, and a spurious candidate removed by Brazilian frequencies —
+each with its full sourced ACMG derivation.
 
 See [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) for the walkthrough.
 

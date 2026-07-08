@@ -101,10 +101,10 @@ def test_report_render_no_placeholder_and_expected_content():
     md = render_markdown(report)
     assert "(timestamp filled by caller)" not in md
     assert report.generated                       # real ISO timestamp
-    for gene in ("SCN1A", "KCNQ2", "CACNA1A"):
+    for gene in ("SCN1A", "PAX6", "KCNQ2", "CACNA1A"):
         assert gene in md
     assert "ABraOM" in md and "OBSCN" in md        # differentiator callout
-    assert "Candidates classified: 3" in md
+    assert "Candidates classified: 4" in md
 
 
 # --- #13 ClinVar modeled as PP5 (supporting), PS1 no longer strong ----------

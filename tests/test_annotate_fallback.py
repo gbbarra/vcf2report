@@ -29,6 +29,9 @@ def test_end_to_end_pipeline_tiers():
     report = run_pipeline(config.SAMPLE_VCF, hpo_terms=hpo)
     tiers = {c.variant.gene: c.tier for c in report.classifications}
     assert tiers["SCN1A"] == "Pathogenic"
+    # PAX6: LoF in a LoF-intolerant gene, absent, no phenotype/ClinVar support
+    # -> PVS1 + PM2 = Likely Pathogenic (an incidental finding, not over-called).
+    assert tiers["PAX6"] == "Likely Pathogenic"
     # KCNQ2: ClinVar P contributes only PP5 (supporting), so 1 PM + 3 PP -> VUS,
     # not the old PS1-driven Likely Pathogenic.
     assert "VUS" in tiers["KCNQ2"]
@@ -36,5 +39,5 @@ def test_end_to_end_pipeline_tiers():
     # OBSCN dropped by ABraOM, TTN dropped by rarity -> not classified
     assert "OBSCN" not in tiers
     assert "TTN" not in tiers
-    assert report.qc.candidates == 3
+    assert report.qc.candidates == 4
     assert any("OBSCN" in n for n in report.qc.abraom_filtered)

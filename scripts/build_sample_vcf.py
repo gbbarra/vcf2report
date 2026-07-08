@@ -45,6 +45,10 @@ ROWS = [
     ("2", 166003360, "C", "T", "SCN1A", "stop_gained", "c.1834C>T", "p.Arg612Ter", "PASS", "0/1:45:99:22,23"),
     ("20", 63446204, "G", "A", "KCNQ2", "missense_variant", "c.637C>T", "p.Arg213Trp", "PASS", "0/1:38:99:19,19"),
     ("19", 13318000, "T", "C", "CACNA1A", "missense_variant", "c.100T>C", "p.Ser34Pro", "PASS", "0/1:40:99:20,20"),
+    # Incidental Likely Pathogenic: LoF in a LoF-intolerant gene unrelated to the
+    # seizure indication (no phenotype match -> no PP4, no ClinVar -> no PP5) so it
+    # lands at LP (PVS1 + PM2), not over-called to Pathogenic.
+    ("11", 31806340, "G", "A", "PAX6", "stop_gained", "c.202C>T", "p.Arg68Ter", "PASS", "0/1:46:99:23,23"),
     ("1", 228208000, "G", "A", "OBSCN", "missense_variant", "c.298G>A", "p.Val100Ile", "PASS", "0/1:50:99:26,24"),
     ("2", 178562809, "G", "A", "TTN", "missense_variant", "c.1000G>A", "p.Val334Ile", "PASS", "0/1:60:99:30,30"),
     ("1", 11790000, "A", "G", "MTOR", "intron_variant", "", "", "PASS", "0/1:42:99:21,21"),
