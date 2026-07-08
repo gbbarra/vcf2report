@@ -58,6 +58,31 @@ python scripts/run_headless.py SYN-001.annotated.vcf.gz --hpo synthetic_exomes/S
 The spike step alone is verifiable offline against a tiny mock ClinVar; the S3 /
 FASTA / IDT-BED steps require the real inputs and are meant to run on your machine.
 
+### In-sandbox alternative (no AWS CLI / bcftools / FASTA)
+
+`scripts/build_dragen_exome.py` builds the real background exome purely over remote
+tabix — it reads a **DRAGEN 4.4.7** per-sample VCF (bucket `1000genomes-dragen-v4-4-7`)
+by HTTPS range queries and keeps PASS variants inside the IDT BED, no 440 MB
+download and no bcftools. A full NA12878 exome (~24.8k real variants) builds in
+~30 s. It was used to generate `docs/EXAMPLE_REPORT_SYN-001.md` end-to-end:
+
+```bash
+curl -fsSL "$IDT_BED_URL" -o scratch/idt_exome_v2.bed      # verified mirror (see make_synthetic_exomes.sh)
+VCF2REPORT_ALLOW_NETWORK=1 python scripts/build_dragen_exome.py --sample NA12878 \
+    --bed scratch/idt_exome_v2.bed --out data/real/NA12878_exome.vcf
+# ClinVar subset for the 10 target genes (stream the reachable Broad mirror):
+curl -s "$CLINVAR_MIRROR" | awk '/^#/ || /GENEINFO=(SCN1A|KCNQ2|SCN2A|STXBP1|SLC2A1|RB1|APC|SMAD4|WT1|FBN1):/' > scratch/clinvar_targets.vcf
+python scripts/spike_pathogenic.py --exome data/real/NA12878_exome.vcf \
+    --clinvar scratch/clinvar_targets.vcf --targets data/synthetic/SYN-001.targets.tsv \
+    --sample-id SYN-001 --out data/real/SYN-001.synthetic.vcf
+python -m vcf2report.cli data/real/SYN-001.synthetic.vcf --hpo data/synthetic/SYN-001.hpo.txt --out data/out
+```
+
+Note: without SnpEff in-sandbox the background variants carry no consequence and are
+filtered at the impact stage, so the report surfaces the spiked P/LP findings amid
+the real ~24.8k background; on a machine with the full annotation step the whole
+background is annotated and the candidate list is richer.
+
 ## Notes
 - **Chromosome naming** is harmonized to the exome's style (DRAGEN hg38 = `chr2`;
   ClinVar = `2`) by the spike script; keep chr-style references through annotation.
