@@ -17,13 +17,24 @@ _constraint: Optional[dict] = None
 _insilico: Optional[dict] = None
 
 
+def _read_lines(fp):
+    """Yield lines from a plain or gzip-compressed text file."""
+    if str(fp).endswith(".gz"):
+        import gzip
+        with gzip.open(fp, "rt") as fh:
+            for line in fh:
+                yield line.rstrip("\n")
+    else:
+        yield from fp.read_text().splitlines()
+
+
 def _load_constraint() -> dict:
     global _constraint
     if _constraint is None:
         d: dict = {}
         fp = config.CONSTRAINT_LOCAL
         if fp.exists():
-            for line in fp.read_text().splitlines():
+            for line in _read_lines(fp):
                 if not line.strip() or line.startswith("#") or line.startswith("gene\t"):
                     continue
                 parts = line.split("\t")
@@ -65,7 +76,7 @@ def gene_constraint(gene: Optional[str]) -> dict:
     if row is None:
         return {"pli": None, "loeuf": None, "lof_intolerant": None,
                 "_source": "gnomAD constraint (gene not found)"}
-    return {**row, "_source": "gnomAD constraint v4 (local)"}
+    return {**row, "_source": "gnomAD v2.1.1 LoF constraint (local)"}
 
 
 def insilico(variant: Variant) -> dict:

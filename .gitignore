@@ -34,3 +34,5 @@ annotation_data/
 *.bgz.tbi
 scratch/
 data/real/
+!data/synthetic/
+!data/synthetic/*

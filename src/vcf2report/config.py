@@ -25,7 +25,7 @@ CLINVAR_LOCAL = DATA_DIR / "clinvar" / "clinvar_grch38_slice.tsv"
 GNOMAD_LOCAL = DATA_DIR / "gnomad" / "gnomad_cache.json"
 ABRAOM_LOCAL = DATA_DIR / "abraom" / "abraom_sabe.tsv"
 HPO_GENES_LOCAL = DATA_DIR / "hpo" / "genes_to_phenotype.tsv.gz"
-CONSTRAINT_LOCAL = DATA_DIR / "constraint" / "gene_constraint.tsv"
+CONSTRAINT_LOCAL = DATA_DIR / "constraint" / "gene_constraint.tsv.gz"
 INSILICO_LOCAL = DATA_DIR / "insilico" / "insilico.tsv"
 
 # ---------------------------------------------------------------------------
