@@ -30,13 +30,33 @@ Spurious candidates a gnomAD-only pipeline would have kept, removed using ABraOM
 {% endfor %}
 {% endif %}
 
-## Reportable findings
-
+{% macro findings(rows) %}
+{% if rows %}
 | Gene | Variant (c./p.) | Zyg | Consequence | ClinVar | gnomAD AF | ABraOM AF | HPO | ACMG |
 |---|---|---|---|---|---|---|---|---|
-{% for c in r.classifications %}
+{% for c in rows %}
 | {{ c.variant.gene or '?' }} | {{ [c.variant.hgvs_c, c.variant.hgvs_p] | select | join(' ') or c.variant.key }} | {{ c.variant.zygosity or '?' }} | {{ c.variant.consequence or '?' }} | {{ c.annotation.clinvar_significance or '—' }} | {{ c.annotation.gnomad_af | pct }} | {{ c.annotation.abraom_af | pct }} | {{ c.annotation.hpo_match_score if c.annotation.hpo_match_score is not none else '—' }} | **{{ c.tier }}** |
 {% endfor %}
+{% else %}
+_None._
+{% endif %}
+{% endmacro %}
+
+## Primary (diagnostic) findings
+
+_Variants in genes overlapping the patient's phenotype._
+{{ findings(primary) }}
+
+## Secondary / incidental findings
+
+_Medically actionable P/LP variants unrelated to the indication (ACMG SF v3.2 style). Report per your lab's opt-in policy._
+{{ findings(secondary) }}
+{% if other %}
+## Other candidates
+
+_Uncertain/benign candidates not matching the phenotype._
+{{ findings(other) }}
+{% endif %}
 
 ## Per-variant ACMG rationale (auditable)
 {% for c in r.classifications %}

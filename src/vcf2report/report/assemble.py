@@ -45,7 +45,13 @@ def build_report(sample_id: str, hpo_terms: list[str], qc: QCSummary,
         "rarity_cutoff_popmax_af": AF_RECESSIVE_MAX,
         "ba1_cutoff": AF_BA1,
         "databases": ["ClinVar", "gnomAD r4", "ABraOM (SABE)", "HPO", "gnomAD constraint"],
-        "guideline": "ACMG/AMP (Richards et al., Genet Med 2015)",
+        "standards": [
+            "ACMG/AMP variant classification (Richards et al., Genet Med 2015)",
+            "ClinGen SVI criteria refinements",
+            "ACMG secondary-findings list (SF v3.2, Miller et al. 2023)",
+            "HGVS nomenclature",
+            "GA4GH Phenopackets (phenotype exchange)",
+        ],
     }
     # reportable = anything not benign, ordered by clinical relevance
     order = {"Pathogenic": 0, "Likely Pathogenic": 1,
@@ -54,3 +60,26 @@ def build_report(sample_id: str, hpo_terms: list[str], qc: QCSummary,
     generated = datetime.now(timezone.utc).isoformat(timespec="seconds")
     return ReportModel(sample_id=sample_id, hpo_terms=hpo_terms, qc=qc,
                        classifications=ranked, methods=methods, generated=generated)
+
+
+_PLP = {"Pathogenic", "Likely Pathogenic"}
+
+
+def split_findings(classifications):
+    """Partition reported candidates into (primary, secondary, other).
+
+    * **primary** — phenotype-related (HPO overlap with the patient): diagnostic.
+    * **secondary/incidental** — no phenotype overlap AND P/LP (only actionable
+      incidental findings are reported, per ACMG SF practice).
+    * **other** — remaining non-phenotype-matched uncertain/benign candidates.
+    """
+    primary, secondary, other = [], [], []
+    for c in classifications:
+        related = (c.annotation.hpo_match_score or 0) > 0
+        if related:
+            primary.append(c)
+        elif c.tier in _PLP:
+            secondary.append(c)
+        else:
+            other.append(c)
+    return primary, secondary, other

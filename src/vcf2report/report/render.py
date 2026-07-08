@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .. import config
-from .assemble import ReportModel
+from .assemble import ReportModel, split_findings
 
 
 def render_markdown(report: ReportModel) -> str:
@@ -27,7 +27,9 @@ def render_markdown(report: ReportModel) -> str:
             env.filters["kvjoin"] = lambda d: (
                 ", ".join(f"{k}={v}" for k, v in d.items()) or "—"
             )
-            return env.get_template("report.md.j2").render(r=report)
+            primary, secondary, other = split_findings(report.classifications)
+            return env.get_template("report.md.j2").render(
+                r=report, primary=primary, secondary=secondary, other=other)
     except ImportError:
         pass
     return _render_markdown_builtin(report)
@@ -72,19 +74,44 @@ def _render_markdown_builtin(report: ReportModel) -> str:
             L.append(f"- {note}")
         L.append("")
 
-    L.append("## Reportable findings")
+    primary, secondary, other = split_findings(report.classifications)
+
+    def _findings_table(rows):
+        if not rows:
+            L.append("_None._")
+            L.append("")
+            return
+        L.append("| Gene | Variant (c./p.) | Zyg | Consequence | ClinVar | gnomAD AF | ABraOM AF | HPO | ACMG |")
+        L.append("|---|---|---|---|---|---|---|---|---|")
+        for c in rows:
+            v, a = c.variant, c.annotation
+            hgvs = " ".join(x for x in [v.hgvs_c, v.hgvs_p] if x) or v.key
+            L.append(
+                f"| {v.gene or '?'} | {hgvs} | {v.zygosity or '?'} | {v.consequence or '?'} "
+                f"| {a.clinvar_significance or '—'} | {_fmt_af(a.gnomad_af)} | {_fmt_af(a.abraom_af)} "
+                f"| {a.hpo_match_score if a.hpo_match_score is not None else '—'} | **{c.tier}** |"
+            )
+        L.append("")
+
+    L.append("## Primary (diagnostic) findings")
     L.append("")
-    L.append("| Gene | Variant (c./p.) | Zyg | Consequence | ClinVar | gnomAD AF | ABraOM AF | HPO | ACMG |")
-    L.append("|---|---|---|---|---|---|---|---|---|")
-    for c in report.classifications:
-        v, a = c.variant, c.annotation
-        hgvs = " ".join(x for x in [v.hgvs_c, v.hgvs_p] if x) or v.key
-        L.append(
-            f"| {v.gene or '?'} | {hgvs} | {v.zygosity or '?'} | {v.consequence or '?'} "
-            f"| {a.clinvar_significance or '—'} | {_fmt_af(a.gnomad_af)} | {_fmt_af(a.abraom_af)} "
-            f"| {a.hpo_match_score if a.hpo_match_score is not None else '—'} | **{c.tier}** |"
-        )
+    L.append("_Variants in genes overlapping the patient's phenotype._")
     L.append("")
+    _findings_table(primary)
+
+    L.append("## Secondary / incidental findings")
+    L.append("")
+    L.append("_Medically actionable P/LP variants unrelated to the indication "
+             "(ACMG SF v3.2 style). Report per your lab's opt-in policy._")
+    L.append("")
+    _findings_table(secondary)
+
+    if other:
+        L.append("## Other candidates")
+        L.append("")
+        L.append("_Uncertain/benign candidates not matching the phenotype._")
+        L.append("")
+        _findings_table(other)
 
     L.append("## Per-variant ACMG rationale (auditable)")
     for c in report.classifications:

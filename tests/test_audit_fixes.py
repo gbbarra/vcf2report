@@ -107,6 +107,25 @@ def test_report_render_no_placeholder_and_expected_content():
     assert "Candidates classified: 4" in md
 
 
+def test_primary_vs_secondary_findings_split():
+    from vcf2report.report.assemble import split_findings
+    report = run_pipeline(config.SAMPLE_VCF,
+                          hpo_terms=["HP:0001250", "HP:0001263", "HP:0002133"])
+    primary, secondary, other = split_findings(report.classifications)
+    pg = {c.variant.gene for c in primary}
+    sg = {c.variant.gene for c in secondary}
+    assert {"SCN1A", "KCNQ2", "CACNA1A"} <= pg   # phenotype-related
+    assert "PAX6" in sg                          # incidental P/LP, no phenotype match
+    assert all(c.tier in ("Pathogenic", "Likely Pathogenic") for c in secondary)
+
+
+def test_report_cites_literature_standards():
+    report = run_pipeline(config.SAMPLE_VCF, hpo_terms=["HP:0001250"])
+    md = render_markdown(report)
+    assert "Richards" in md and "ClinGen" in md and "SF v3.2" in md
+    assert "Phenopackets" in md
+
+
 def test_pipeline_reports_per_stage_timings():
     report = run_pipeline(config.SAMPLE_VCF, hpo_terms=["HP:0001250"])
     for stage in ("parse_s", "qc_s", "annotate_s", "filter_s", "classify_s", "total_s"):
