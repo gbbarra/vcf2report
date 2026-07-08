@@ -140,6 +140,8 @@ def _parse_pure(path: Path) -> tuple[list[Variant], str | None, list[str]]:
             if len(cols) < 8:
                 continue
             chrom, pos, _id, ref, alt, _qual, filt, info = cols[:8]
+            if not pos.isdigit() or not ref or not alt:
+                continue  # malformed record — skip rather than crash
             info_d = _parse_info(info)
             fmt = cols[8] if len(cols) > 8 else ""
             sample = cols[9] if len(cols) > 9 else ""
