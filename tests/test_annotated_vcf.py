@@ -1,8 +1,40 @@
 """T2: consuming a real pre-annotated VCF (SnpEff ANN / VEP CSQ + INFO)."""
 from vcf2report.annotate import annotate_variant, from_vcf
 from vcf2report.models import Variant
+from vcf2report.pipeline import run_pipeline
 from vcf2report.vcf import annparse
 from vcf2report.vcf.parse import parse_vcf
+
+# A GRCh38 VCF pre-annotated exactly like the recommended vcfanno + SnpEff flow
+# (ANN + gnomad_AF + CLNSIG in INFO), using genes NOT in the bundled local slices
+# so any gnomAD/ClinVar in the output can ONLY come from the VCF's INFO.
+ANNOTATED_GRCH38 = """##fileformat=VCFv4.2
+##reference=GRCh38
+##INFO=<ID=ANN,Number=.,Type=String,Description="SnpEff">
+##INFO=<ID=gnomad_AF,Number=A,Type=Float,Description="gnomAD">
+##INFO=<ID=CLNSIG,Number=.,Type=String,Description="ClinVar">
+##INFO=<ID=CLNREVSTAT,Number=.,Type=String,Description="ClinVar review">
+##INFO=<ID=REVEL,Number=.,Type=Float,Description="REVEL">
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tPROBAND
+17\t43045711\t.\tG\tA\t800\tPASS\tANN=A|stop_gained|HIGH|BRCA1|G|transcript|TX|protein_coding|10/23|c.1A>T|p.Arg100Ter|||||;gnomad_AF=0.0;CLNSIG=Pathogenic;CLNREVSTAT=criteria_provided,_multiple_submitters,_no_conflicts\tGT\t0/1
+11\t108236097\t.\tC\tT\t800\tPASS\tANN=T|missense_variant|MODERATE|ATM|G|transcript|TX|protein_coding|20/63|c.500C>T|p.Ala167Val|||||;gnomad_AF=0.00034;CLNSIG=Likely_pathogenic;CLNREVSTAT=criteria_provided,_single_submitter;REVEL=0.88\tGT\t0/1
+"""
+
+
+def test_delivers_gnomad_and_clinvar_from_info(tmp_path):
+    """The report DELIVERS gnomAD AF + ClinVar only because they are in the INFO
+    (upstream annotation); the app reads them, it does not compute them."""
+    p = tmp_path / "a.vcf"
+    p.write_text(ANNOTATED_GRCH38)
+    report = run_pipeline(p, hpo_terms=[])
+    by = {c.variant.gene: c for c in report.classifications}
+    atm = by["ATM"].annotation
+    assert atm.gnomad_af == 0.00034               # non-zero -> came from INFO
+    assert atm.source["gnomad"] == "VCF INFO"
+    assert atm.clinvar_significance == "Likely pathogenic"
+    assert atm.source["clinvar"] == "VCF INFO"
+    assert atm.revel == 0.88
+    assert by["BRCA1"].annotation.clinvar_significance == "Pathogenic"
 
 SNPEFF = """##fileformat=VCFv4.2
 ##reference=GRCh38
