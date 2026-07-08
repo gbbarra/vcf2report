@@ -9,10 +9,13 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any, Optional
 
 from .. import config
+
+_write_lock = threading.Lock()
 
 
 def _cache_file(source: str) -> Path:
@@ -41,16 +44,17 @@ def get(source: str, key: str) -> Optional[dict]:
 
 
 def put(source: str, key: str, value: dict) -> None:
-    data = load(source)
-    data[key] = value
-    fp = _cache_file(source)
-    # Atomic write (temp file + os.replace) so a crash/concurrent writer can never
-    # leave a truncated JSON that would silently discard the whole cache.
-    fd, tmp = tempfile.mkstemp(dir=str(fp.parent), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as fh:
-            json.dump(data, fh, indent=2, sort_keys=True)
-        os.replace(tmp, fp)
-    except OSError:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+    # Lock the whole read-modify-write so concurrent writers can't lose entries
+    # (last-writer-wins). Atomic replace also prevents a truncated file.
+    with _write_lock:
+        data = load(source)
+        data[key] = value
+        fp = _cache_file(source)
+        fd, tmp = tempfile.mkstemp(dir=str(fp.parent), suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as fh:
+                json.dump(data, fh, indent=2, sort_keys=True)
+            os.replace(tmp, fp)
+        except OSError:
+            if os.path.exists(tmp):
+                os.unlink(tmp)

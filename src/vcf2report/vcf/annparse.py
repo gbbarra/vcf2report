@@ -46,8 +46,9 @@ def _allele_match(vep_allele: str, alt: str, ref: str = "") -> bool:
     return vep_allele == alt[1:] or vep_allele == "-"
 
 
-def parse_snpeff(ann: str, alt: str, ref: str = "") -> Optional[dict]:
+def parse_snpeff(ann: str, alt: str, ref: str = "", n_alt: int = 1) -> Optional[dict]:
     first = None
+    matched = None
     for entry in ann.split(","):
         f = entry.split("|")
         if len(f) < len(_SNPEFF):
@@ -55,20 +56,27 @@ def parse_snpeff(ann: str, alt: str, ref: str = "") -> Optional[dict]:
         if first is None:
             first = f
         if _allele_match(f[0], alt, ref):
-            first = f
+            matched = f
             break  # first allele-matching entry is most severe for that allele
-    if first is None:
-        return None
-    return {"gene": first[3] or None, "consequence": _first_term(first[1]),
-            "hgvs_c": first[9] or None, "hgvs_p": first[10] or None}
+    if matched is not None:
+        f = matched
+    elif n_alt == 1 and first is not None:
+        f = first          # single-allele record: the only allele is safe to use
+    else:
+        return None        # multiallelic no-match: never borrow another allele
+    return {"gene": f[3] or None, "consequence": _first_term(f[1]),
+            "hgvs_c": f[9] or None, "hgvs_p": f[10] or None}
 
 
-def parse_vep(csq: str, alt: str, field_names: list[str], ref: str = "") -> Optional[dict]:
+def parse_vep(csq: str, alt: str, field_names: list[str], ref: str = "",
+              alt_index: int = 0, n_alt: int = 1) -> Optional[dict]:
+    from urllib.parse import unquote
     idx = {name.lower(): i for i, name in enumerate(field_names)}
 
     def get(f: list[str], name: str) -> Optional[str]:
         i = idx.get(name)
-        return f[i] if (i is not None and i < len(f) and f[i]) else None
+        v = f[i] if (i is not None and i < len(f) and f[i]) else None
+        return unquote(v) if v else v  # VEP percent-encodes reserved chars
 
     def row(f: list[str]) -> dict:
         return {"gene": get(f, "symbol") or get(f, "gene"),
@@ -76,34 +84,43 @@ def parse_vep(csq: str, alt: str, field_names: list[str], ref: str = "") -> Opti
                 "hgvs_c": get(f, "hgvsc"), "hgvs_p": get(f, "hgvsp")}
 
     entries = [e.split("|") for e in csq.split(",")]
+    an = idx.get("allele_num")
     a = idx.get("allele")
 
     def matches(f: list[str]) -> bool:
+        if an is not None and an < len(f) and f[an]:   # prefer VEP's ALLELE_NUM
+            return f[an] == str(alt_index + 1)
         return a is not None and a < len(f) and _allele_match(f[a], alt, ref)
 
-    # Restrict to rows for THIS ALT first (multiallelic CSQ carries every allele);
-    # only if none match (single-allele / no Allele field) consider all rows.
-    candidates = [f for f in entries if matches(f)] or entries
-    for f in candidates:                      # PICK wins
+    candidates = [f for f in entries if matches(f)]
+    if not candidates:
+        if n_alt == 1:
+            candidates = entries          # single allele: all blocks are this ALT
+        else:
+            return None                   # multiallelic no-match: don't borrow
+    for f in candidates:                  # PICK > CANONICAL > MANE_SELECT > first
         if get(f, "pick") == "1":
             return row(f)
-    for f in candidates:                      # then CANONICAL
+    for f in candidates:
         if get(f, "canonical") == "YES":
             return row(f)
-    return row(candidates[0]) if candidates else None
+    for f in candidates:
+        if get(f, "mane_select"):
+            return row(f)
+    return row(candidates[0])
 
 
-def extract(info: dict[str, str], alt: str,
-            csq_format: Optional[list[str]] = None, ref: str = "") -> Optional[dict]:
+def extract(info: dict[str, str], alt: str, csq_format: Optional[list[str]] = None,
+            ref: str = "", alt_index: int = 0, n_alt: int = 1) -> Optional[dict]:
     """Best consequence/HGVS from ANN, then CSQ, then plain keys."""
     if info.get("ANN"):
-        r = parse_snpeff(info["ANN"], alt, ref)
+        r = parse_snpeff(info["ANN"], alt, ref, n_alt)
         if r and (r.get("gene") or r.get("consequence")):
             return r
     csq = info.get("CSQ")
     # Only treat CSQ as VEP if it's the structured, pipe-delimited form.
     if csq and "|" in csq and csq_format:
-        r = parse_vep(csq, alt, csq_format, ref)
+        r = parse_vep(csq, alt, csq_format, ref, alt_index, n_alt)
         if r and (r.get("gene") or r.get("consequence")):
             return r
     # Plain keys (synthetic sample / simple pipelines).

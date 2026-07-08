@@ -14,6 +14,7 @@ with VEP/SnpEff can be mapped here; the bundled sample uses these plain keys.
 from __future__ import annotations
 
 import gzip
+import os
 from pathlib import Path
 from typing import Iterator, Optional
 
@@ -106,36 +107,70 @@ def _sample_metrics(fmt: str, sample: str, alt_index: int) -> dict:
     return out
 
 
-def parse_vcf(path: str | Path) -> tuple[list[Variant], str | None, list[str]]:
+def _reportable_alt(alt: str) -> bool:
+    """False for non-sequence ALTs that must never inherit another allele's
+    annotation: spanning deletion '*', symbolic '<DEL>'/'<NON_REF>'/'<*>', '.'."""
+    return bool(alt) and alt not in ("*", ".") and not alt.startswith("<")
+
+
+def _sample_names(header: list[str]) -> list[str]:
+    for line in header:
+        if line.startswith("#CHROM"):
+            cols = line.rstrip("\n").split("\t")
+            return cols[9:] if len(cols) > 9 else []
+    return []
+
+
+def _resolve_sample_index(header: list[str], sample: str | None) -> int:
+    names = _sample_names(header)
+    if sample is None:
+        return 0
+    if sample in names:
+        return names.index(sample)
+    raise ValueError(f"sample {sample!r} not found in VCF (samples: {names})")
+
+
+def parse_vcf(path: str | Path, sample: str | None = None
+              ) -> tuple[list[Variant], str | None, list[str]]:
     """Parse a VCF into (variants, detected_build, header_lines).
 
-    Multi-allelic records are split into one :class:`Variant` per ALT allele,
-    each carrying that allele's own zygosity and allele balance. Uses cyvcf2 if
-    available, else the pure reader.
+    Multi-allelic records are split into one :class:`Variant` per ALT allele
+    (non-sequence alleles like '*' / '<...>' are skipped), each carrying that
+    allele's own zygosity and allele balance. For a multi-sample VCF, ``sample``
+    selects the proband by name (defaults to the first column; the pipeline warns
+    when a multi-sample VCF is parsed without an explicit selection).
+    Uses cyvcf2 if available, else the pure reader.
     """
     path = Path(path)
-    try:  # pragma: no cover - exercised only when cyvcf2 present
-        import cyvcf2  # type: ignore  # noqa: F401
+    # cyvcf2 (htslib) is the fast path for real exomes; the pure reader is the
+    # dependency-free default. Set VCF2REPORT_NO_CYVCF2=1 to force the pure reader.
+    if os.environ.get("VCF2REPORT_NO_CYVCF2", "").strip().lower() not in {"1", "true", "yes"}:
+        try:  # pragma: no cover - exercised only when cyvcf2 present
+            import cyvcf2  # type: ignore  # noqa: F401
 
-        return _parse_cyvcf2(path)
-    except Exception:
-        return _parse_pure(path)
+            return _parse_cyvcf2(path, sample)
+        except Exception:
+            pass
+    return _parse_pure(path, sample)
 
 
-def _parse_pure(path: Path) -> tuple[list[Variant], str | None, list[str]]:
+def _parse_pure(path: Path, sample: str | None = None
+                ) -> tuple[list[Variant], str | None, list[str]]:
     variants: list[Variant] = []
     header: list[str] = []
     csq_format = None
-    csq_done = False
+    sample_idx = 0
+    setup_done = False
     with _open(path) as fh:
         for line in fh:
-            line = line.rstrip("\n")
+            line = line.rstrip("\r\n")  # tolerate CRLF
             if line.startswith("#"):
                 header.append(line)
                 continue
-            if not csq_done:  # header is complete once data starts
+            if not setup_done:  # header is complete once data starts
                 csq_format = annparse.parse_csq_format(header)
-                csq_done = True
+                sample_idx = _resolve_sample_index(header, sample)
+                setup_done = True
             cols = line.split("\t")
             if len(cols) < 8:
                 continue
@@ -144,10 +179,14 @@ def _parse_pure(path: Path) -> tuple[list[Variant], str | None, list[str]]:
                 continue  # malformed record — skip rather than crash
             info_d = _parse_info(info)
             fmt = cols[8] if len(cols) > 8 else ""
-            sample = cols[9] if len(cols) > 9 else ""
-            for i, alt_allele in enumerate(alt.split(",")):  # split multiallelics
-                metrics = _sample_metrics(fmt, sample, i) if fmt and sample else {}
-                ann = annparse.extract(info_d, alt_allele, csq_format, ref) or {}
+            scol = 9 + sample_idx
+            samp = cols[scol] if len(cols) > scol else ""
+            alts = alt.split(",")
+            for i, alt_allele in enumerate(alts):  # split multiallelics
+                if not _reportable_alt(alt_allele):
+                    continue  # '*' / symbolic ALT: never annotate/report
+                metrics = _sample_metrics(fmt, samp, i) if fmt and samp else {}
+                ann = annparse.extract(info_d, alt_allele, csq_format, ref, i, len(alts)) or {}
                 variants.append(Variant(
                     chrom=chrom, pos=int(pos), ref=ref, alt=alt_allele,
                     gene=ann.get("gene"),
@@ -165,38 +204,51 @@ def _parse_pure(path: Path) -> tuple[list[Variant], str | None, list[str]]:
     return variants, detect_build(header), header
 
 
-def _parse_cyvcf2(path: Path) -> tuple[list[Variant], str | None, list[str]]:  # pragma: no cover
+def _cyvcf2_int(v):  # pragma: no cover
+    """cyvcf2 encodes a missing per-sample INT as the INT32 min sentinel."""
+    try:
+        iv = int(v)
+    except (ValueError, TypeError):
+        return None
+    return iv if iv >= 0 else None
+
+
+def _parse_cyvcf2(path: Path, sample: str | None = None
+                  ) -> tuple[list[Variant], str | None, list[str]]:  # pragma: no cover
     from cyvcf2 import VCF  # type: ignore
 
     vcf = VCF(str(path))
     header = [str(h) for h in vcf.raw_header.splitlines()]
     csq_format = annparse.parse_csq_format(header)
+    s = 0
+    if sample is not None:
+        if sample not in list(vcf.samples):
+            raise ValueError(f"sample {sample!r} not found (samples: {list(vcf.samples)})")
+        s = list(vcf.samples).index(sample)
     variants: list[Variant] = []
     for rec in vcf:
-        gts = rec.genotypes[0][:2] if rec.genotypes else None
+        gts = rec.genotypes[s][:2] if rec.genotypes else None
         dp_arr = rec.format("DP")
         gq_arr = rec.format("GQ")
         ad_arr = rec.format("AD")
-        depth = int(dp_arr[0][0]) if dp_arr is not None else None
-        gq = None
-        if gq_arr is not None:
-            try:
-                gq = int(gq_arr[0][0])
-            except (ValueError, TypeError):
-                gq = None
-        for i, alt_allele in enumerate(rec.ALT):
+        depth = _cyvcf2_int(dp_arr[s][0]) if dp_arr is not None else None
+        gq = _cyvcf2_int(gq_arr[s][0]) if gq_arr is not None else None
+        alts = list(rec.ALT)
+        for i, alt_allele in enumerate(alts):
+            if not _reportable_alt(str(alt_allele)):
+                continue
             zyg = zygosity([str(a) for a in gts], i + 1) if gts else None
             allele_balance = None
             if ad_arr is not None:
                 try:
-                    ad = list(ad_arr[0])
-                    total = sum(x for x in ad if x is not None and x >= 0)
+                    ad = [x for x in list(ad_arr[s]) if x is not None and x >= 0]
+                    total = sum(ad)
                     if total > 0 and len(ad) > i + 1:
                         allele_balance = round(ad[i + 1] / total, 3)
                 except (TypeError, ValueError, IndexError):
                     allele_balance = None
             info = {k: str(v) for k, v in dict(rec.INFO).items()}
-            ann = annparse.extract(info, str(alt_allele), csq_format, rec.REF) or {}
+            ann = annparse.extract(info, str(alt_allele), csq_format, rec.REF, i, len(alts)) or {}
             variants.append(Variant(
                 chrom=rec.CHROM, pos=rec.POS, ref=rec.REF, alt=alt_allele,
                 gene=ann.get("gene"), hgvs_c=ann.get("hgvs_c"),

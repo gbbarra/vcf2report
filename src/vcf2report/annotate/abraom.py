@@ -20,7 +20,7 @@ _COLUMNS = ["key", "af", "ac", "an"]
 def _load_local() -> dict:
     global _local
     if _local is None:
-        _local = {}
+        d: dict = {}
         fp = config.ABRAOM_LOCAL
         if fp.exists():
             for line in fp.read_text().splitlines():
@@ -29,7 +29,8 @@ def _load_local() -> dict:
                 parts = line.split("\t")
                 row = dict(zip(_COLUMNS, parts))
                 if row.get("key"):
-                    _local[row["key"]] = row
+                    d[row["key"]] = row
+        _local = d  # publish only when fully built
     return _local
 
 

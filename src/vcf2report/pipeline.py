@@ -24,6 +24,7 @@ def run_pipeline(
     hpo_terms: list[str] | None = None,
     sample_id: str | None = None,
     max_af: float = config.AF_RECESSIVE_MAX,
+    sample: str | None = None,
 ) -> ReportModel:
     hpo_terms = hpo_terms or []
     vcf_path = Path(vcf_path)
@@ -38,9 +39,19 @@ def run_pipeline(
         timings[stage] = round(now - _t, 4)
         _t = now
 
-    variants, build, _header = parse_vcf(vcf_path)
+    variants, build, header = parse_vcf(vcf_path, sample=sample)
     _mark("parse_s")
     qc = QCSummary(total_variants=len(variants), build=build or "unknown")
+
+    # Multi-sample guard: we analyse ONE proband. Warn loudly if a multi-sample
+    # VCF was passed without naming the proband (we default to the first column).
+    from .vcf.parse import _sample_names
+    names = _sample_names(header)
+    if len(names) > 1 and sample is None:
+        qc.warnings.append(
+            f"Multi-sample VCF ({len(names)} samples: {', '.join(names)}); analysed "
+            f"the FIRST column ({names[0]}). Pass the proband's sample name to be sure."
+        )
 
     # Genome-build guard: everything downstream assumes GRCh38. A *confirmed*
     # different build is not trusted for coordinate-keyed annotation (skip the

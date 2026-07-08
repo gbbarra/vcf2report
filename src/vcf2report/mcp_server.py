@@ -202,9 +202,13 @@ def annotate_and_report(vcf_path: str, hpo_terms: Optional[list[str]] = None,
             out.mkdir(parents=True, exist_ok=True)
             annotated = out / (Path(vcf_path).stem.replace(".vcf", "") + ".annotated.vcf.gz")
             script = str(config.REPO_ROOT / "scripts" / "annotate_vcf.sh")
-            proc = subprocess.run(
-                ["bash", script, vcf_path, reference, str(annotated)],
-                capture_output=True, text=True)
+            try:
+                proc = subprocess.run(
+                    ["bash", script, vcf_path, reference, str(annotated)],
+                    capture_output=True, text=True, timeout=3600)
+            except subprocess.TimeoutExpired:
+                return {"error": "annotation_timeout",
+                        "hint": "Annotation exceeded 1h; check input size / tool health."}
             if proc.returncode != 0:
                 tail = (proc.stderr or proc.stdout or "").strip().splitlines()[-15:]
                 return {"error": "annotation_failed", "exit_code": proc.returncode,

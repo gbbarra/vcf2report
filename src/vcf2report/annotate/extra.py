@@ -20,7 +20,7 @@ _insilico: Optional[dict] = None
 def _load_constraint() -> dict:
     global _constraint
     if _constraint is None:
-        _constraint = {}
+        d: dict = {}
         fp = config.CONSTRAINT_LOCAL
         if fp.exists():
             for line in fp.read_text().splitlines():
@@ -33,15 +33,15 @@ def _load_constraint() -> dict:
                 # LoF-intolerant per gnomAD convention: pLI>=0.9 or LOEUF<0.35.
                 lof_intolerant = (pli is not None and pli >= 0.9) or (
                     loeuf is not None and loeuf < 0.35)
-                _constraint[gene] = {"pli": pli, "loeuf": loeuf,
-                                     "lof_intolerant": lof_intolerant}
+                d[gene] = {"pli": pli, "loeuf": loeuf, "lof_intolerant": lof_intolerant}
+        _constraint = d  # publish only when fully built
     return _constraint
 
 
 def _load_insilico() -> dict:
     global _insilico
     if _insilico is None:
-        _insilico = {}
+        d: dict = {}
         fp = config.INSILICO_LOCAL
         if fp.exists():
             for line in fp.read_text().splitlines():
@@ -49,10 +49,11 @@ def _load_insilico() -> dict:
                     continue
                 parts = line.split("\t")
                 key = parts[0]
-                _insilico[key] = {
+                d[key] = {
                     "revel": float(parts[1]) if len(parts) > 1 and parts[1] else None,
                     "cadd": float(parts[2]) if len(parts) > 2 and parts[2] else None,
                 }
+        _insilico = d  # publish only when fully built
     return _insilico
 
 

@@ -26,6 +26,13 @@ HEADER = """##fileformat=VCFv4.2
 ##fileDate=2024-11-01
 ##source=vcf2report_demo
 ##reference=GRCh38
+##contig=<ID=1>
+##contig=<ID=2>
+##contig=<ID=3>
+##contig=<ID=7>
+##contig=<ID=11>
+##contig=<ID=19>
+##contig=<ID=20>
 ##INFO=<ID=GENE,Number=1,Type=String,Description="Gene symbol">
 ##INFO=<ID=CSQ,Number=1,Type=String,Description="Molecular consequence">
 ##INFO=<ID=HGVSC,Number=1,Type=String,Description="HGVS coding">

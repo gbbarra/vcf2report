@@ -19,7 +19,8 @@ _term_names: dict[str, str] = {}
 def _load() -> dict[str, set[str]]:
     global _gene_terms
     if _gene_terms is None:
-        _gene_terms = {}
+        d: dict[str, set[str]] = {}
+        names: dict[str, str] = {}
         fp = config.HPO_GENES_LOCAL
         if fp.exists():
             for line in fp.read_text().splitlines():
@@ -29,9 +30,11 @@ def _load() -> dict[str, set[str]]:
                 if len(parts) < 2:
                     continue
                 gene, hpo_id = parts[0], parts[1]
-                _gene_terms.setdefault(gene, set()).add(hpo_id)
+                d.setdefault(gene, set()).add(hpo_id)
                 if len(parts) >= 3:
-                    _term_names[hpo_id] = parts[2]
+                    names[hpo_id] = parts[2]
+        _term_names.update(names)
+        _gene_terms = d  # publish only when fully built
     return _gene_terms
 
 

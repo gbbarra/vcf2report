@@ -23,7 +23,7 @@ _COLUMNS = ["key", "significance", "review_status", "accession", "condition", "d
 def _load_local() -> dict:
     global _local
     if _local is None:
-        _local = {}
+        d: dict = {}
         fp = config.CLINVAR_LOCAL
         if fp.exists():
             for line in fp.read_text().splitlines():
@@ -32,7 +32,8 @@ def _load_local() -> dict:
                 parts = line.split("\t")
                 row = dict(zip(_COLUMNS, parts))
                 if row.get("key"):
-                    _local[row["key"]] = row
+                    d[row["key"]] = row
+        _local = d  # publish only when fully built (concurrent-load safe)
     return _local
 
 

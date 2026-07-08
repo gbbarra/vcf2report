@@ -22,21 +22,24 @@ def _first(info: dict, keys: list[str]) -> Optional[str]:
 
 
 def _pick(x: Optional[str], idx: int) -> Optional[str]:
-    """The idx-th comma element of an INFO value; clamps for scalars.
+    """The idx-th comma element of a Number=A INFO value.
 
-    gnomAD AF/AC/nhomalt and ABraOM AF are Number=A (one value per ALT). After the
-    multiallelic split, each Variant carries its ALT index so we read THIS allele's
-    value, not allele #1's. A scalar (single value) clamps to itself for any index.
+    gnomAD AF/AC/nhomalt and ABraOM AF are one value per ALT. A genuine scalar
+    (single value) is used for any allele; but if the array length is >1 and does
+    NOT cover ``idx`` (annotator/ALT-count mismatch), return None rather than
+    silently broadcasting allele #1's value onto another allele.
     """
     if x is None:
         return None
     parts = str(x).split(",")
-    return parts[idx] if idx < len(parts) else parts[-1]
+    if idx < len(parts):
+        return parts[idx]
+    return parts[0] if len(parts) == 1 else None
 
 
 def _num(x: Optional[str], idx: int = 0):
     p = _pick(x, idx)
-    if p is None:
+    if p is None or p == ".":
         return None
     try:
         return float(p)
@@ -47,6 +50,23 @@ def _num(x: Optional[str], idx: int = 0):
 def _int(x: Optional[str], idx: int = 0):
     v = _num(x, idx)
     return int(v) if v is not None else None
+
+
+def _multi_num(x: Optional[str]):
+    """Max numeric from a multi-value predictor field (dbNSFP REVEL/CADD are
+    per-transcript, separated by ',', ';' or '&'; '.' means missing)."""
+    if x is None:
+        return None
+    import re
+    vals = []
+    for tok in re.split(r"[;,&]", str(x)):
+        tok = tok.strip()
+        if tok and tok != ".":
+            try:
+                vals.append(float(tok))
+            except ValueError:
+                pass
+    return max(vals) if vals else None
 
 
 def extract(variant: Variant) -> dict:
@@ -67,21 +87,23 @@ def extract(variant: Variant) -> dict:
     if abaf is not None:
         out["abraom_af"] = _num(abaf, i)
 
-    # ClinVar CLNSIG/CLNREVSTAT carry no commas within a value (they use / | _),
-    # so per-allele indexing is safe for an un-split multiallelic record.
-    sig = _pick(_first(info, A["clinvar_sig"]), i)
+    # ClinVar CLNSIG/CLNREVSTAT contain literal commas (e.g. "Pathogenic,_low_
+    # penetrance"), so do NOT comma-index by allele — take the whole value. (Real
+    # per-allele ClinVar disambiguation would key on CLNALLELEID, out of scope.)
+    sig = _first(info, A["clinvar_sig"])
     if sig is not None:
         out["clinvar_significance"] = str(sig).replace("_", " ")
-        rev = _pick(_first(info, A["clinvar_review"]), i)
+        rev = _first(info, A["clinvar_review"])
         out["clinvar_review_status"] = str(rev).replace("_", " ") if rev else None
         cond = _first(info, A["clinvar_disease"])
         out["clinvar_condition"] = str(cond).replace("_", " ") if cond else None
-        out["clinvar_accession"] = _pick(_first(info, A["clinvar_accession"]), i)
+        out["clinvar_accession"] = _first(info, A["clinvar_accession"])
 
-    rv = _first(info, A["revel"])
+    # REVEL/CADD are per-transcript multi-values, not per-allele: aggregate (max).
+    rv = _multi_num(_first(info, A["revel"]))
     if rv is not None:
-        out["revel"] = _num(rv, i)
-    cd = _first(info, A["cadd"])
+        out["revel"] = rv
+    cd = _multi_num(_first(info, A["cadd"]))
     if cd is not None:
         out["cadd"] = _num(cd, i)
     return out

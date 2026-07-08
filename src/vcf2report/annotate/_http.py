@@ -8,6 +8,7 @@ an API key). All errors are swallowed into ``None`` so callers fall back cleanly
 from __future__ import annotations
 
 import json
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -16,17 +17,23 @@ from typing import Optional
 
 _USER_AGENT = "vcf2report/0.1 (+https://github.com/gbbarra/vcf2report)"
 _last_call: dict[str, float] = {}
+_throttle_lock = threading.Lock()
 
 
 def throttle(key: str, min_interval: float) -> None:
-    """Block until at least ``min_interval`` seconds have passed for ``key``."""
-    now = time.monotonic()
-    prev = _last_call.get(key)
-    if prev is not None:
-        wait = min_interval - (now - prev)
-        if wait > 0:
-            time.sleep(wait)
-    _last_call[key] = time.monotonic()
+    """Block until at least ``min_interval`` seconds have passed for ``key``.
+
+    Serialised with a lock so concurrent callers can't collectively exceed the
+    rate limit (which would risk 429s / an NCBI ban).
+    """
+    with _throttle_lock:
+        now = time.monotonic()
+        prev = _last_call.get(key)
+        if prev is not None:
+            wait = min_interval - (now - prev)
+            if wait > 0:
+                time.sleep(wait)
+        _last_call[key] = time.monotonic()
 
 
 def _request(req: urllib.request.Request, timeout: float, retries: int) -> Optional[dict]:
