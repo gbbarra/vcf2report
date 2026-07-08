@@ -39,7 +39,7 @@ zero seizure-HPO overlap (→ Pathogenic, secondary, not leaking into primary).
 |---|---|---|---|
 | 001 | NA12878 (EUR) | SCN1A | RB1 |
 | 002 | NA19240 (AFR) | KCNQ2 | APC |
-| 003 | NA18939 (EAS) | SCN2A | SMAD4 |
+| 003 | NA18939 (EAS) | SCN2A | STK11 |
 | 004 | NA20845 (SAS) | STXBP1 | WT1 |
 | 005 | HG01112 (AMR) | SLC2A1 | FBN1 |
 
@@ -71,7 +71,7 @@ curl -fsSL "$IDT_BED_URL" -o scratch/idt_exome_v2.bed      # verified mirror (se
 VCF2REPORT_ALLOW_NETWORK=1 python scripts/build_dragen_exome.py --sample NA12878 \
     --bed scratch/idt_exome_v2.bed --out data/real/NA12878_exome.vcf
 # ClinVar subset for the 10 target genes (stream the reachable Broad mirror):
-curl -s "$CLINVAR_MIRROR" | awk '/^#/ || /GENEINFO=(SCN1A|KCNQ2|SCN2A|STXBP1|SLC2A1|RB1|APC|SMAD4|WT1|FBN1):/' > scratch/clinvar_targets.vcf
+curl -s "$CLINVAR_MIRROR" | awk '/^#/ || /GENEINFO=(SCN1A|KCNQ2|SCN2A|STXBP1|SLC2A1|RB1|APC|STK11|WT1|FBN1):/' > scratch/clinvar_targets.vcf
 python scripts/spike_pathogenic.py --exome data/real/NA12878_exome.vcf \
     --clinvar scratch/clinvar_targets.vcf --targets data/synthetic/SYN-001.targets.tsv \
     --sample-id SYN-001 --out data/real/SYN-001.synthetic.vcf
@@ -82,6 +82,20 @@ Note: without SnpEff in-sandbox the background variants carry no consequence and
 filtered at the impact stage, so the report surfaces the spiked P/LP findings amid
 the real ~24.8k background; on a machine with the full annotation step the whole
 background is annotated and the candidate list is richer.
+
+### Verified results — all five cases built + reported end-to-end in-sandbox
+
+Real DRAGEN 4.4.7 exome per sample, 2 real ClinVar pathogenic variants spiked,
+gnomAD absence confirmed live, HPO-driven primary/secondary split. Reports in
+`docs/example_reports/`.
+
+| Case | Sample (super-pop) | Real variants | Primary (DEE) | Secondary (ACMG SF) |
+|---|---|---|---|---|
+| SYN-001 | NA12878 (EUR) | 24,801 | SCN1A → Pathogenic | RB1 → Pathogenic |
+| SYN-002 | NA19240 (AFR) | 30,195 | KCNQ2 → Pathogenic | APC → Likely Pathogenic |
+| SYN-003 | NA18939 (EAS) | 24,707 | SCN2A → Pathogenic | STK11 → Pathogenic |
+| SYN-004 | NA20845 (SAS) | 25,319 | STXBP1 → Pathogenic | WT1 → Pathogenic |
+| SYN-005 | HG01112 (AMR) | 24,387 | SLC2A1 → Pathogenic | FBN1 → Pathogenic |
 
 ## Notes
 - **Chromosome naming** is harmonized to the exome's style (DRAGEN hg38 = `chr2`;

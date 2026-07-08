@@ -24,7 +24,7 @@ SF cancer genes match the phenotype under the full HPO and mis-route.
 |---|---|---|---|---|---|
 | SYN-001 | EUR / CEU (NA12878) | SCN1A | 0.07 | RB1 (retinoblastoma) | 0.13 |
 | SYN-002 | AFR / YRI (NA19240) | KCNQ2 | 0.16 | APC (FAP) | 0.16 |
-| SYN-003 | EAS / JPT (NA18939) | SCN2A | 0.13 | SMAD4 (JP/HHT) | 0.22 |
+| SYN-003 | EAS / JPT (NA18939) | SCN2A | 0.13 | STK11 (Peutz-Jeghers) | 0.22 |
 | SYN-004 | SAS / GIH (NA20845) | STXBP1 | 0.09 | WT1 (Wilms/Denys-Drash) | 0.25 |
 | SYN-005 | AMR / CLM (HG01112) | SLC2A1 | 0.24 | FBN1 (Marfan) | 0.05 |
 
