@@ -101,8 +101,9 @@ def _render_markdown_builtin(report: ReportModel) -> str:
 
     L.append("## Secondary / incidental findings")
     L.append("")
-    L.append("_Medically actionable P/LP variants unrelated to the indication "
-             "(ACMG SF v3.2 style). Report per your lab's opt-in policy._")
+    L.append("_P/LP variants unrelated to the patient's indication. Review each "
+             "against the ACMG SF v3.2 gene list and your lab's opt-in reporting "
+             "policy before returning._")
     L.append("")
     _findings_table(secondary)
 

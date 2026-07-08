@@ -30,7 +30,12 @@ def main(argv=None) -> int:
     print(f"subject: {data['subject_id']}")
     print(f"HPO terms ({len(data['hpo_terms'])}): {', '.join(data['hpo_terms'])}")
     print(f"variants: {len(data['variants'])}")
+    if data.get("skipped_variants"):
+        print(f"WARNING: {data['skipped_variants']} variant(s) skipped (HGVS-only, "
+              f"no VCF coordinates) — resolve HGVS to coordinates to include them.")
     print(f"wrote {vcf} and {hpo}")
+    print("NOTE: this VCF has no molecular consequence — annotate it "
+          "(docs/ANNOTATION.md) before classification.")
     return 0
 
 

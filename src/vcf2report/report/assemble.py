@@ -63,22 +63,23 @@ def build_report(sample_id: str, hpo_terms: list[str], qc: QCSummary,
 
 
 _PLP = {"Pathogenic", "Likely Pathogenic"}
+_BENIGN = {"Benign", "Likely Benign"}
 
 
 def split_findings(classifications):
     """Partition reported candidates into (primary, secondary, other).
 
-    * **primary** — phenotype-related (HPO overlap with the patient): diagnostic.
-    * **secondary/incidental** — no phenotype overlap AND P/LP (only actionable
-      incidental findings are reported, per ACMG SF practice).
-    * **other** — remaining non-phenotype-matched uncertain/benign candidates.
+    * **primary** — phenotype-related (HPO overlap) AND not benign: diagnostic.
+    * **secondary/incidental** — no phenotype overlap AND P/LP (an incidental
+      medically-relevant finding; review against ACMG SF v3.2 + lab opt-in).
+    * **other** — everything else (phenotype-matched benign, unrelated VUS/benign).
     """
     primary, secondary, other = [], [], []
     for c in classifications:
         related = (c.annotation.hpo_match_score or 0) > 0
-        if related:
+        if related and c.tier not in _BENIGN:
             primary.append(c)
-        elif c.tier in _PLP:
+        elif not related and c.tier in _PLP:
             secondary.append(c)
         else:
             other.append(c)

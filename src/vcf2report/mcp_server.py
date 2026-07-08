@@ -151,19 +151,31 @@ def data_status() -> dict:
         "hpo": config.HPO_GENES_LOCAL.exists(),
     }
     return {
-        "annotation_tools": tools,
+        "annotation_tools_on_path": tools,
         "bundled_local_data": bundled,
         "ready_for_offline_demo": all(bundled.values()),
-        "ready_to_annotate_real_exome": all(tools.values()),
+        # Tools present ≠ ready to annotate: the databases (gnomAD/ClinVar VCFs,
+        # SnpEff DB, reference FASTA) must also be downloaded — see docs/SETUP.md.
+        "annotation_tools_installed": all(tools.values()),
         "offline_mode": config.offline(),
+        "note": "Tools on PATH do not imply the annotation databases are present; "
+                "run scripts/setup_data.sh and check vcfanno.conf.toml paths.",
     }
+
+
+def _annotation_info_keys() -> set:
+    # Keep in sync with the reader: every INFO alias + the consequence blocks.
+    keys = {"ANN", "CSQ"}
+    for aliases in config.INFO_ALIASES.values():
+        keys.update(aliases)
+    return keys
 
 
 def _looks_annotated(variants) -> bool:
     sample = variants[:200]
     if any(v.consequence for v in sample):
         return True
-    keys = ("ANN", "CSQ", "gnomad_AF", "CLNSIG", "REVEL")
+    keys = _annotation_info_keys()
     return any(any(k in (v.info or {}) for k in keys) for v in sample)
 
 
@@ -187,7 +199,15 @@ def annotate_and_report(vcf_path: str, hpo_terms: Optional[list[str]] = None,
             out.mkdir(parents=True, exist_ok=True)
             annotated = out / (Path(vcf_path).stem.replace(".vcf", "") + ".annotated.vcf.gz")
             script = str(config.REPO_ROOT / "scripts" / "annotate_vcf.sh")
-            subprocess.run(["bash", script, vcf_path, reference, str(annotated)], check=True)
+            proc = subprocess.run(
+                ["bash", script, vcf_path, reference, str(annotated)],
+                capture_output=True, text=True)
+            if proc.returncode != 0:
+                tail = (proc.stderr or proc.stdout or "").strip().splitlines()[-15:]
+                return {"error": "annotation_failed", "exit_code": proc.returncode,
+                        "stderr_tail": "\n".join(tail),
+                        "hint": "See docs/ANNOTATION.md; check tool versions and the "
+                                "GRCh38 reference / vcfanno.conf.toml data paths."}
             used = str(annotated)
             steps.append("annotated locally via bcftools norm + SnpEff + vcfanno")
         else:

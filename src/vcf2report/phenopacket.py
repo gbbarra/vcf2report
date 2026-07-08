@@ -42,7 +42,10 @@ def _zygosity_of(descriptor: dict) -> str | None:
 
 def _variant_from_descriptor(descriptor: dict) -> dict | None:
     rec = descriptor.get("vcfRecord") or {}
-    if not rec.get("chrom") or rec.get("pos") in (None, ""):
+    # Require full coordinates + alleles; an HGVS-only descriptor cannot be emitted
+    # as a VCF row without resolving HGVS to coordinates.
+    if not rec.get("chrom") or rec.get("pos") in (None, "") \
+            or not rec.get("ref") or not rec.get("alt"):
         return None
     exprs = {e.get("syntax"): e.get("value") for e in descriptor.get("expressions", []) or []}
     gene = (descriptor.get("geneContext") or {}).get("symbol")
@@ -58,8 +61,10 @@ def _variant_from_descriptor(descriptor: dict) -> dict | None:
     }
 
 
-def _variants(pkt: dict) -> list[dict]:
+def _variants(pkt: dict) -> tuple[list[dict], int]:
+    """Return (emittable variants, count of genotype entries skipped)."""
     out: list[dict] = []
+    skipped = 0
     for interp in pkt.get("interpretations", []) or []:
         diag = interp.get("diagnosis") or {}
         for gi in diag.get("genomicInterpretations", []) or []:
@@ -68,16 +73,20 @@ def _variants(pkt: dict) -> list[dict]:
             v = _variant_from_descriptor(desc)
             if v:
                 out.append(v)
-    return out
+            elif desc:  # a descriptor was present but lacked usable coordinates
+                skipped += 1
+    return out, skipped
 
 
 def load_phenopacket(path: str | Path) -> dict[str, Any]:
-    """Return {'subject_id', 'hpo_terms', 'variants'} from a phenopacket JSON."""
+    """Return {'subject_id', 'hpo_terms', 'variants', 'skipped_variants'}."""
     pkt = json.loads(Path(path).read_text())
+    variants, skipped = _variants(pkt)
     return {
         "subject_id": (pkt.get("subject") or {}).get("id") or "PHENOPACKET",
         "hpo_terms": _hpo_terms(pkt),
-        "variants": _variants(pkt),
+        "variants": variants,
+        "skipped_variants": skipped,
     }
 
 
@@ -99,13 +108,17 @@ _GT = {"het": "0/1", "hom": "1/1", "hemi": "1"}
 def write_inputs(data: dict, vcf_path: str | Path, hpo_path: str | Path) -> None:
     """Write a VCF + an HPO-terms file from load_phenopacket() output."""
     vcf_path, hpo_path = Path(vcf_path), Path(hpo_path)
+    def esc(x: str) -> str:
+        # INFO uses ';' (field sep), '=' (key/val), and whitespace is illegal.
+        return str(x).replace(";", "|").replace("=", "_").replace(" ", "_").replace("\t", "_")
+
     lines = [_VCF_HEADER.format(sample=data["subject_id"]).rstrip("\n")]
     for v in data["variants"]:
         chrom = v["chrom"][3:] if v["chrom"].lower().startswith("chr") else v["chrom"]
         info = ";".join(p for p in [
-            f"GENE={v['gene']}" if v.get("gene") else "",
-            f"HGVSC={v['hgvs_c']}" if v.get("hgvs_c") else "",
-            f"HGVSP={v['hgvs_p']}" if v.get("hgvs_p") else "",
+            f"GENE={esc(v['gene'])}" if v.get("gene") else "",
+            f"HGVSC={esc(v['hgvs_c'])}" if v.get("hgvs_c") else "",
+            f"HGVSP={esc(v['hgvs_p'])}" if v.get("hgvs_p") else "",
         ] if p) or "."
         gt = _GT.get(v.get("zygosity") or "het", "0/1")
         lines.append("\t".join([chrom, str(v["pos"]), ".", v["ref"], v["alt"],

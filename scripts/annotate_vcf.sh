@@ -23,7 +23,7 @@ SNPEFF_DB="${SNPEFF_DB:-GRCh38.105}"
 VCFANNO_CONF="${VCFANNO_CONF:-$(dirname "$0")/vcfanno.conf.toml}"
 THREADS="${THREADS:-4}"
 
-for tool in bcftools vcfanno snpEff; do
+for tool in bcftools bgzip tabix vcfanno snpEff; do
   command -v "$tool" >/dev/null 2>&1 || { echo "ERROR: '$tool' not found on PATH" >&2; exit 1; }
 done
 
@@ -40,8 +40,12 @@ snpEff -noStats -hgvs "$SNPEFF_DB" "$tmp/norm.vcf.gz" | bgzip > "$tmp/snpeff.vcf
 bcftools index -t "$tmp/snpeff.vcf.gz"
 
 echo "[3/3] vcfanno population + clinical annotations ..."
-vcfanno -p "$THREADS" "$VCFANNO_CONF" "$tmp/snpeff.vcf.gz" | bgzip > "$OUT"
-bcftools index -t "$OUT"
+# Write to a temp then move into place, so a mid-pipeline failure never leaves a
+# truncated $OUT or clobbers a previously-good one.
+vcfanno -p "$THREADS" "$VCFANNO_CONF" "$tmp/snpeff.vcf.gz" | bgzip > "$tmp/out.vcf.gz"
+bcftools index -t "$tmp/out.vcf.gz"
+mv -f "$tmp/out.vcf.gz" "$OUT"
+mv -f "$tmp/out.vcf.gz.tbi" "$OUT.tbi"
 
 echo "Done -> $OUT"
 echo "Run: python scripts/run_headless.py $OUT --hpo patient_hpo_terms.txt"

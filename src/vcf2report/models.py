@@ -31,6 +31,7 @@ class Variant:
     allele_balance: Optional[float] = None
     filter_status: Optional[str] = None  # VCF FILTER column
     info: dict[str, str] = field(default_factory=dict)  # raw INFO (annotator fields)
+    alt_index: int = 0  # 0-based index of this ALT in the original record (for Number=A INFO)
 
     @property
     def key(self) -> str:

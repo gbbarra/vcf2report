@@ -24,7 +24,8 @@ done
 [[ $missing -eq 1 ]] && echo "Install the missing tools, then re-run."
 
 echo "== ClinVar (GRCh38, ~200 MB) =="
-curl -L -o "$DATA_DIR/clinvar_GRCh38.vcf.gz" \
+# -f/--fail so an HTTP error page isn't silently written as the .vcf.gz.
+curl -fL -o "$DATA_DIR/clinvar_GRCh38.vcf.gz" \
   https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz
 tabix -p vcf "$DATA_DIR/clinvar_GRCh38.vcf.gz" || true
 

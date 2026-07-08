@@ -147,7 +147,7 @@ def _parse_pure(path: Path) -> tuple[list[Variant], str | None, list[str]]:
             sample = cols[9] if len(cols) > 9 else ""
             for i, alt_allele in enumerate(alt.split(",")):  # split multiallelics
                 metrics = _sample_metrics(fmt, sample, i) if fmt and sample else {}
-                ann = annparse.extract(info_d, alt_allele, csq_format) or {}
+                ann = annparse.extract(info_d, alt_allele, csq_format, ref) or {}
                 variants.append(Variant(
                     chrom=chrom, pos=int(pos), ref=ref, alt=alt_allele,
                     gene=ann.get("gene"),
@@ -160,6 +160,7 @@ def _parse_pure(path: Path) -> tuple[list[Variant], str | None, list[str]]:
                     gq=metrics.get("gq"),
                     allele_balance=metrics.get("allele_balance"),
                     info=info_d,
+                    alt_index=i,
                 ))
     return variants, detect_build(header), header
 
@@ -195,13 +196,14 @@ def _parse_cyvcf2(path: Path) -> tuple[list[Variant], str | None, list[str]]:  #
                 except (TypeError, ValueError, IndexError):
                     allele_balance = None
             info = {k: str(v) for k, v in dict(rec.INFO).items()}
-            ann = annparse.extract(info, str(alt_allele), csq_format) or {}
+            ann = annparse.extract(info, str(alt_allele), csq_format, rec.REF) or {}
             variants.append(Variant(
                 chrom=rec.CHROM, pos=rec.POS, ref=rec.REF, alt=alt_allele,
                 gene=ann.get("gene"), hgvs_c=ann.get("hgvs_c"),
                 hgvs_p=ann.get("hgvs_p"), consequence=ann.get("consequence"),
                 filter_status=rec.FILTER or "PASS", zygosity=zyg,
                 depth=depth, gq=gq, allele_balance=allele_balance, info=info,
+                alt_index=i,
             ))
     return variants, detect_build(header), header
 

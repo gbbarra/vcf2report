@@ -29,12 +29,24 @@ def _first_term(consequence: str) -> Optional[str]:
     return (consequence.split("&")[0].strip() or None) if consequence else None
 
 
-def _allele_match(vep_allele: str, alt: str) -> bool:
-    # SNVs match directly; VEP trims the shared leading base for indels.
-    return vep_allele == alt or vep_allele == alt[1:] or vep_allele == "-"
+def _minimal_alt(ref: str, alt: str) -> str:
+    """VEP's minimal ALT: trim the longest shared leading base(s); '-' if emptied."""
+    i = 0
+    while i < len(ref) and i < len(alt) and ref[i] == alt[i]:
+        i += 1
+    return alt[i:] or "-"
 
 
-def parse_snpeff(ann: str, alt: str) -> Optional[dict]:
+def _allele_match(vep_allele: str, alt: str, ref: str = "") -> bool:
+    if vep_allele == alt:
+        return True
+    if ref:
+        return vep_allele == _minimal_alt(ref, alt)
+    # No ref available: accept the single-base trim or a fully-trimmed insertion.
+    return vep_allele == alt[1:] or vep_allele == "-"
+
+
+def parse_snpeff(ann: str, alt: str, ref: str = "") -> Optional[dict]:
     first = None
     for entry in ann.split(","):
         f = entry.split("|")
@@ -42,7 +54,7 @@ def parse_snpeff(ann: str, alt: str) -> Optional[dict]:
             continue
         if first is None:
             first = f
-        if _allele_match(f[0], alt):
+        if _allele_match(f[0], alt, ref):
             first = f
             break  # first allele-matching entry is most severe for that allele
     if first is None:
@@ -51,7 +63,7 @@ def parse_snpeff(ann: str, alt: str) -> Optional[dict]:
             "hgvs_c": first[9] or None, "hgvs_p": first[10] or None}
 
 
-def parse_vep(csq: str, alt: str, field_names: list[str]) -> Optional[dict]:
+def parse_vep(csq: str, alt: str, field_names: list[str], ref: str = "") -> Optional[dict]:
     idx = {name.lower(): i for i, name in enumerate(field_names)}
 
     def get(f: list[str], name: str) -> Optional[str]:
@@ -64,32 +76,34 @@ def parse_vep(csq: str, alt: str, field_names: list[str]) -> Optional[dict]:
                 "hgvs_c": get(f, "hgvsc"), "hgvs_p": get(f, "hgvsp")}
 
     entries = [e.split("|") for e in csq.split(",")]
-    canonical = first = allele_hit = None
-    for f in entries:
-        if first is None:
-            first = f
+    a = idx.get("allele")
+
+    def matches(f: list[str]) -> bool:
+        return a is not None and a < len(f) and _allele_match(f[a], alt, ref)
+
+    # Restrict to rows for THIS ALT first (multiallelic CSQ carries every allele);
+    # only if none match (single-allele / no Allele field) consider all rows.
+    candidates = [f for f in entries if matches(f)] or entries
+    for f in candidates:                      # PICK wins
         if get(f, "pick") == "1":
             return row(f)
-        if canonical is None and get(f, "canonical") == "YES":
-            canonical = f
-        a = idx.get("allele")
-        if allele_hit is None and a is not None and a < len(f) and _allele_match(f[a], alt):
-            allele_hit = f
-    chosen = canonical or allele_hit or first
-    return row(chosen) if chosen else None
+    for f in candidates:                      # then CANONICAL
+        if get(f, "canonical") == "YES":
+            return row(f)
+    return row(candidates[0]) if candidates else None
 
 
 def extract(info: dict[str, str], alt: str,
-            csq_format: Optional[list[str]] = None) -> Optional[dict]:
+            csq_format: Optional[list[str]] = None, ref: str = "") -> Optional[dict]:
     """Best consequence/HGVS from ANN, then CSQ, then plain keys."""
     if info.get("ANN"):
-        r = parse_snpeff(info["ANN"], alt)
+        r = parse_snpeff(info["ANN"], alt, ref)
         if r and (r.get("gene") or r.get("consequence")):
             return r
     csq = info.get("CSQ")
     # Only treat CSQ as VEP if it's the structured, pipe-delimited form.
     if csq and "|" in csq and csq_format:
-        r = parse_vep(csq, alt, csq_format)
+        r = parse_vep(csq, alt, csq_format, ref)
         if r and (r.get("gene") or r.get("consequence")):
             return r
     # Plain keys (synthetic sample / simple pipelines).
