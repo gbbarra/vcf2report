@@ -27,12 +27,14 @@ export OFFLINE=1                      # dress-rehearsal: no network needed
    ACMG rationale.
 3. Point at the **money shots**:
    - **SCN1A p.Arg612Ter → Pathogenic**, with the criterion table: PVS1 (LoF in a
-     LoF-intolerant gene) + PS1 (ClinVar) + PM2 (absent in gnomAD **and** ABraOM) +
-     PP4 (phenotype match 1.0). Not a score — a sourced derivation.
+     LoF-intolerant gene) + PM2 (absent in gnomAD **and** ABraOM) + PP4 (phenotype
+     match 1.0) + PP5 (reviewed ClinVar). Not a score — a sourced derivation.
    - **ABraOM callout**: *OBSCN was dropped — absent from gnomAD but 3.2% in
      Brazilians. A gnomAD-only pipeline would have chased it.*
-   - **KCNQ2 → Likely Pathogenic** even though ClinVar says Pathogenic — the engine
-     re-derives conservatively from independent evidence.
+   - **KCNQ2 → VUS even though ClinVar says Pathogenic** — the engine derives the
+     tier independently and counts a reviewed ClinVar assertion as *supporting*
+     (PP5), not strong, so it does not rubber-stamp ClinVar. This transparency is
+     the point: most real candidates are VUS, and the tool shows exactly why.
 
 ## Option B — headless (proves it without the LLM)
 

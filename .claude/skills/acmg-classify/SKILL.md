@@ -16,11 +16,13 @@ data; you **explain** them and **adjudicate** the judgment criteria.
 ## Division of labour
 - **Engine decides (adjudicated_by=engine):** PVS1 (LoF mechanics + gene
   constraint), PM2 (gnomAD **and** ABraOM absence), PM4, PP3/BP4 (in-silico
-  cutoffs), PP4 (HPO match), BA1/BS1/BS2 (frequency), BP7, PS1 (ClinVar exact-change).
-- **You adjudicate (adjudicated_by=model):** PM1 (hotspot/domain), PS3
-  (functional studies), PP2 (gene missense constraint), PM5 (residue-level
-  cross-check), PS4 (case-control). Only mark these met with an explicit, cited
-  reason. Default to not-met when evidence is absent.
+  cutoffs, mutually exclusive), PP4 (HPO match), PP5 (reviewed ClinVar P/LP as a
+  *supporting* reputable-source line), BA1/BS1/BS2 (frequency), BP7.
+- **You adjudicate (adjudicated_by=model):** PS1 (same aa change as a *different*
+  established pathogenic variant — not the variant's own ClinVar record), PM1
+  (hotspot/domain), PS3 (functional studies), PP2 (gene missense constraint), PM5
+  (residue-level cross-check), PS4 (case-control). Only mark these met with an
+  explicit, cited reason. Default to not-met when evidence is absent.
 - **N/A for a single proband:** PS2, PM3, PM6, PP1, BS4 — never assert these
   without trio / segregation / phasing data.
 

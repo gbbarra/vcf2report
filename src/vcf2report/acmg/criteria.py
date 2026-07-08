@@ -84,19 +84,18 @@ def pvs1(v: Variant, a: Annotation) -> CriterionResult:
 
 @criterion("PS1")
 def ps1(v: Variant, a: Annotation) -> CriterionResult:
-    name = "Same amino-acid change as an established pathogenic variant"
-    # Deterministic proxy: ClinVar reports this exact protein change as Pathogenic.
-    met = bool(v.hgvs_p and (a.clinvar_significance or "").lower().startswith("pathogenic"))
-    cites = [a.clinvar_accession] if (met and a.clinvar_accession) else []
+    name = "Same amino-acid change as a DIFFERENT established pathogenic variant"
+    # PS1 requires a residue-level cross-match to a *distinct* pathogenic variant
+    # (a different nucleotide change giving the same amino-acid change). That needs
+    # a residue-indexed ClinVar lookup we don't have, so it is surfaced for expert/
+    # model adjudication. The variant's OWN ClinVar assertion is captured by PP5,
+    # not PS1 (using it here would double-count reputable-source evidence at Strong).
     return CriterionResult(
-        "PS1", name, "strong", applies=True, met=met,
-        applied_strength="strong" if met else None,
-        evidence={"hgvs_p": v.hgvs_p, "clinvar": a.clinvar_significance},
-        citation=[c for c in cites if c],
-        reasoning=(
-            f"ClinVar records {v.hgvs_p} as {a.clinvar_significance}"
-            if met else "no established pathogenic record for this amino-acid change"
-        ),
+        "PS1", name, "strong", applies=True, met=False, adjudicated_by="model",
+        confidence="moderate",
+        evidence={"hgvs_p": v.hgvs_p},
+        reasoning="Requires a residue-level cross-match to a distinct ClinVar "
+                  "pathogenic variant — model adjudication (own ClinVar record is PP5)",
     )
 
 
@@ -271,6 +270,33 @@ def pp4(v: Variant, a: Annotation) -> CriterionResult:
         citation=[c for c in [a.source.get("hpo")] if c],
         reasoning=(f"phenotype match {score:.2f} (terms: {', '.join(a.hpo_matched_terms) or 'n/a'})"
                    if met else f"phenotype match {score:.2f} below {HPO_PP4_MIN}"),
+    )
+
+
+@criterion("PP5")
+def pp5(v: Variant, a: Annotation) -> CriterionResult:
+    name = "Reputable source (ClinVar) classifies the variant as pathogenic"
+    sig = (a.clinvar_significance or "").lower()
+    is_plp = sig.startswith("pathogenic") or sig.startswith("likely pathogenic")
+    # ClinVar review status comes with spaces (E-utilities) or underscores (VCF);
+    # normalize, then require a criteria-based (>=1 star) assertion. Use startswith
+    # so the 0-star "no assertion criteria provided" (which CONTAINS the substring
+    # "criteria provided") is correctly excluded.
+    review = (a.clinvar_review_status or "").lower().replace("_", " ").strip()
+    reviewed = (review.startswith("criteria provided")
+                or "reviewed by expert" in review
+                or "practice guideline" in review)
+    met = bool(is_plp and reviewed)
+    # PP5 was deprecated by the ClinGen SVI; retained here as a transparent, gated
+    # SUPPORTING line so ClinVar contributes without over-weighting (vs the old PS1).
+    return CriterionResult(
+        "PP5", name, "supporting", applies=True, met=met,
+        applied_strength="supporting" if met else None,
+        evidence={"clinvar": a.clinvar_significance, "review_status": a.clinvar_review_status},
+        citation=[a.clinvar_accession] if (met and a.clinvar_accession) else [],
+        confidence="moderate",
+        reasoning=(f"ClinVar {a.clinvar_significance} ({a.clinvar_review_status})"
+                   if met else "no reviewed ClinVar pathogenic assertion (or 0-star)"),
     )
 
 

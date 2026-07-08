@@ -16,7 +16,7 @@ def evaluate_criteria(variant: Variant, annotation: Annotation) -> list[Criterio
     order = [
         "PVS1", "PS1", "PS2", "PS3", "PS4",
         "PM1", "PM2", "PM3", "PM4", "PM5", "PM6",
-        "PP2", "PP3", "PP4",
+        "PP2", "PP3", "PP4", "PP5",
         "BA1", "BS1", "BS2", "BP4", "BP7",
     ]
     fns = _criteria.all_criteria()

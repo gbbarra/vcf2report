@@ -29,7 +29,9 @@ def test_end_to_end_pipeline_tiers():
     report = run_pipeline(config.SAMPLE_VCF, hpo_terms=hpo)
     tiers = {c.variant.gene: c.tier for c in report.classifications}
     assert tiers["SCN1A"] == "Pathogenic"
-    assert tiers["KCNQ2"] == "Likely Pathogenic"
+    # KCNQ2: ClinVar P contributes only PP5 (supporting), so 1 PM + 3 PP -> VUS,
+    # not the old PS1-driven Likely Pathogenic.
+    assert "VUS" in tiers["KCNQ2"]
     assert "VUS" in tiers["CACNA1A"]
     # OBSCN dropped by ABraOM, TTN dropped by rarity -> not classified
     assert "OBSCN" not in tiers

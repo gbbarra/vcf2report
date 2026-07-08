@@ -14,7 +14,7 @@ review**.
 
 ## What makes it different
 
-- **Auditable ACMG, not a black box.** 19 of the 28 ACMG/AMP criteria are
+- **Auditable ACMG, not a black box.** 20 of the 28 ACMG/AMP criteria are
   evaluated (the rest — PS2/PM3/PM6/PP1/BS4 and other trio/segregation/phasing
   rules — require data a single-proband VCF can't provide, and are reported N/A)
   each with the concrete evidence value, the source (DB + accession + date),
@@ -81,10 +81,13 @@ The bundled synthetic sample (`data/sample/sample_exome.vcf`, phenotype: seizure
 
 | Gene | Variant | ACMG tier | Why |
 |---|---|---|---|
-| SCN1A | p.Arg612Ter | **Pathogenic** | PVS1 + PS1 + PM2 + PP4 |
-| KCNQ2 | p.Arg213Trp | **Likely Pathogenic** | PS1 + PM2 + PP3 + PP4 |
+| SCN1A | p.Arg612Ter | **Pathogenic** | PVS1 + PM2 + PP4 + PP5 |
+| KCNQ2 | p.Arg213Trp | **VUS** | PM2 + PP3 + PP4 + PP5 (ClinVar P is supporting, not strong) |
 | CACNA1A | p.Ser34Pro | **VUS** | PM2 only |
 | OBSCN | p.Val100Ile | *dropped* | common in ABraOM, absent in gnomAD |
+
+(Most real candidates are VUS — the tool surfaces the one clear Pathogenic call
+and shows the full sourced ACMG derivation for each.)
 
 See [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) for the walkthrough.
 

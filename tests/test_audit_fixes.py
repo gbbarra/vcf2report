@@ -105,3 +105,39 @@ def test_report_render_no_placeholder_and_expected_content():
         assert gene in md
     assert "ABraOM" in md and "OBSCN" in md        # differentiator callout
     assert "Candidates classified: 3" in md
+
+
+# --- #13 ClinVar modeled as PP5 (supporting), PS1 no longer strong ----------
+def test_clinvar_is_pp5_supporting_not_ps1_strong():
+    v = Variant(chrom="20", pos=63446204, ref="G", alt="A", gene="KCNQ2",
+                consequence="missense_variant", hgvs_p="p.Arg213Trp")
+    a = Annotation(gnomad_af=0.0, abraom_af=0.0, clinvar_significance="Pathogenic",
+                   clinvar_review_status="criteria_provided,_single_submitter",
+                   clinvar_accession="VCV1", revel=0.92, cadd_phred=32.0,
+                   hpo_match_score=0.7, hpo_matched_terms=["x"])
+    result = classify(v, a)
+    codes = {c.code: c for c in result.criteria}
+    assert codes["PS1"].met is False and codes["PS1"].adjudicated_by == "model"
+    assert codes["PP5"].met is True and codes["PP5"].applied_strength == "supporting"
+    # 1 PM (PM2) + 3 PP (PP3, PP4, PP5) is insufficient for Likely Pathogenic.
+    assert "VUS" in result.tier
+
+
+def test_pp5_review_status_gate():
+    from vcf2report.acmg.criteria import pp5
+    v = Variant(chrom="1", pos=1, ref="A", alt="G")
+    # >=1-star, both ClinVar formatting styles -> PP5 fires
+    for review in ("criteria_provided,_multiple_submitters,_no_conflicts",
+                   "criteria provided, single submitter",
+                   "reviewed by expert panel"):
+        a = Annotation(clinvar_significance="Pathogenic", clinvar_review_status=review)
+        assert pp5(v, a).met is True, review
+    # 0-star: contains the substring "criteria provided" but must NOT fire
+    a0 = Annotation(clinvar_significance="Pathogenic",
+                    clinvar_review_status="no assertion criteria provided")
+    assert pp5(v, a0).met is False
+    # Likely pathogenic is accepted too
+    alp = Annotation(clinvar_significance="Likely pathogenic",
+                     clinvar_review_status="criteria provided, single submitter")
+    assert pp5(v, alp).met is True
+
