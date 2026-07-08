@@ -26,8 +26,8 @@ fast = ["cyvcf2>=0.30"]
 mcp = ["mcp[cli]>=1.2"]
 # Live annotation clients (gnomAD / ClinVar) use only the standard library —
 # no extra deps required.
-dev = ["pytest>=7.0"]
-all = ["cyvcf2>=0.30", "mcp[cli]>=1.2", "pytest>=7.0"]
+dev = ["pytest>=7.0", "hypothesis>=6.0"]
+all = ["cyvcf2>=0.30", "mcp[cli]>=1.2", "pytest>=7.0", "hypothesis>=6.0"]
 
 [project.scripts]
 vcf2report = "vcf2report.cli:main"
