@@ -58,7 +58,9 @@ def build_report(sample_id: str, hpo_terms: list[str], qc: QCSummary,
              "Uncertain Significance (VUS)": 2, "Likely Benign": 3, "Benign": 4}
     ranked = sorted(classifications, key=lambda c: order.get(c.tier, 9))
     generated = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    return ReportModel(sample_id=sample_id, hpo_terms=hpo_terms, qc=qc,
+    # Report the DETECTED build (qc.build), not the assumed default, so the header
+    # can't disagree with the build-mismatch warning.
+    return ReportModel(sample_id=sample_id, hpo_terms=hpo_terms, qc=qc, build=qc.build,
                        classifications=ranked, methods=methods, generated=generated)
 
 
