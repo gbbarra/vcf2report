@@ -16,6 +16,18 @@ _gene_terms: Optional[dict[str, set[str]]] = None
 _term_names: dict[str, str] = {}
 
 
+def _read_lines(fp):
+    """Yield lines from a plain or gzip-compressed TSV (the full HPO table ships
+    gzipped to keep the repo lean)."""
+    if str(fp).endswith(".gz"):
+        import gzip
+        with gzip.open(fp, "rt") as fh:
+            for line in fh:
+                yield line.rstrip("\n")
+    else:
+        yield from fp.read_text().splitlines()
+
+
 def _load() -> dict[str, set[str]]:
     global _gene_terms
     if _gene_terms is None:
@@ -23,7 +35,7 @@ def _load() -> dict[str, set[str]]:
         names: dict[str, str] = {}
         fp = config.HPO_GENES_LOCAL
         if fp.exists():
-            for line in fp.read_text().splitlines():
+            for line in _read_lines(fp):
                 if not line.strip() or line.startswith("#"):
                     continue
                 parts = line.split("\t")
