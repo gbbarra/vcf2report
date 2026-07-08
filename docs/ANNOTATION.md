@@ -18,9 +18,11 @@ its `CSQ` too. Avoid ANNOVAR: not open-source.)
 **Why local, not live APIs:** a live gnomAD/ClinVar call per variant is
 rate-limited and network-bound — infeasible for the ~20–100k variants in an
 exome (hours). Annotating against local files is O(1) per variant (minutes total).
-Keep the live MCP tools (`gnomad_frequency`, `clinvar_lookup`) for interactive
-drill-down on the final shortlist in Claude Desktop, where up-to-the-minute
-ClinVar matters.
+It is also **private**: local annotation sends nothing off-machine. The live MCP
+tools (`gnomad_frequency`, `clinvar_lookup`) are for interactive drill-down on the
+final shortlist, and they only run when you opt in with `VCF2REPORT_ALLOW_NETWORK=1`
+— at which point only that variant's coordinates are sent. By default the whole
+pipeline is offline.
 
 ## One command
 

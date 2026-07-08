@@ -18,6 +18,11 @@ from .. import config
 def _cache_file(source: str) -> Path:
     # Read config.CACHE_DIR at call time so overrides (env / tests) take effect.
     config.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    # The cache holds patient-derived variant coordinates — keep it owner-only.
+    try:
+        os.chmod(config.CACHE_DIR, 0o700)
+    except OSError:
+        pass
     return config.CACHE_DIR / f"{source}.json"
 
 

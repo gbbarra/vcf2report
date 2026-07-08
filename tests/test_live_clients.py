@@ -8,7 +8,12 @@ from vcf2report.annotate import _http, clinvar, gnomad
 from vcf2report.models import Variant
 
 # Cache isolation + offline-by-default come from tests/conftest.py; the live
-# tests below opt into "online" with monkeypatch.setenv("OFFLINE", "").
+# tests below opt into "online" via _online() (network is opt-in by default).
+
+
+def _online(mp):
+    mp.setenv("OFFLINE", "")
+    mp.setenv("VCF2REPORT_ALLOW_NETWORK", "1")
 
 # --- gnomAD -----------------------------------------------------------------
 _GNOMAD_PAYLOAD = {
@@ -30,7 +35,7 @@ _GNOMAD_PAYLOAD = {
 
 
 def test_gnomad_live_popmax(monkeypatch):
-    monkeypatch.setenv("OFFLINE", "")
+    _online(monkeypatch)
     monkeypatch.setattr(_http, "post_json", lambda *a, **k: _GNOMAD_PAYLOAD)
     v = Variant(chrom="2", pos=166003360, ref="C", alt="T")
     r = gnomad.lookup(v)
@@ -44,7 +49,7 @@ def test_gnomad_live_popmax(monkeypatch):
 
 def test_gnomad_errors_block_falls_back(monkeypatch):
     """A 200 carrying a non-'not found' GraphQL error must fall back, not fake AF 0."""
-    monkeypatch.setenv("OFFLINE", "")
+    _online(monkeypatch)
     monkeypatch.setattr(_http, "post_json", lambda *a, **k: {
         "data": {"variant": None},
         "errors": [{"message": "Query timed out. Please try again."}],
@@ -57,7 +62,7 @@ def test_gnomad_errors_block_falls_back(monkeypatch):
 
 def test_gnomad_unknown_when_lookup_fails_and_no_local(monkeypatch):
     """Transport failure with no local record -> AF None (unknown), not absent."""
-    monkeypatch.setenv("OFFLINE", "")
+    _online(monkeypatch)
     monkeypatch.setattr(_http, "post_json", lambda *a, **k: None)
     r = gnomad.lookup(Variant(chrom="9", pos=999999, ref="A", alt="G"))
     assert r["af"] is None
@@ -65,14 +70,14 @@ def test_gnomad_unknown_when_lookup_fails_and_no_local(monkeypatch):
 
 
 def test_gnomad_not_found_is_absent(monkeypatch):
-    monkeypatch.setenv("OFFLINE", "")
+    _online(monkeypatch)
     monkeypatch.setattr(_http, "post_json", lambda *a, **k: {"data": {"variant": None}})
     r = gnomad.lookup(Variant(chrom="1", pos=1, ref="A", alt="T"))
     assert r["af"] == 0.0
 
 
 def test_gnomad_transport_error_falls_back_to_local(monkeypatch):
-    monkeypatch.setenv("OFFLINE", "")
+    _online(monkeypatch)
     monkeypatch.setattr(_http, "post_json", lambda *a, **k: None)  # network failure
     v = Variant(chrom="2", pos=178562809, ref="G", alt="A")       # TTN, in local snapshot
     r = gnomad.lookup(v)
@@ -118,7 +123,7 @@ def _clinvar_router(match=True):
 
 
 def test_clinvar_live_exact_match(monkeypatch):
-    monkeypatch.setenv("OFFLINE", "")
+    _online(monkeypatch)
     monkeypatch.setattr(_http, "get_json", _clinvar_router(match=True))
     monkeypatch.setattr(_http, "throttle", lambda *a, **k: None)
     v = Variant(chrom="2", pos=166003360, ref="C", alt="T", gene="SCN1A")
@@ -129,7 +134,7 @@ def test_clinvar_live_exact_match(monkeypatch):
 
 
 def test_clinvar_live_mismatch_falls_back_to_local(monkeypatch):
-    monkeypatch.setenv("OFFLINE", "")
+    _online(monkeypatch)
     # Live returns a record at a different position/allele -> must not be accepted;
     # falls back to the authoritative local slice (which has SCN1A Pathogenic).
     monkeypatch.setattr(_http, "get_json", _clinvar_router(match=False))
@@ -150,7 +155,7 @@ def test_clinvar_legacy_field_shape():
 
 def test_clinvar_empty_search_falls_back_to_local(monkeypatch):
     """esearch with no hits must fall back to the local slice, not cache a miss."""
-    monkeypatch.setenv("OFFLINE", "")
+    _online(monkeypatch)
     monkeypatch.setattr(_http, "throttle", lambda *a, **k: None)
     monkeypatch.setattr(_http, "get_json",
                         lambda url, params, **k: {"esearchresult": {"idlist": []}})
@@ -162,7 +167,7 @@ def test_clinvar_empty_search_falls_back_to_local(monkeypatch):
 
 def test_clinvar_rejects_same_pos_unconfirmed_allele(monkeypatch):
     """Same position but no confirmable ref/alt must be REJECTED (not attached)."""
-    monkeypatch.setenv("OFFLINE", "")
+    _online(monkeypatch)
     monkeypatch.setattr(_http, "throttle", lambda *a, **k: None)
     summary = {"result": {"uids": ["1"], "1": {
         "accession": "VCV_OTHER",
@@ -182,7 +187,7 @@ def test_clinvar_rejects_same_pos_unconfirmed_allele(monkeypatch):
 
 def test_clinvar_matches_via_canonical_spdi(monkeypatch):
     """Allele can be positively confirmed from canonical_spdi when loc lacks alt."""
-    monkeypatch.setenv("OFFLINE", "")
+    _online(monkeypatch)
     monkeypatch.setattr(_http, "throttle", lambda *a, **k: None)
     summary = {"result": {"uids": ["1"], "1": {
         "accession": "VCV000012345",

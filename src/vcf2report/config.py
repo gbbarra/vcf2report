@@ -46,9 +46,25 @@ HPO_API = "https://ontology.jax.org/api"
 # ---------------------------------------------------------------------------
 # Behaviour flags
 # ---------------------------------------------------------------------------
+def _truthy(v: str | None) -> bool:
+    return (v or "").strip().lower() in {"1", "true", "yes"}
+
+
+def allow_network() -> bool:
+    """Whether outbound calls to gnomAD/NCBI are permitted. OFF by default.
+
+    Patient variant coordinates are sensitive genomic data, so egress is opt-IN:
+    set ``VCF2REPORT_ALLOW_NETWORK=1`` to enable live lookups. ``OFFLINE=1`` always
+    wins (forces no network) for a guaranteed-local demo.
+    """
+    if _truthy(os.environ.get("OFFLINE")):
+        return False
+    return _truthy(os.environ.get("VCF2REPORT_ALLOW_NETWORK"))
+
+
 def offline() -> bool:
-    """Cache-only mode. Set OFFLINE=1 for a network-independent demo."""
-    return os.environ.get("OFFLINE", "").strip().lower() in {"1", "true", "yes"}
+    """True when no network egress is allowed (the safe default)."""
+    return not allow_network()
 
 
 # ---------------------------------------------------------------------------

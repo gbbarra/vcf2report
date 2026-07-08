@@ -1,9 +1,16 @@
 # Setup & Claude Desktop integration
 
-vcf2report runs **locally** so patient VCFs never leave the machine. The right
-surface is **Claude Desktop** (not claude.ai web — a browser can't read local
-files, run the annotators, or keep the databases local). The MCP server runs as a
-local subprocess and is the bridge between Claude and the tools/databases.
+vcf2report runs **locally**. The right surface is **Claude Desktop** (not
+claude.ai web — a browser can't read local files, run the annotators, or keep the
+databases local). The MCP server runs as a local subprocess and is the bridge
+between Claude and the tools/databases.
+
+**Privacy — safe by default.** No patient data ever leaves the machine unless you
+opt in: outbound gnomAD/NCBI lookups are **off** by default and only run when you
+set `VCF2REPORT_ALLOW_NETWORK=1`. The VCF file itself is never transmitted; when
+network is enabled, only *individual variant coordinates* (chrom-pos-ref-alt) are
+sent to those public APIs. For fully local operation, annotate with the local
+toolchain (below) and leave network off (or set `OFFLINE=1` to hard-guarantee it).
 
 ## 1. Install
 

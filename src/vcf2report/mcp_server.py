@@ -157,9 +157,12 @@ def data_status() -> dict:
         # Tools present ≠ ready to annotate: the databases (gnomAD/ClinVar VCFs,
         # SnpEff DB, reference FASTA) must also be downloaded — see docs/SETUP.md.
         "annotation_tools_installed": all(tools.values()),
-        "offline_mode": config.offline(),
-        "note": "Tools on PATH do not imply the annotation databases are present; "
-                "run scripts/setup_data.sh and check vcfanno.conf.toml paths.",
+        # Network egress is OFF by default; live gnomAD/ClinVar lookups only happen
+        # when VCF2REPORT_ALLOW_NETWORK=1 (and OFFLINE is not set).
+        "network_egress_allowed": config.allow_network(),
+        "note": "Patient data stays local by default: no gnomAD/NCBI calls unless "
+                "VCF2REPORT_ALLOW_NETWORK=1. Tools on PATH do not imply the annotation "
+                "databases are present; run scripts/setup_data.sh.",
     }
 
 

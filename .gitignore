@@ -16,5 +16,14 @@ venv/
 data/out/
 data/cache/
 
+# Patient data — NEVER commit real VCFs / phenotypes. The bundled *synthetic*
+# samples under data/sample are force-tracked below.
+*.vcf
+*.vcf.gz
+*.vcf.gz.tbi
+*.hpo.txt
+annotation_data/
+!data/sample/sample_exome.vcf
+
 # OS
 .DS_Store
