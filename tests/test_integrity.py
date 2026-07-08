@@ -58,7 +58,7 @@ def test_acmg_combining_matrix():
 
 
 def test_pipeline_is_deterministic():
-    hpo = ["HP:0001250", "HP:0001263", "HP:0002133"]
+    hpo = ["HP:0001250", "HP:0002133", "HP:0011097"]
     r1 = run_pipeline(config.SAMPLE_VCF, hpo_terms=hpo)
     r2 = run_pipeline(config.SAMPLE_VCF, hpo_terms=hpo)
     t1 = [(c.variant.gene, c.tier, tuple(c.met_codes)) for c in r1.classifications]

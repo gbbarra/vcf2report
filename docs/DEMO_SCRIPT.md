@@ -21,7 +21,7 @@ export OFFLINE=1                      # dress-rehearsal: no network needed
 
 1. In Claude Desktop (with the MCP server configured), say:
    *"Analyze this VCF for a patient with seizures and developmental delay:
-   `data/sample/sample_exome.vcf`. HPO: HP:0001250, HP:0001263, HP:0002133."*
+   `data/sample/sample_exome.vcf`. HPO: HP:0001250, HP:0002133, HP:0011097."*
 2. Claude uses the Skills SOP and MCP tools: `parse_vcf` (show the QC funnel),
    then `run_report`. It returns the draft with the tier table and the auditable
    ACMG rationale.
@@ -29,10 +29,11 @@ export OFFLINE=1                      # dress-rehearsal: no network needed
    - **SCN1A p.Arg612Ter → Pathogenic**, with the criterion table: PVS1 (LoF in a
      LoF-intolerant gene) + PM2 (absent in gnomAD **and** ABraOM) + PP4 (phenotype
      match 1.0) + PP5 (reviewed ClinVar). Not a score — a sourced derivation.
-   - **Secondary findings, gated on ACMG SF v3.2** — **MSH2 p.Arg406Ter →
-     Likely Pathogenic** (PVS1 + PM2) is unrelated to the seizures but MSH2 is an
-     ACMG SF gene (Lynch syndrome), so it is reported as an **actionable secondary
-     finding**. Meanwhile **PAX6 p.Arg68Ter** (also LP, aniridia) is *not* on the
+   - **Secondary findings, gated on ACMG SF v3.2** — **LDLR p.Arg350Ter →
+     Likely Pathogenic** (PVS1 + PM2) is unrelated to the seizures but LDLR is an
+     ACMG SF gene (familial hypercholesterolemia), so it is reported as an
+     **actionable secondary finding**. Meanwhile **PAX6 p.Arg68Ter** (also LP,
+     aniridia) is *not* on the
      SF list, so it is routed to "Other", not returned. Shows real SF gating, not
      a loose "any incidental P/LP" claim.
    - **ABraOM callout**: *OBSCN was dropped — absent from gnomAD but 3.2% in

@@ -25,7 +25,7 @@ def test_clinvar_local_lookup():
 
 
 def test_end_to_end_pipeline_tiers():
-    hpo = ["HP:0001250", "HP:0001263", "HP:0002133"]
+    hpo = ["HP:0001250", "HP:0002133", "HP:0011097"]
     report = run_pipeline(config.SAMPLE_VCF, hpo_terms=hpo)
     tiers = {c.variant.gene: c.tier for c in report.classifications}
     assert tiers["SCN1A"] == "Pathogenic"
@@ -39,6 +39,6 @@ def test_end_to_end_pipeline_tiers():
     # OBSCN dropped by ABraOM, TTN dropped by rarity -> not classified
     assert "OBSCN" not in tiers
     assert "TTN" not in tiers
-    assert tiers["MSH2"] == "Likely Pathogenic"   # incidental ACMG SF finding
+    assert tiers["RB1"] == "Likely Pathogenic"   # incidental ACMG SF finding
     assert report.qc.candidates == 5
     assert any("OBSCN" in n for n in report.qc.abraom_filtered)

@@ -84,14 +84,14 @@ The bundled synthetic sample (`data/sample/sample_exome.vcf`, phenotype: seizure
 | SCN1A | p.Arg612Ter | **Pathogenic** | Primary | PVS1 + PM2 + PP4 + PP5 (matches the seizure phenotype) |
 | KCNQ2 | p.Arg213Trp | **VUS** | Primary | PM2 + PP3 + PP4 + PP5 (ClinVar P is supporting, not strong) |
 | CACNA1A | p.Ser34Pro | **VUS** | Primary | PM2 only |
-| MSH2 | p.Arg406Ter | **Likely Pathogenic** | **Secondary (ACMG SF)** | PVS1 + PM2 — actionable incidental finding on an SF v3.2 gene |
+| LDLR | p.Arg350Ter | **Likely Pathogenic** | **Secondary (ACMG SF)** | PVS1 + PM2 — actionable incidental finding on an SF v3.2 gene |
 | PAX6 | p.Arg68Ter | **Likely Pathogenic** | Other | PVS1 + PM2 — incidental, but PAX6 is not on the ACMG SF list |
 | OBSCN | p.Val100Ile | *dropped* | — | common in ABraOM, absent in gnomAD |
 
 The report separates **primary** (phenotype-related) from **secondary** findings
-gated on the real **ACMG SF v3.2** gene list — so MSH2 (Lynch, actionable) is a
-reportable secondary finding while PAX6 (aniridia, not on the SF list) is routed to
-"other". Each call carries its full sourced ACMG derivation.
+gated on the real **ACMG SF v3.2** gene list — so LDLR (familial hypercholesterolemia,
+actionable) is a reportable secondary finding while PAX6 (aniridia, not on the SF list)
+is routed to "other". Each call carries its full sourced ACMG derivation.
 
 See [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) for the walkthrough.
 

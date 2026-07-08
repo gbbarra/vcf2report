@@ -1,4 +1,4 @@
 # Patient HPO terms (one per line). Free-text after the ID is ignored.
 HP:0001250  Seizure
-HP:0001263  Global developmental delay
 HP:0002133  Status epilepticus
+HP:0011097  Epileptic spasms

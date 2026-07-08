@@ -96,12 +96,12 @@ def test_insilico_conflict_fires_neither_pp3_nor_bp4():
 
 # --- #3/#10 report render ----------------------------------------------------
 def test_report_render_no_placeholder_and_expected_content():
-    hpo = ["HP:0001250", "HP:0001263", "HP:0002133"]
+    hpo = ["HP:0001250", "HP:0002133", "HP:0011097"]
     report = run_pipeline(config.SAMPLE_VCF, hpo_terms=hpo)
     md = render_markdown(report)
     assert "(timestamp filled by caller)" not in md
     assert report.generated                       # real ISO timestamp
-    for gene in ("SCN1A", "PAX6", "MSH2", "KCNQ2", "CACNA1A"):
+    for gene in ("SCN1A", "PAX6", "RB1", "KCNQ2", "CACNA1A"):
         assert gene in md
     assert "ABraOM" in md and "OBSCN" in md        # differentiator callout
     assert "Candidates classified: 5" in md
@@ -110,13 +110,13 @@ def test_report_render_no_placeholder_and_expected_content():
 def test_primary_vs_secondary_findings_split():
     from vcf2report.report.assemble import split_findings
     report = run_pipeline(config.SAMPLE_VCF,
-                          hpo_terms=["HP:0001250", "HP:0001263", "HP:0002133"])
+                          hpo_terms=["HP:0001250", "HP:0002133", "HP:0011097"])
     primary, secondary, other = split_findings(report.classifications)
     pg = {c.variant.gene for c in primary}
     sg = {c.variant.gene for c in secondary}
     og = {c.variant.gene for c in other}
     assert {"SCN1A", "KCNQ2", "CACNA1A"} <= pg   # phenotype-related
-    assert "MSH2" in sg                          # unrelated P/LP in an ACMG SF gene
+    assert "RB1" in sg                          # unrelated P/LP in an ACMG SF gene
     assert "PAX6" in og                          # unrelated P/LP but NOT on the SF list
     assert all(c.tier in ("Pathogenic", "Likely Pathogenic") for c in secondary)
 

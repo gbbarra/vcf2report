@@ -4,7 +4,7 @@ The HTTP layer (annotate._http) is mocked with realistic payloads — no network
 These tests lock the response parsing and the cache-first / OFFLINE / local-
 fallback behaviour that the clients must preserve.
 """
-from vcf2report.annotate import _http, clinvar, gnomad
+from vcf2report.annotate import _http, clinvar, gnomad, gnomad_remote
 from vcf2report.models import Variant
 
 # Cache isolation + offline-by-default come from tests/conftest.py; the live
@@ -14,6 +14,10 @@ from vcf2report.models import Variant
 def _online(mp):
     mp.setenv("OFFLINE", "")
     mp.setenv("VCF2REPORT_ALLOW_NETWORK", "1")
+    # These tests exercise the GraphQL + local-fallback layer specifically, so
+    # disable the remote-tabix path (covered by test_gnomad_remote.py) to keep
+    # them hermetic — otherwise gnomad.lookup would try the real GCS bucket first.
+    mp.setattr(gnomad_remote, "query", lambda variant: None)
 
 # --- gnomAD -----------------------------------------------------------------
 _GNOMAD_PAYLOAD = {
