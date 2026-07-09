@@ -46,3 +46,8 @@ snpEff/
 snpEff.zip
 clinEff/
 *.zip
+
+# AlphaMissense hg38 predictions (~1 GB, CC BY 4.0) — fetched locally via
+# scripts/fetch_alphamissense.sh; only the small frozen per-variant slice
+# (data/concordance/alphamissense_frozen.json) is committed.
+data/alphamissense/

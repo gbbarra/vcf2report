@@ -1,5 +1,23 @@
 {
+  "1-42927256-G-A": {
+    "ac": 1,
+    "af": 1.4696372935159602e-05,
+    "an": 68044,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
   "1-42927701-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "1-42927785-A-T": {
     "ac": 0,
     "af": 0.0,
     "an": 0,
@@ -15,6 +33,15 @@
     "faf95": null,
     "hom": 0,
     "pop": "hgdp:xx",
+    "release": "gnomad_r4"
+  },
+  "1-42929315-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
     "release": "gnomad_r4"
   },
   "1-42929500-G-C": {
@@ -44,6 +71,15 @@
     "pop": null,
     "release": "4.1"
   },
+  "1-42929755-A-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
   "1-42929777-A-T": {
     "ac": 0,
     "af": 0.0,
@@ -53,6 +89,15 @@
     "pop": null,
     "release": "4.1"
   },
+  "1-42929864-T-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
   "1-42929918-G-C": {
     "ac": 0,
     "af": 0.0,
@@ -61,6 +106,87 @@
     "hom": 0,
     "pop": null,
     "release": "4.1"
+  },
+  "1-42929955-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "1-42930010-C-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "1-42930683-A-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "1-42930749-C-T": {
+    "ac": 1,
+    "af": 2.986857825567503e-05,
+    "an": 33480,
+    "faf95": null,
+    "hom": 0,
+    "pop": "afr",
+    "release": "gnomad_r4"
+  },
+  "1-42930791-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "1-42931125-A-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "1-42943225-C-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "1-42943225-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "1-42943233-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
   },
   "1-42943267-G-A": {
     "ac": 0,
@@ -197,6 +323,33 @@
     "pop": "1kg:pel",
     "release": "gnomad_r4"
   },
+  "11-31790825-G-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "11-31793680-G-A": {
+    "ac": 2,
+    "af": 1.7985740904610824e-06,
+    "an": 1111992,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "11-31793707-G-A": {
+    "ac": 3,
+    "af": 2.6979242171073577e-06,
+    "an": 1111966,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
   "11-31794015-G-A": {
     "ac": 0,
     "af": 0.0,
@@ -204,6 +357,24 @@
     "faf95": null,
     "hom": 0,
     "pop": null,
+    "release": "gnomad_r4"
+  },
+  "11-31794033-T-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "11-31794062-G-C": {
+    "ac": 1,
+    "af": 9.014222640482153e-07,
+    "an": 1109358,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
     "release": "gnomad_r4"
   },
   "11-31794115-C-T": {
@@ -215,6 +386,24 @@
     "pop": null,
     "release": "4.1"
   },
+  "11-31794631-T-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "11-31794679-T-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
   "11-31794789-C-G": {
     "ac": 0,
     "af": 0.0,
@@ -223,6 +412,15 @@
     "hom": 0,
     "pop": null,
     "release": "4.1"
+  },
+  "11-31801548-T-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
   },
   "11-31801563-T-G": {
     "ac": 0,
@@ -233,6 +431,24 @@
     "pop": null,
     "release": "4.1"
   },
+  "11-31801630-G-A": {
+    "ac": 1,
+    "af": 0.00019290123456790122,
+    "an": 5184,
+    "faf95": null,
+    "hom": 0,
+    "pop": "eas",
+    "release": "gnomad_r4"
+  },
+  "11-31801728-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
   "11-31801776-C-T": {
     "ac": 0,
     "af": 0.0,
@@ -241,6 +457,24 @@
     "hom": 0,
     "pop": null,
     "release": "4.1"
+  },
+  "11-31802704-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "11-31802720-A-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
   },
   "11-31802785-T-C": {
     "ac": 1,
@@ -260,7 +494,34 @@
     "pop": "eas",
     "release": "gnomad_r4"
   },
+  "11-31802853-G-A": {
+    "ac": 7,
+    "af": 9.350538323849216e-05,
+    "an": 74862,
+    "faf95": null,
+    "hom": 0,
+    "pop": "afr",
+    "release": "gnomad_r4"
+  },
   "11-31803647-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "11-31806927-T-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "13-48307279-G-T": {
     "ac": 0,
     "af": 0.0,
     "an": 0,
@@ -304,6 +565,15 @@
     "hom": 0,
     "pop": null,
     "release": "4.1"
+  },
+  "13-48381269-T-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
   },
   "13-48459790-T-G": {
     "ac": 0,
@@ -458,6 +728,24 @@
     "pop": "amr",
     "release": "gnomad_r4"
   },
+  "19-13209402-C-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "19-13210653-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
   "19-13214317-C-T": {
     "ac": 2,
     "af": 1.7988458604959058e-06,
@@ -465,6 +753,15 @@
     "faf95": null,
     "hom": 0,
     "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "19-13231878-T-C": {
+    "ac": 3,
+    "af": 3.313306237851211e-05,
+    "an": 90544,
+    "faf95": null,
+    "hom": 0,
+    "pop": "sas",
     "release": "gnomad_r4"
   },
   "19-13235009-C-A": {
@@ -475,6 +772,33 @@
     "hom": 0,
     "pop": null,
     "release": "4.1"
+  },
+  "19-13235261-A-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "19-13235702-C-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "19-13235745-G-A": {
+    "ac": 1,
+    "af": 1.1685792413583565e-05,
+    "an": 85574,
+    "faf95": null,
+    "hom": 0,
+    "pop": "sas",
+    "release": "gnomad_r4"
   },
   "19-13257487-C-A": {
     "ac": 0,
@@ -494,6 +818,24 @@
     "pop": "xy",
     "release": "gnomad_r4"
   },
+  "19-13262838-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "19-13275867-C-T": {
+    "ac": 4,
+    "af": 8.914642299977714e-05,
+    "an": 44870,
+    "faf95": null,
+    "hom": 0,
+    "pop": "eas",
+    "release": "gnomad_r4"
+  },
   "19-13277123-C-T": {
     "ac": 1,
     "af": 1.2330000123300002e-06,
@@ -501,6 +843,60 @@
     "faf95": null,
     "hom": 0,
     "pop": "xx",
+    "release": "gnomad_r4"
+  },
+  "19-13286982-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "19-13298822-C-T": {
+    "ac": 1,
+    "af": 0.0001928268414963363,
+    "an": 5186,
+    "faf95": null,
+    "hom": 0,
+    "pop": "eas",
+    "release": "gnomad_r4"
+  },
+  "19-13300650-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "19-13303604-A-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "19-13308173-A-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "19-13308252-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
     "release": "gnomad_r4"
   },
   "19-13312777-A-G": {
@@ -521,6 +917,24 @@
     "pop": null,
     "release": "gnomad_r4"
   },
+  "2-165296060-G-A": {
+    "ac": 1,
+    "af": 1.4700261664657632e-05,
+    "an": 68026,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "2-165309376-G-C": {
+    "ac": 1,
+    "af": 0.0001926040061633282,
+    "an": 5192,
+    "faf95": null,
+    "hom": 0,
+    "pop": "eas",
+    "release": "gnomad_r4"
+  },
   "2-165310345-C-T": {
     "ac": 3,
     "af": 3.478422187695661e-05,
@@ -528,6 +942,15 @@
     "faf95": null,
     "hom": 0,
     "pop": "sas",
+    "release": "gnomad_r4"
+  },
+  "2-165312093-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
     "release": "gnomad_r4"
   },
   "2-165313665-C-T": {
@@ -566,7 +989,79 @@
     "pop": null,
     "release": "gnomad_r4"
   },
+  "2-165342459-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165344651-G-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
   "2-165367381-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165373210-G-A": {
+    "ac": 1,
+    "af": 9.00229378445628e-07,
+    "an": 1110828,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "2-165374719-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165374750-C-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165380572-C-T": {
+    "ac": 1,
+    "af": 9.503806274412903e-07,
+    "an": 1052210,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "2-165380627-C-T": {
+    "ac": 2,
+    "af": 1.843678211779629e-06,
+    "an": 1084788,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "2-165381180-C-G": {
     "ac": 0,
     "af": 0.0,
     "an": 0,
@@ -592,6 +1087,105 @@
     "hom": 0,
     "pop": null,
     "release": "4.1"
+  },
+  "2-165388804-T-G": {
+    "ac": 1,
+    "af": 2.5191455058444177e-05,
+    "an": 39696,
+    "faf95": null,
+    "hom": 0,
+    "pop": "eas",
+    "release": "gnomad_r4"
+  },
+  "2-165388807-T-C": {
+    "ac": 1,
+    "af": 2.5191455058444177e-05,
+    "an": 39696,
+    "faf95": null,
+    "hom": 0,
+    "pop": "eas",
+    "release": "gnomad_r4"
+  },
+  "2-165389114-A-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165991569-G-T": {
+    "ac": 8,
+    "af": 6.7801321786768235e-06,
+    "an": 1179918,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "2-165991932-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165992225-A-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165992297-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165992382-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165996084-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-166013822-C-T": {
+    "ac": 1,
+    "af": 9.000397817583537e-07,
+    "an": 1111062,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "2-166015746-T-G": {
+    "ac": 4,
+    "af": 3.601650276156535e-06,
+    "an": 1110602,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
   },
   "2-166037903-G-T": {
     "ac": 0,
@@ -638,7 +1232,25 @@
     "pop": null,
     "release": "4.1"
   },
+  "2-166041315-A-G": {
+    "ac": 1,
+    "af": 8.993307180796052e-07,
+    "an": 1111938,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
   "2-166041345-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-166045186-T-A": {
     "ac": 0,
     "af": 0.0,
     "an": 0,
@@ -656,6 +1268,15 @@
     "pop": null,
     "release": "4.1"
   },
+  "2-166051853-C-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
   "2-166052961-C-T": {
     "ac": 2,
     "af": 2.7858412404793874e-06,
@@ -665,7 +1286,61 @@
     "pop": "xy",
     "release": "gnomad_r4"
   },
+  "2-166054627-A-G": {
+    "ac": 2,
+    "af": 2.3199164830066116e-05,
+    "an": 86210,
+    "faf95": null,
+    "hom": 0,
+    "pop": "sas",
+    "release": "gnomad_r4"
+  },
+  "2-166054678-C-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-166073538-G-A": {
+    "ac": 1,
+    "af": 8.992821929535844e-07,
+    "an": 1111998,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "20-63407386-G-C": {
+    "ac": 1,
+    "af": 8.996543527976551e-07,
+    "an": 1111538,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "20-63413500-G-A": {
+    "ac": 1,
+    "af": 2.2360359554581637e-05,
+    "an": 44722,
+    "faf95": null,
+    "hom": 0,
+    "pop": "amr",
+    "release": "gnomad_r4"
+  },
   "20-63413601-G-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "20-63415039-C-G": {
     "ac": 0,
     "af": 0.0,
     "an": 0,
@@ -683,6 +1358,24 @@
     "pop": "sas",
     "release": "gnomad_r4"
   },
+  "20-63433869-C-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "20-63433887-T-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
   "20-63438642-C-T": {
     "ac": 0,
     "af": 0.0,
@@ -691,6 +1384,42 @@
     "hom": 0,
     "pop": null,
     "release": "4.1"
+  },
+  "20-63438687-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "20-63439721-A-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "20-63442488-A-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "20-63442506-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
   },
   "20-63442514-C-T": {
     "ac": 0,
@@ -736,6 +1465,51 @@
     "hom": 0,
     "pop": null,
     "release": "4.1"
+  },
+  "20-63446804-A-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "20-63472179-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "20-63472257-C-T": {
+    "ac": 1,
+    "af": 2.53151739152448e-05,
+    "an": 39502,
+    "faf95": null,
+    "hom": 0,
+    "pop": "eas",
+    "release": "gnomad_r4"
+  },
+  "20-63472260-G-A": {
+    "ac": 2,
+    "af": 1.8610087039377082e-06,
+    "an": 1074686,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "20-63472457-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
   },
   "3-10142073-T-G": {
     "ac": 1,
@@ -827,6 +1601,15 @@
     "pop": "xy",
     "release": "gnomad_r4"
   },
+  "9-127653709-T-C": {
+    "ac": 1,
+    "af": 8.993145424557402e-07,
+    "an": 1111958,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
   "9-127653801-G-A": {
     "ac": 0,
     "af": 0.0,
@@ -845,6 +1628,60 @@
     "pop": null,
     "release": "4.1"
   },
+  "9-127658395-C-T": {
+    "ac": 1,
+    "af": 2.519018590357197e-05,
+    "an": 39698,
+    "faf95": null,
+    "hom": 0,
+    "pop": "eas",
+    "release": "gnomad_r4"
+  },
+  "9-127658399-G-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "9-127658406-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "9-127658419-G-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "9-127665286-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "9-127665346-G-A": {
+    "ac": 1,
+    "af": 8.994116049280561e-07,
+    "an": 1111838,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
   "9-127666224-C-T": {
     "ac": 0,
     "af": 0.0,
@@ -854,6 +1691,15 @@
     "pop": null,
     "release": "4.1"
   },
+  "9-127666294-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
   "9-127666307-T-C": {
     "ac": 10,
     "af": 8.47437518431766e-06,
@@ -861,6 +1707,24 @@
     "faf95": null,
     "hom": 0,
     "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "9-127668078-A-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "9-127668185-C-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
     "release": "gnomad_r4"
   },
   "9-127669949-T-C": {
@@ -881,6 +1745,15 @@
     "pop": null,
     "release": "gnomad_r4"
   },
+  "9-127675910-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
   "9-127680243-G-A": {
     "ac": 0,
     "af": 0.0,
@@ -890,7 +1763,34 @@
     "pop": null,
     "release": "4.1"
   },
+  "9-127682404-A-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "9-127682507-T-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
   "9-127684348-T-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "9-127684385-A-C": {
     "ac": 0,
     "af": 0.0,
     "an": 0,
