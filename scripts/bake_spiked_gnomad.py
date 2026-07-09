@@ -25,10 +25,23 @@ def main() -> int:
     from vcf2report.annotate import gnomad_remote
     from vcf2report.models import Variant
 
+    gnomad_hdr = [
+        '##INFO=<ID=gnomad_AF,Number=A,Type=Float,Description="gnomAD v4.1 grpmax allele frequency (live remote tabix; baked for spiked variants)">',
+        '##INFO=<ID=gnomad_AC,Number=A,Type=Integer,Description="gnomAD v4.1 allele count">',
+        '##INFO=<ID=gnomad_AN,Number=1,Type=Integer,Description="gnomAD v4.1 allele number">',
+    ]
+
     path = Path(sys.argv[1])
     out = []
     n = 0
+    hdr_written = False
     for line in path.read_text().splitlines():
+        # Declare the gnomad_* INFO fields once, just before the #CHROM line, so
+        # the baked values are self-describing and parsers don't warn.
+        if line.startswith("#CHROM") and not hdr_written:
+            if not any("ID=gnomad_AF" in l for l in out):
+                out.extend(gnomad_hdr)
+            hdr_written = True
         if line.startswith("#") or "SPIKED=1" not in line:
             out.append(line)
             continue
