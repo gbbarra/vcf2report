@@ -31,7 +31,6 @@ REVEL_PATHOGENIC = 0.70
 REVEL_BENIGN = 0.15
 CADD_PATHOGENIC = 20.0
 CADD_BENIGN = 10.0
-PM2_RARE_AF = 1e-4          # "absent or ultra-rare" ceiling
 BS2_HOM_MIN = 2             # healthy homozygotes incompatible with severe disease
 HPO_PP4_MIN = 0.60          # phenotype-match score to support PP4
 
@@ -158,18 +157,23 @@ def pm2(v: Variant, a: Annotation) -> CriterionResult:
             reasoning="gnomAD frequency unavailable — cannot assert population absence",
         )
     gaf = a.gnomad_af
-    rare_global = gaf <= PM2_RARE_AF
-    rare_local = baf <= PM2_RARE_AF
+    ceiling, moi = config.pm2_af_ceiling(v.gene)
+    moi_note = f"{v.gene} is {moi}" if moi else "inheritance unknown → strict default"
+    rare_global = gaf <= ceiling
+    rare_local = baf <= ceiling
     met = rare_global and rare_local
     reason = (
-        f"gnomAD popmax AF={gaf:.6f}, ABraOM AF={baf:.6f} — both at/under {PM2_RARE_AF:g}"
+        f"gnomAD popmax AF={gaf:.6f}, ABraOM AF={baf:.6f} — both at/under {ceiling:g} "
+        f"({moi_note})"
         if met else
-        f"present in a population DB (gnomAD AF={gaf:.6f}, ABraOM AF={baf:.6f})"
+        f"present above the {ceiling:g} PM2 ceiling ({moi_note}): "
+        f"gnomAD AF={gaf:.6f}, ABraOM AF={baf:.6f}"
     )
     return CriterionResult(
         "PM2", name, "moderate", applies=True, met=met,
         applied_strength="moderate" if met else None,
-        evidence={"gnomad_af": a.gnomad_af, "abraom_af": a.abraom_af},
+        evidence={"gnomad_af": a.gnomad_af, "abraom_af": a.abraom_af,
+                  "ceiling": ceiling, "moi": moi},
         citation=cites, reasoning=reason,
     )
 

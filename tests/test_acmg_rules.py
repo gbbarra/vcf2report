@@ -51,6 +51,19 @@ def test_pm2_not_met_when_gnomad_frequency_unknown():
     assert pm2.confidence == "low"
 
 
+def test_pm2_ceiling_is_inheritance_aware():
+    """AF=5e-4 is rare enough for a recessive gene (PM2 met, carriers tolerated)
+    but too common for a dominant gene (PM2 not met)."""
+    def _pm2(gene):
+        v = Variant(chrom="1", pos=100, ref="A", alt="G", gene=gene,
+                    consequence="missense_variant")
+        a = Annotation(gnomad_af=5e-4, abraom_af=0.0)
+        return next(c for c in classify(v, a).criteria if c.code == "PM2")
+    assert _pm2("CFTR").met is True     # AR ceiling 1e-3
+    assert _pm2("SCN1A").met is False   # AD ceiling 1e-4
+    assert _pm2("ZZZ9").met is False    # unknown → strict default 1e-4
+
+
 def test_conflicting_evidence_is_vus():
     """Pathogenic + benign evidence resolves to VUS, not a forced call."""
     crits = [

@@ -24,6 +24,9 @@ data/cache/
 *.hpo.txt
 annotation_data/
 !data/sample/sample_exome.vcf
+# Bundled *synthetic* demo exomes (de-identified; real 1000G background + spiked
+# ClinVar pathogenics) — the realistic inputs the e2e tests and demo run on.
+!data/example/*.synthetic.vcf.gz
 
 # OS
 .DS_Store

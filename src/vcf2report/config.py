@@ -123,6 +123,31 @@ def bs1_af_cutoff(gene: str | None) -> tuple[float, str | None]:
         return BS1_AF_DOMINANT, moi
     return BS1_AF_DEFAULT, None
 
+
+# ---------------------------------------------------------------------------
+# PM2 — "absent/ultra-rare in population databases" (ClinGen SVI: supporting).
+# Like BS1, the credible ceiling is disorder-dependent: a recessive disorder
+# tolerates a higher AF (carriers are common in the general population) before a
+# variant stops looking rare, whereas a dominant disorder needs near-absence.
+# ---------------------------------------------------------------------------
+PM2_AF_DOMINANT = 1e-4      # dominant: absent / ultra-rare
+PM2_AF_RECESSIVE = 1e-3     # recessive: carrier frequency tolerated
+PM2_AF_DEFAULT = 1e-4       # inheritance unknown → strict default
+
+
+def pm2_af_ceiling(gene: str | None) -> tuple[float, str | None]:
+    """PM2 rarity ceiling and the mode of inheritance it came from.
+
+    Returns ``(ceiling, moi)``; genes absent from the curated map resolve to the
+    strict default so PM2 is never granted more liberally than we can justify.
+    """
+    moi = GENE_INHERITANCE.get((gene or "").upper()) if gene else None
+    if moi == "AR":
+        return PM2_AF_RECESSIVE, moi
+    if moi in ("AD", "XL"):
+        return PM2_AF_DOMINANT, moi
+    return PM2_AF_DEFAULT, None
+
 # ---------------------------------------------------------------------------
 # ACMG SF v3.2 (Miller et al., 2023) secondary-findings genes. A P/LP variant in
 # one of these, unrelated to the indication, is a reportable secondary finding
