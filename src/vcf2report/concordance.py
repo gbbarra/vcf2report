@@ -51,6 +51,7 @@ from .models import Annotation, Classification, Variant
 CONCORDANCE_DIR = config.DATA_DIR / "concordance"
 GROUND_TRUTH = CONCORDANCE_DIR / "ground_truth.tsv"
 FROZEN_GNOMAD = CONCORDANCE_DIR / "gnomad_frozen.json"
+FROZEN_ALPHAMISSENSE = CONCORDANCE_DIR / "alphamissense_frozen.json"
 
 _GT_COLUMNS = [
     "key", "gene", "consequence", "hgvs_p",
@@ -104,6 +105,7 @@ class PanelEntry:
     review_status: Optional[str] = None
     accession: Optional[str] = None
     frozen_gnomad: dict = field(default_factory=dict)
+    frozen_alphamissense: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -171,6 +173,7 @@ def _annotation_from_frozen(
     scores are attached in v1 (missense pathogenicity is left to model adjudication).
     """
     g = entry.frozen_gnomad or {}
+    am = entry.frozen_alphamissense or {}
     v = entry.variant
     ab = abraom.lookup(v)
     con = extra.gene_constraint(v.gene)
@@ -195,11 +198,15 @@ def _annotation_from_frozen(
         gene_lof_intolerant=con.get("lof_intolerant"),
         revel=None,
         cadd_phred=None,
+        am_pathogenicity=am.get("am_pathogenicity"),
+        am_class=am.get("am_class"),
         hpo_match_score=None,
         source={
             "gnomad": f"gnomAD v{g.get('release', '4.1')} (frozen panel)",
             "abraom": ab.get("_source", ""),
             "gene_lof_intolerant": con.get("_source", ""),
+            "alphamissense": "AlphaMissense (frozen panel)" if am.get("am_pathogenicity") is not None
+            else "AlphaMissense (no score)",
             "clinvar": "withheld (concordance panel)" if withhold_clinvar
             else "ClinVar (panel truth)",
         },
@@ -218,18 +225,23 @@ def classify_entry(entry: PanelEntry, withhold_clinvar: bool = True) -> Classifi
 def load_panel(
     ground_truth: str | Path = GROUND_TRUTH,
     frozen_gnomad: str | Path = FROZEN_GNOMAD,
+    frozen_alphamissense: str | Path = FROZEN_ALPHAMISSENSE,
 ) -> list[PanelEntry]:
-    """Load ground-truth variants + frozen gnomAD into :class:`PanelEntry` list.
+    """Load ground-truth variants + frozen gnomAD (+ AlphaMissense) into entries.
 
     Only variants whose ClinVar significance collapses to a definite PATH or BEN
     truth are kept in the answer key (an uncertain/conflicting truth is not a
-    usable label). Rows missing a frozen gnomAD record keep an empty snapshot,
-    which the engine reads as "frequency unavailable" (never a fabricated AF 0).
+    usable label). Rows missing a frozen record keep an empty snapshot, which the
+    engine reads as "unavailable" (never a fabricated AF 0 / score 0). The
+    AlphaMissense frozen file is optional — absent means v1 (frequency-only)
+    behaviour, present means the calibrated in-silico axis is active.
     """
     gt_path, frozen_path = Path(ground_truth), Path(frozen_gnomad)
     frozen: dict = {}
     if frozen_path.exists():
         frozen = json.loads(frozen_path.read_text())
+    am_path = Path(frozen_alphamissense)
+    am_frozen: dict = json.loads(am_path.read_text()) if am_path.exists() else {}
 
     entries: list[PanelEntry] = []
     for line in gt_path.read_text().splitlines():
@@ -249,6 +261,7 @@ def load_panel(
             review_status=row.get("review_status") or None,
             accession=row.get("accession") or None,
             frozen_gnomad=frozen.get(row["key"], {}),
+            frozen_alphamissense=am_frozen.get(row["key"], {}),
         ))
     return entries
 

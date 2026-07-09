@@ -79,6 +79,8 @@ class Annotation:
     # in-silico
     revel: Optional[float] = None
     cadd_phred: Optional[float] = None
+    am_pathogenicity: Optional[float] = None  # AlphaMissense score (0..1)
+    am_class: Optional[str] = None            # likely_benign | ambiguous | likely_pathogenic
 
     # phenotype
     hpo_match_score: Optional[float] = None      # 0..1 overlap patient<->gene

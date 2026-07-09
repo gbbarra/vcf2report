@@ -111,4 +111,11 @@ def extract(variant: Variant) -> dict:
     cd = _multi_num(_first(info, A["cadd"]))
     if cd is not None:
         out["cadd"] = _num(cd, i)
+    # AlphaMissense: per-transcript score (max = most damaging); class is a label.
+    am = _multi_num(_first(info, A["am_pathogenicity"]))
+    if am is not None:
+        out["am_pathogenicity"] = am
+        amc = _first(info, A["am_class"])
+        if amc is not None:
+            out["am_class"] = str(amc)
     return out

@@ -27,6 +27,10 @@ ABRAOM_LOCAL = DATA_DIR / "abraom" / "abraom_sabe.tsv"
 HPO_GENES_LOCAL = DATA_DIR / "hpo" / "genes_to_phenotype.tsv.gz"
 CONSTRAINT_LOCAL = DATA_DIR / "constraint" / "gene_constraint.tsv.gz"
 INSILICO_LOCAL = DATA_DIR / "insilico" / "insilico.tsv"
+# AlphaMissense hg38 predictions (CC BY 4.0) — tabix-indexed, fetched once via
+# scripts/fetch_alphamissense.sh. Absent by default; the client degrades to None.
+ALPHAMISSENSE_LOCAL = Path(os.environ.get(
+    "VCF2REPORT_ALPHAMISSENSE", DATA_DIR / "alphamissense" / "AlphaMissense_hg38.tsv.gz"))
 
 # ---------------------------------------------------------------------------
 # Genome build — the whole pipeline assumes GRCh38 to match gnomAD r4 / ClinVar.
@@ -190,4 +194,50 @@ INFO_ALIASES = {
     "clinvar_accession": ["CLNVI", "ALLELEID", "clinvar_VCV"],
     "revel": ["REVEL", "dbNSFP_REVEL_score", "revel"],
     "cadd": ["CADD_PHRED", "CADD_phred", "cadd_phred", "CADD_PHRED_score"],
+    "am_pathogenicity": ["am_pathogenicity", "AlphaMissense", "AlphaMissense_score",
+                         "dbNSFP_AlphaMissense_score", "alphamissense"],
+    "am_class": ["am_class", "AlphaMissense_class", "AlphaMissense_pred", "am_classification"],
 }
+
+# ---------------------------------------------------------------------------
+# AlphaMissense (am_pathogenicity in 0..1) -> ACMG/AMP PP3/BP4 evidence strength.
+#
+# ClinGen's 2024 recalibration (Schmidt et al., Genet Med 2025) found AlphaMissense
+# can reach the STRONG level for pathogenicity (PP3) and the MODERATE level for
+# benignity (BP4) — but only at score cutoffs MORE stringent than the tool's own
+# 0.564 / 0.34 class boundaries. The exact per-strength cutoffs from that paper are
+# not reproduced here; the values below are documented SEED thresholds. They are
+# meant to be calibrated empirically against the concordance panel (raise them
+# until gross discordances stay at zero) and VERIFIED against the ClinGen table
+# before any clinical use. Native AlphaMissense classes: <0.34 likely_benign,
+# 0.34-0.564 ambiguous, >0.564 likely_pathogenic.
+# ---------------------------------------------------------------------------
+AM_PP3_STRONG = 0.99        # >= this -> PP3 at Strong (with PM2 -> Likely Pathogenic)
+AM_PP3_MODERATE = 0.90      # >= this -> PP3 at Moderate
+AM_PP3_SUPPORTING = 0.564   # >= this -> PP3 at Supporting (tool's likely_pathogenic)
+# Richards 2015 Table 5 has no benign "moderate" bucket, so AlphaMissense benign
+# evidence is capped at Supporting here (a documented limitation of the classic
+# combining rules vs. ClinGen's points framework).
+AM_BP4_SUPPORTING = 0.34    # <= this -> BP4 at Supporting (tool's likely_benign)
+
+
+def am_pp3_strength(am: float | None) -> str | None:
+    """PP3 evidence strength for an AlphaMissense score, or None if it doesn't apply."""
+    if am is None:
+        return None
+    if am >= AM_PP3_STRONG:
+        return "strong"
+    if am >= AM_PP3_MODERATE:
+        return "moderate"
+    if am >= AM_PP3_SUPPORTING:
+        return "supporting"
+    return None
+
+
+def am_bp4_strength(am: float | None) -> str | None:
+    """BP4 evidence strength for an AlphaMissense score, or None if it doesn't apply."""
+    if am is None:
+        return None
+    if am <= AM_BP4_SUPPORTING:
+        return "supporting"
+    return None

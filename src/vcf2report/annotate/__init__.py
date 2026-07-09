@@ -7,7 +7,7 @@ from so the ACMG criteria and the report can cite provenance.
 from __future__ import annotations
 
 from ..models import Annotation, Variant
-from . import abraom, clinvar, extra, from_vcf, gnomad, hpo
+from . import abraom, alphamissense, clinvar, extra, from_vcf, gnomad, hpo
 
 
 def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
@@ -47,6 +47,11 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
             isi = {"revel": vi.get("revel"), "cadd": vi.get("cadd"), "_source": "VCF INFO"}
         else:
             isi = extra.insilico(variant)
+        if "am_pathogenicity" in vi:
+            am = {"am_pathogenicity": vi["am_pathogenicity"],
+                  "am_class": vi.get("am_class"), "_source": "VCF INFO"}
+        else:
+            am = alphamissense.lookup(variant)
     else:
         note = "skipped — genome-build mismatch (coordinates not GRCh38)"
         g = {"af": None, "ac": None, "an": None, "hom": None, "pop": None, "_source": note}
@@ -54,6 +59,7 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
               "condition": None, "date": None, "_source": note}
         ab = {"af": None, "_source": note}
         isi = {"revel": None, "cadd": None, "_source": note}
+        am = {"am_pathogenicity": None, "am_class": None, "_source": note}
     con = extra.gene_constraint(variant.gene)
     ph = hpo.match(variant.gene, patient_hpo)
 
@@ -73,6 +79,8 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         gene_lof_intolerant=con.get("lof_intolerant"),
         revel=isi.get("revel"),
         cadd_phred=isi.get("cadd"),
+        am_pathogenicity=am.get("am_pathogenicity"),
+        am_class=am.get("am_class"),
         hpo_match_score=ph.get("score"),
         hpo_matched_terms=ph.get("matched_terms", []),
         source={
@@ -81,6 +89,7 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
             "abraom": ab.get("_source", ""),
             "gene_lof_intolerant": con.get("_source", ""),
             "insilico": isi.get("_source", ""),
+            "alphamissense": am.get("_source", ""),
             "hpo": ph.get("_source", ""),
         },
     )

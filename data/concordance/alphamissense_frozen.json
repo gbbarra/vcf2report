@@ -1,0 +1,802 @@
+{
+  "1-42927256-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42927701-G-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42927785-A-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42928912-T-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42929315-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42929500-G-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42929662-G-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42929733-C-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.814
+  },
+  "1-42929755-A-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42929777-A-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9655
+  },
+  "1-42929864-T-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42929918-G-C": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9809
+  },
+  "1-42929955-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42930010-C-A": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.982
+  },
+  "1-42930683-A-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42930749-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42930791-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42931125-A-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9597
+  },
+  "1-42943225-C-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42943225-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-42943233-G-C": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9772
+  },
+  "1-42943267-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-45329419-C-G": {
+    "am_class": "likely_benign",
+    "am_pathogenicity": 0.108
+  },
+  "1-45331456-C-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-45331537-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-45331557-C-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-45332490-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "1-45332803-T-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.8265
+  },
+  "1-45334411-G-A": {
+    "am_class": "likely_benign",
+    "am_pathogenicity": 0.0822
+  },
+  "1-45340249-T-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "10-87864070-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "10-87933011-A-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "10-87933127-A-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9982
+  },
+  "10-87933214-T-A": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9957
+  },
+  "10-87933253-T-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "10-87952050-A-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31790825-G-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31793680-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31793707-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31794015-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31794033-T-C": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9986
+  },
+  "11-31794062-G-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31794115-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31794631-T-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9829
+  },
+  "11-31794679-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31794789-C-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31801548-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31801563-T-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9999
+  },
+  "11-31801630-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31801728-C-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9993
+  },
+  "11-31801776-C-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9998
+  },
+  "11-31802704-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31802720-A-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 1.0
+  },
+  "11-31802785-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31802809-A-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31802853-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31803647-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "11-31806927-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "13-48307279-G-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "13-48348962-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "13-48360005-T-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "13-48362954-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "13-48367492-A-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "13-48381269-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "13-48459790-T-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9958
+  },
+  "13-48465191-T-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "13-48465225-A-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "13-48476751-T-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "17-7669686-G-T": {
+    "am_class": "likely_benign",
+    "am_pathogenicity": 0.1013
+  },
+  "17-7670608-C-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "17-7673782-T-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "17-7674872-T-A": {
+    "am_class": "likely_benign",
+    "am_pathogenicity": 0.147
+  },
+  "17-7675240-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "17-7676095-G-A": {
+    "am_class": "likely_benign",
+    "am_pathogenicity": 0.2002
+  },
+  "19-1201917-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-1207160-A-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-1218483-C-A": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9698
+  },
+  "19-1221261-C-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-1221305-G-C": {
+    "am_class": "likely_benign",
+    "am_pathogenicity": 0.0656
+  },
+  "19-1226505-C-G": {
+    "am_class": "likely_benign",
+    "am_pathogenicity": 0.1215
+  },
+  "19-13207917-G-A": {
+    "am_class": "likely_benign",
+    "am_pathogenicity": 0.1043
+  },
+  "19-13209402-C-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13210653-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13214317-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13231878-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13235009-C-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13235261-A-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9988
+  },
+  "19-13235702-C-A": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.989
+  },
+  "19-13235745-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13257487-C-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13261445-C-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13262838-G-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13275867-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13277123-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13286982-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13298822-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13300650-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13303604-A-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9942
+  },
+  "19-13308173-A-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13308252-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13312777-A-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "19-13317128-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165296060-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165309376-G-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165310345-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165312093-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165313665-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165313908-C-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9941
+  },
+  "2-165314106-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165315479-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165342459-C-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9896
+  },
+  "2-165344651-G-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9701
+  },
+  "2-165367381-G-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165373210-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165374719-C-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9916
+  },
+  "2-165374750-C-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.7318
+  },
+  "2-165380572-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165380627-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165381180-C-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.7577
+  },
+  "2-165388765-G-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9106
+  },
+  "2-165388784-T-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.8107
+  },
+  "2-165388804-T-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165388807-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165389114-A-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.8523
+  },
+  "2-165991569-G-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165991932-G-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165992225-A-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9742
+  },
+  "2-165992297-G-C": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9317
+  },
+  "2-165992382-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-165996084-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-166013822-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-166015746-T-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-166037903-G-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9975
+  },
+  "2-166037928-A-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9999
+  },
+  "2-166038037-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-166038130-C-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-166039598-T-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-166041315-A-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-166041345-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-166045186-T-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-166046969-C-A": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9913
+  },
+  "2-166051853-C-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9993
+  },
+  "2-166052961-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-166054627-A-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "2-166054678-C-A": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9866
+  },
+  "2-166073538-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63407386-G-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63413500-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63413601-G-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63415039-C-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63419683-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63433869-C-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9952
+  },
+  "20-63433887-T-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.943
+  },
+  "20-63438642-C-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9891
+  },
+  "20-63438687-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63439721-A-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63442488-A-C": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9981
+  },
+  "20-63442506-C-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9999
+  },
+  "20-63442514-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63444729-C-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9986
+  },
+  "20-63445218-C-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63445266-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63445346-C-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9399
+  },
+  "20-63446804-A-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63472179-G-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63472257-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63472260-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "20-63472457-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "3-10142073-T-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9667
+  },
+  "3-10149849-A-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.6419
+  },
+  "5-112766388-T-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "5-112767220-A-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "5-112819349-G-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "5-112827249-T-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "5-112839347-T-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "5-112840294-C-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "5-112841825-A-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "5-112842537-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127653709-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127653801-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127658374-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127658395-C-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.5951
+  },
+  "9-127658399-G-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9994
+  },
+  "9-127658406-G-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127658419-G-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127665286-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127665346-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127666224-C-T": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9915
+  },
+  "9-127666294-C-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127666307-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127668078-A-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127668185-C-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127669949-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127673164-G-T": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127675910-G-C": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9998
+  },
+  "9-127680243-G-A": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127682404-A-G": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127682507-T-G": {
+    "am_class": "likely_pathogenic",
+    "am_pathogenicity": 0.9754
+  },
+  "9-127684348-T-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  },
+  "9-127684385-A-C": {
+    "am_class": null,
+    "am_pathogenicity": null
+  }
+}

@@ -170,6 +170,28 @@ def test_clinvar_withheld_suppresses_pp5(monkeypatch):
     assert "PP5" in included.met_codes  # wiring sanity: ClinVar does reach the engine
 
 
+def test_frozen_alphamissense_recovers_missense(monkeypatch):
+    _patch_local(monkeypatch, lof_intolerant=False)
+    e = _entry("5-100-A-T", "TESTG", "missense_variant", "Pathogenic")
+    e.frozen_gnomad = {"af": 0.0, "faf95": 0.0, "ac": 0, "an": 152000, "hom": 0, "pop": None}
+    e.frozen_alphamissense = {"am_pathogenicity": 0.999, "am_class": "likely_pathogenic"}
+    c = concordance.classify_entry(e, withhold_clinvar=True)
+    assert "PP3" in c.met_codes and "PM2" in c.met_codes
+    assert collapse_engine_tier(c.tier) == PATH   # VUS -> PATH via calibrated PP3_Strong
+
+
+def test_load_panel_attaches_alphamissense(tmp_path):
+    gt = tmp_path / "ground_truth.tsv"
+    gt.write_text("# h\n2-166003360-C-T\tSCN1A\tmissense_variant\t\tPathogenic\tcrit\tVCV1\tx\n")
+    frozen = tmp_path / "gnomad.json"
+    frozen.write_text('{"2-166003360-C-T": {"af": 0.0}}')
+    am = tmp_path / "am.json"
+    am.write_text('{"2-166003360-C-T": {"am_pathogenicity": 0.97, "am_class": "likely_pathogenic"}}')
+    entries = concordance.load_panel(gt, frozen, am)
+    assert len(entries) == 1
+    assert entries[0].frozen_alphamissense["am_pathogenicity"] == pytest.approx(0.97)
+
+
 # ---------------------------------------------------------------------------
 # load_panel: keeps only definite PATH/BEN truth, attaches frozen gnomAD
 # ---------------------------------------------------------------------------

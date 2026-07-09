@@ -246,6 +246,24 @@ def _insilico_direction(a: Annotation) -> Optional[str]:
 @criterion("PP3")
 def pp3(v: Variant, a: Annotation) -> CriterionResult:
     name = "Multiple in-silico lines of evidence support a deleterious effect"
+    # AlphaMissense, calibrated to a variable ACMG strength (ClinGen 2024), takes
+    # precedence when available: a strong pathogenic prediction can reach PP3_Strong,
+    # which (with PM2) is enough to lift a rare missense from VUS to Likely Pathogenic.
+    if a.am_pathogenicity is not None:
+        strength = config.am_pp3_strength(a.am_pathogenicity)
+        met = strength is not None
+        return CriterionResult(
+            "PP3", name, "supporting", applies=True, met=met,
+            applied_strength=strength if met else None,
+            evidence={"am_pathogenicity": a.am_pathogenicity, "am_class": a.am_class,
+                      "predictor": "AlphaMissense (ClinGen-calibrated)"},
+            citation=[c for c in [a.source.get("alphamissense")] if c],
+            confidence="moderate",
+            reasoning=(f"AlphaMissense={a.am_pathogenicity:.3f} -> PP3_{strength}"
+                       if met else
+                       f"AlphaMissense={a.am_pathogenicity:.3f} below the PP3 pathogenic threshold"),
+        )
+    # Fallback: REVEL/CADD at Supporting strength.
     direction = _insilico_direction(a)
     met = direction == "pathogenic"
     return CriterionResult(
@@ -373,6 +391,23 @@ def bs2(v: Variant, a: Annotation) -> CriterionResult:
 @criterion("BP4")
 def bp4(v: Variant, a: Annotation) -> CriterionResult:
     name = "Multiple in-silico lines of evidence suggest no impact"
+    # AlphaMissense takes precedence when available. Richards Table 5 has no benign
+    # "moderate" bucket, so AlphaMissense benign evidence is capped at Supporting.
+    if a.am_pathogenicity is not None:
+        strength = config.am_bp4_strength(a.am_pathogenicity)
+        met = strength is not None
+        return CriterionResult(
+            "BP4", name, "supporting", applies=True, met=met,
+            applied_strength=strength if met else None,
+            evidence={"am_pathogenicity": a.am_pathogenicity, "am_class": a.am_class,
+                      "predictor": "AlphaMissense (ClinGen-calibrated)"},
+            citation=[c for c in [a.source.get("alphamissense")] if c],
+            confidence="moderate",
+            reasoning=(f"AlphaMissense={a.am_pathogenicity:.3f} -> BP4_{strength}"
+                       if met else
+                       f"AlphaMissense={a.am_pathogenicity:.3f} above the BP4 benign threshold"),
+        )
+    # Fallback: REVEL/CADD at Supporting strength.
     direction = _insilico_direction(a)
     met = direction == "benign"
     return CriterionResult(
