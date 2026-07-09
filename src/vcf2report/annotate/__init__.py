@@ -11,7 +11,8 @@ from . import abraom, alphamissense, clinvar, extra, from_vcf, gnomad, hpo
 
 
 def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
-                     build_trusted: bool = True) -> Annotation:
+                     build_trusted: bool = True,
+                     with_alphamissense: bool = True) -> Annotation:
     """Merge all sources into an :class:`Annotation`.
 
     ``build_trusted=False`` (a detected genome-build mismatch) means the variant's
@@ -19,6 +20,13 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
     coordinate-keyed lookups are skipped and gnomAD AF is left unknown (None) —
     this prevents PM2 firing on a cross-build "absent" that is really a
     wrong-position miss. Gene-level (constraint, HPO) evidence stays valid.
+
+    ``with_alphamissense=False`` skips only the AlphaMissense *client* lookup (a
+    per-variant tabix hit on a ~1 GB file) — a pre-annotated INFO score is still
+    read. The pipeline uses this to annotate the whole post-QC set cheaply, then
+    enriches just the surviving candidates via :func:`add_alphamissense` (the score
+    only feeds PP3/BP4 at classification time, never the filter, so deferring it is
+    behaviour-preserving for the classified variants).
     """
     patient_hpo = patient_hpo or []
 
@@ -50,8 +58,11 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         if "am_pathogenicity" in vi:
             am = {"am_pathogenicity": vi["am_pathogenicity"],
                   "am_class": vi.get("am_class"), "_source": "VCF INFO"}
-        else:
+        elif with_alphamissense:
             am = alphamissense.lookup(variant)
+        else:
+            am = {"am_pathogenicity": None, "am_class": None,
+                  "_source": "AlphaMissense (deferred to candidate stage)"}
     else:
         note = "skipped — genome-build mismatch (coordinates not GRCh38)"
         g = {"af": None, "ac": None, "an": None, "hom": None, "pop": None, "_source": note}
@@ -93,3 +104,19 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
             "hpo": ph.get("_source", ""),
         },
     )
+
+
+def add_alphamissense(variant: Variant, annotation: Annotation) -> None:
+    """Populate AlphaMissense on an already-built Annotation (the lazy path).
+
+    Called for the surviving candidates only, so the ~1 GB tabix file is queried a
+    few times per report instead of once per post-QC variant. A no-op if the score
+    is already present (e.g. read from VCF INFO). The lookup is identical to the one
+    ``annotate_variant`` would have run, so the resulting classification is unchanged.
+    """
+    if annotation.am_pathogenicity is not None:
+        return
+    am = alphamissense.lookup(variant)
+    annotation.am_pathogenicity = am.get("am_pathogenicity")
+    annotation.am_class = am.get("am_class")
+    annotation.source["alphamissense"] = am.get("_source", "")

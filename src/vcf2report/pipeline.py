@@ -11,7 +11,7 @@ from pathlib import Path
 
 from . import config
 from .acmg.engine import classify
-from .annotate import annotate_variant
+from .annotate import add_alphamissense, annotate_variant
 from .models import Classification, QCSummary
 from .report.assemble import ReportModel, build_report
 from .vcf.filter import filter_variants
@@ -77,7 +77,11 @@ def run_pipeline(
     qc.after_qc = len(kept)
     _mark("qc_s")
 
-    annotated = [(v, annotate_variant(v, hpo_terms, build_trusted=build_trusted))
+    # AlphaMissense is deferred: it only feeds PP3/BP4 at classification, never the
+    # filter, so we skip the (per-variant, ~1 GB tabix) lookup across the whole
+    # post-QC set and query just the surviving candidates below.
+    annotated = [(v, annotate_variant(v, hpo_terms, build_trusted=build_trusted,
+                                      with_alphamissense=False))
                  for v in kept]
     _mark("annotate_s")
     candidates, funnel = filter_variants(annotated, max_af=max_af)
@@ -86,6 +90,11 @@ def run_pipeline(
     qc.candidates = funnel.candidates
     qc.abraom_filtered = funnel.abraom_filtered
     _mark("filter_s")
+
+    if build_trusted:
+        for v, a in candidates:
+            add_alphamissense(v, a)
+    _mark("alphamissense_s")
 
     classifications: list[Classification] = [classify(v, a) for v, a in candidates]
     _mark("classify_s")
