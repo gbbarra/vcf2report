@@ -3,11 +3,13 @@
 # them directly. All sources here are free/public (gnomAD, ClinVar, HPO, ABraOM).
 
 # gnomAD v4 sites (genomes or exomes). Download the sites-only VCF (no genotypes).
+# fafmax_faf95_max is gnomAD's filtering AF (95% CI, grpmax) — the field vcf2report
+# uses for BS1/BA1 (see config.INFO_ALIASES["gnomad_faf95"]).
 [[annotation]]
 file = "gnomad.genomes.v4.1.sites.GRCh38.vcf.gz"
-fields = ["AF", "AC", "AN", "nhomalt"]
-names  = ["gnomad_AF", "gnomad_AC", "gnomad_AN", "gnomad_nhomalt"]
-ops    = ["max", "max", "max", "max"]
+fields = ["AF", "AC", "AN", "nhomalt", "fafmax_faf95_max"]
+names  = ["gnomad_AF", "gnomad_AC", "gnomad_AN", "gnomad_nhomalt", "gnomad_faf95"]
+ops    = ["max", "max", "max", "max", "max"]
 
 # ClinVar weekly VCF (GRCh38). ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/
 [[annotation]]

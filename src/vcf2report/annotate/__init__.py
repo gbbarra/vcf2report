@@ -30,7 +30,7 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         if "gnomad_af" in vi:
             g = {"af": vi["gnomad_af"], "ac": vi.get("gnomad_ac"),
                  "an": vi.get("gnomad_an"), "hom": vi.get("gnomad_hom"),
-                 "pop": None, "_source": "VCF INFO"}
+                 "faf95": vi.get("gnomad_faf95"), "pop": None, "_source": "VCF INFO"}
         else:
             g = gnomad.lookup(variant)
         if "clinvar_significance" in vi:
@@ -68,6 +68,7 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         gnomad_an=g.get("an"),
         gnomad_homozygotes=g.get("hom"),
         gnomad_popmax_pop=g.get("pop"),
+        gnomad_faf95=g.get("faf95"),
         abraom_af=ab.get("af"),
         gene_lof_intolerant=con.get("lof_intolerant"),
         revel=isi.get("revel"),

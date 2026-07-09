@@ -92,18 +92,30 @@ def _best_from_record(rec) -> Optional[dict]:
             return v[0] if v else None
         return v
 
+    # Filtering AF (95% CI upper bound of the grpmax group) — the field ClinGen
+    # recommends for BS1/BA1. gnomAD v4.1 publishes it site-wide as fafmax_faf95_max.
+    def faf95():
+        for k in ("fafmax_faf95_max", "faf95_grpmax", "faf95_max"):
+            v = a0(k)
+            if v is not None:
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    pass
+        return None
+
     pop = a0("grpmax")
     if pop is not None and pop.lower() not in _POPMAX_EXCLUDE:
         af = a0("AF_grpmax")
         if af is not None:
             return {"af": float(af), "ac": a0("AC_grpmax"), "an": a0("AN_grpmax"),
-                    "hom": a0("nhomalt_grpmax"), "pop": pop}
+                    "hom": a0("nhomalt_grpmax"), "faf95": faf95(), "pop": pop}
     # fall back to global
     af = a0("AF")
     if af is None:
         return None
     return {"af": float(af), "ac": a0("AC"), "an": a0("AN"),
-            "hom": a0("nhomalt"), "pop": None}
+            "hom": a0("nhomalt"), "faf95": faf95(), "pop": None}
 
 
 def query(variant: Variant) -> Optional[dict]:
@@ -143,4 +155,4 @@ def query(variant: Variant) -> Optional[dict]:
         return None            # nothing queryable → let caller fall back
     if best is not None:
         return best
-    return {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "pop": None}  # covered but absent
+    return {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}  # covered but absent

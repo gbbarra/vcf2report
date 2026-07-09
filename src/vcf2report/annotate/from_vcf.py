@@ -82,6 +82,11 @@ def extract(variant: Variant) -> dict:
         out["gnomad_ac"] = _int(_first(info, A["gnomad_ac"]), i)
         out["gnomad_an"] = _int(_first(info, A["gnomad_an"]), i)
         out["gnomad_hom"] = _int(_first(info, A["gnomad_hom"]), i)
+        # fafmax_faf95_max is a single per-site value in gnomAD v4.1 (not per-allele);
+        # _num tolerates both a scalar and an allele-indexed array.
+        faf = _first(info, A["gnomad_faf95"])
+        if faf is not None:
+            out["gnomad_faf95"] = _num(faf, i)
 
     abaf = _first(info, A["abraom_af"])
     if abaf is not None:

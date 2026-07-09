@@ -22,7 +22,8 @@ from __future__ import annotations
 
 from typing import Callable
 
-from ..config import AF_BA1, AF_DOMINANT_MAX
+from .. import config
+from ..config import AF_BA1
 from ..models import Annotation, CriterionResult, Variant
 
 # Tunable in-silico / frequency cutoffs (documented in the report methods).
@@ -31,7 +32,6 @@ REVEL_BENIGN = 0.15
 CADD_PATHOGENIC = 20.0
 CADD_BENIGN = 10.0
 PM2_RARE_AF = 1e-4          # "absent or ultra-rare" ceiling
-BS1_COMMON_AF = 0.01        # more common than expected for a rare disorder
 BS2_HOM_MIN = 2             # healthy homozygotes incompatible with severe disease
 HPO_PP4_MIN = 0.60          # phenotype-match score to support PP4
 
@@ -303,32 +303,51 @@ def pp5(v: Variant, a: Annotation) -> CriterionResult:
 # ===========================================================================
 # Benign criteria
 # ===========================================================================
+def _benign_af(a: Annotation) -> tuple[float, str]:
+    """Allele frequency to test for benign criteria (BA1/BS1), and its basis.
+
+    Prefers gnomAD's filtering AF (faf95, grpmax) — the 95%-CI-bounded value
+    ClinGen/Whiffin recommend for frequency-based benign criteria, robust to a
+    single small subpopulation inflating a raw popmax. Falls back to the popmax
+    AF (max of gnomAD grpmax and ABraOM) when faf95 is not available.
+    """
+    if a.gnomad_faf95 is not None:
+        return a.gnomad_faf95, "gnomAD filtering AF (faf95, grpmax)"
+    return (max(a.gnomad_af or 0.0, a.abraom_af or 0.0),
+            "gnomAD/ABraOM popmax AF (no faf95 available)")
+
+
 @criterion("BA1")
 def ba1(v: Variant, a: Annotation) -> CriterionResult:
     name = "Allele frequency > 5% in a population database (stand-alone benign)"
-    af = max(a.gnomad_af or 0.0, a.abraom_af or 0.0)
+    af, basis = _benign_af(a)
     met = af >= AF_BA1
     return CriterionResult(
         "BA1", name, "stand_alone", applies=True, met=met,
         applied_strength="stand_alone" if met else None,
-        evidence={"max_af": af, "cutoff": AF_BA1},
+        evidence={"af": af, "cutoff": AF_BA1, "basis": basis},
         citation=[c for c in (a.source.get("gnomad"), a.source.get("abraom")) if c],
-        reasoning=(f"max population AF={af:.4f} exceeds {AF_BA1:g}"
-                   if met else f"max population AF={af:.4f} below {AF_BA1:g}"),
+        reasoning=(f"{basis} = {af:.4f} exceeds {AF_BA1:g}"
+                   if met else f"{basis} = {af:.4f} below {AF_BA1:g}"),
     )
 
 
 @criterion("BS1")
 def bs1(v: Variant, a: Annotation) -> CriterionResult:
     name = "Allele frequency greater than expected for the disorder"
-    af = max(a.gnomad_af or 0.0, a.abraom_af or 0.0)
-    met = AF_DOMINANT_MAX < af < AF_BA1 and af >= BS1_COMMON_AF
+    af, basis = _benign_af(a)
+    cutoff, moi = config.bs1_af_cutoff(v.gene)
+    moi_note = f"{v.gene} is {moi}" if moi else "inheritance unknown → default cutoff"
+    # BS1 is the "too common for the disorder" band below BA1's stand-alone 5%.
+    met = cutoff <= af < AF_BA1
     return CriterionResult(
         "BS1", name, "strong", applies=True, met=met,
         applied_strength="strong" if met else None,
-        evidence={"max_af": af, "cutoff": BS1_COMMON_AF},
-        reasoning=(f"AF={af:.4f} is common relative to a rare-disorder expectation"
-                   if met else f"AF={af:.4f} not in the BS1 window"),
+        evidence={"af": af, "cutoff": cutoff, "moi": moi, "basis": basis},
+        citation=[c for c in (a.source.get("gnomad"), a.source.get("abraom")) if c],
+        reasoning=(f"{basis} = {af:.4f} ≥ {cutoff:g} ({moi_note}), below BA1's {AF_BA1:g}"
+                   if met else
+                   f"{basis} = {af:.4f} under the {cutoff:g} BS1 cutoff ({moi_note})"),
     )
 
 

@@ -69,6 +69,7 @@ class Annotation:
     gnomad_an: Optional[int] = None
     gnomad_homozygotes: Optional[int] = None
     gnomad_popmax_pop: Optional[str] = None
+    gnomad_faf95: Optional[float] = None    # filtering AF (95% CI lower bound, grpmax) — BS1/BA1
 
     abraom_af: Optional[float] = None       # Brazilian (SABE) allele frequency
 

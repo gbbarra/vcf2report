@@ -82,6 +82,48 @@ AF_RECESSIVE_MAX = 0.005
 AF_BA1 = 0.05
 
 # ---------------------------------------------------------------------------
+# BS1 — "allele frequency greater than expected for the disorder" (Richards 2015,
+# refined by the filtering-AF framework of Whiffin et al., Genet Med 2017). The
+# threshold is disorder-dependent, NOT a single universal number: a dominant
+# condition tolerates far less allele frequency than a recessive one (where the
+# carrier frequency is expected to be higher). We key the cutoff on the gene's
+# mode of inheritance and fall back to a conservative default when it is unknown.
+# These are pragmatic gnomAD-based heuristics, not a per-gene max-credible-AF
+# derived from prevalence/penetrance — the report labels them as such.
+# ---------------------------------------------------------------------------
+BS1_AF_DOMINANT = 0.001     # rare dominant disorder: even ~0.1% is too common
+BS1_AF_RECESSIVE = 0.01     # recessive: carrier frequency runs higher
+BS1_AF_DEFAULT = 0.005      # inheritance unknown → conservative middle ground
+
+# Curated mode-of-inheritance for the genes exercised by the demo/secondary-finding
+# cases (and a few common ones). "AD"/"AR"/"XL"; genes absent here resolve to the
+# conservative BS1_AF_DEFAULT. A curated subset — extend/verify against a source
+# such as OMIM/Genomics England PanelApp before clinical use.
+GENE_INHERITANCE = {
+    # DEE / seizure primaries (haploinsufficiency-driven dominant)
+    "SCN1A": "AD", "SCN2A": "AD", "KCNQ2": "AD", "STXBP1": "AD",
+    "SLC2A1": "AD", "CACNA1A": "AD", "PAX6": "AD",
+    # ACMG SF secondaries used in the synthetic cases
+    "RB1": "AD", "APC": "AD", "STK11": "AD", "WT1": "AD", "FBN1": "AD",
+    # a couple of well-known recessive genes for contrast/tests
+    "CFTR": "AR", "HFE": "AR", "GJB2": "AR", "MUTYH": "AR",
+}
+
+
+def bs1_af_cutoff(gene: str | None) -> tuple[float, str | None]:
+    """BS1 allele-frequency cutoff and the mode of inheritance it came from.
+
+    Returns ``(cutoff, moi)`` where ``moi`` is "AD"/"AR"/"XL" when the gene is in
+    the curated map, else ``None`` (→ conservative default cutoff).
+    """
+    moi = GENE_INHERITANCE.get((gene or "").upper()) if gene else None
+    if moi == "AR":
+        return BS1_AF_RECESSIVE, moi
+    if moi in ("AD", "XL"):
+        return BS1_AF_DOMINANT, moi
+    return BS1_AF_DEFAULT, None
+
+# ---------------------------------------------------------------------------
 # ACMG SF v3.2 (Miller et al., 2023) secondary-findings genes. A P/LP variant in
 # one of these, unrelated to the indication, is a reportable secondary finding
 # (subject to the patient's opt-in). Curated subset of the ~81-gene list — verify
@@ -110,6 +152,9 @@ ACMG_SF_GENES = {
 # ---------------------------------------------------------------------------
 INFO_ALIASES = {
     "gnomad_af": ["gnomad_AF", "gnomAD_AF", "gnomADg_AF", "gnomad4_AF", "AF_gnomad", "gnomad_af"],
+    # gnomAD filtering AF (95% CI, grpmax) — the ClinGen-recommended field for BS1/BA1.
+    "gnomad_faf95": ["gnomad_faf95", "fafmax_faf95_max", "faf95_max", "faf95_grpmax",
+                     "gnomad_faf95_max", "AF_grpmax_faf95", "faf95"],
     "gnomad_ac": ["gnomad_AC", "gnomAD_AC", "gnomad_ac"],
     "gnomad_an": ["gnomad_AN", "gnomAD_AN", "gnomad_an"],
     "gnomad_hom": ["gnomad_nhomalt", "gnomAD_nhomalt", "gnomad_hom", "nhomalt"],

@@ -31,8 +31,14 @@ Reference for grounding classification. Strengths: Very Strong (PVS), Strong
 - **PP5** (supporting) — reputable source reports pathogenic (deprecated).
 
 ## Benign criteria
-- **BA1** (stand-alone) — allele frequency > 5% in a population database.
-- **BS1** (strong) — allele frequency greater than expected for the disorder.
+- **BA1** (stand-alone) — allele frequency > 5% in a population database. The
+  engine tests gnomAD's **filtering AF (faf95, grpmax)** when available, else the
+  popmax AF.
+- **BS1** (strong) — allele frequency greater than expected for the disorder. The
+  threshold is **disorder-dependent**, so the engine keys the cutoff on the gene's
+  mode of inheritance (dominant ~0.1%, recessive ~1%, unknown → 0.5% default) and,
+  like BA1, prefers the gnomAD **filtering AF (faf95)** over a raw popmax that one
+  small subpopulation could inflate.
 - **BS2** (strong) — observed in a healthy adult (homozygous/hemizygous/het as
   appropriate) for a fully-penetrant early-onset disorder.
 - **BS3** (strong) — well-established functional studies show no damaging effect.

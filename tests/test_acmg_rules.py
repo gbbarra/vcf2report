@@ -66,6 +66,50 @@ def test_conflicting_evidence_is_vus():
     assert "conflicting" in path
 
 
+def _bs1(v, a):
+    return next(c for c in classify(v, a).criteria if c.code == "BS1")
+
+
+def test_bs1_cutoff_is_inheritance_aware():
+    """The same AF (0.3%) is 'too common' for a dominant gene (BS1 met) but not
+    for a recessive gene (BS1 not met) — the disorder-specific BS1 threshold."""
+    dom = Variant(chrom="2", pos=100, ref="A", alt="G", gene="SCN1A",  # AD
+                  consequence="missense_variant")
+    rec = Variant(chrom="7", pos=100, ref="A", alt="G", gene="CFTR",   # AR
+                  consequence="missense_variant")
+    a = Annotation(gnomad_af=0.003, abraom_af=0.0)
+    assert _bs1(dom, a).met is True
+    assert _bs1(rec, a).met is False
+
+
+def test_bs1_unknown_gene_uses_default_cutoff():
+    """A gene with no curated inheritance uses the conservative default (0.5%)."""
+    v = Variant(chrom="9", pos=100, ref="A", alt="G", gene="ZZZ9",
+                consequence="missense_variant")
+    assert _bs1(v, Annotation(gnomad_af=0.004)).met is False   # under 0.5%
+    assert _bs1(v, Annotation(gnomad_af=0.006)).met is True    # over 0.5%, under BA1
+
+
+def test_bs1_prefers_filtering_af_over_popmax():
+    """faf95 (when present) is the basis for BS1, not the raw popmax AF — a raw
+    popmax inflated by one tiny subpopulation must not trip BS1 if faf95 is low."""
+    v = Variant(chrom="2", pos=100, ref="A", alt="G", gene="SCN1A",
+                consequence="missense_variant")
+    a = Annotation(gnomad_af=0.02, gnomad_faf95=0.0001)  # popmax high, faf95 low
+    bs1 = _bs1(v, a)
+    assert bs1.met is False
+    assert bs1.evidence["basis"].startswith("gnomAD filtering AF")
+
+
+def test_ba1_uses_filtering_af():
+    v = Variant(chrom="1", pos=1, ref="A", alt="G", gene="X",
+                consequence="missense_variant")
+    ba1 = next(c for c in classify(v, Annotation(gnomad_faf95=0.08)).criteria
+               if c.code == "BA1")
+    assert ba1.met is True
+    assert ba1.evidence["af"] == 0.08
+
+
 def test_combining_rule_lp_from_one_strong_one_moderate():
     crits = [
         CriterionResult("PS1", "n", "strong", applies=True, met=True, applied_strength="strong"),
