@@ -1,0 +1,902 @@
+{
+  "1-42927701-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "1-42928912-T-G": {
+    "ac": 2,
+    "af": 0.0034129692832764505,
+    "an": 586,
+    "faf95": null,
+    "hom": 0,
+    "pop": "hgdp:xx",
+    "release": "gnomad_r4"
+  },
+  "1-42929500-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "1-42929662-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "1-42929733-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "1-42929777-A-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "1-42929918-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "1-42943267-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "1-45329419-C-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "1-45331456-C-G": {
+    "ac": 1,
+    "af": 1.15931275939623e-05,
+    "an": 86258,
+    "faf95": null,
+    "hom": 0,
+    "pop": "sas",
+    "release": "gnomad_r4"
+  },
+  "1-45331537-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "1-45331557-C-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "1-45332490-T-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "1-45332803-T-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "1-45334411-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "1-45340249-T-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "10-87864070-C-T": {
+    "ac": 6,
+    "af": 2.5001041710071252e-05,
+    "an": 239990,
+    "faf95": null,
+    "hom": 0,
+    "pop": "xx",
+    "release": "gnomad_r4"
+  },
+  "10-87933011-A-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "10-87933127-A-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "10-87933214-T-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "10-87933253-T-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "10-87952050-A-G": {
+    "ac": 3,
+    "af": 0.01764705882352941,
+    "an": 170,
+    "faf95": null,
+    "hom": 3,
+    "pop": "1kg:pel",
+    "release": "gnomad_r4"
+  },
+  "11-31794015-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "11-31794115-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "11-31794789-C-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "11-31801563-T-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "11-31801776-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "11-31802785-T-C": {
+    "ac": 1,
+    "af": 2.519018590357197e-05,
+    "an": 39698,
+    "faf95": null,
+    "hom": 0,
+    "pop": "eas",
+    "release": "gnomad_r4"
+  },
+  "11-31802809-A-G": {
+    "ac": 2,
+    "af": 5.0377833753148616e-05,
+    "an": 39700,
+    "faf95": null,
+    "hom": 0,
+    "pop": "eas",
+    "release": "gnomad_r4"
+  },
+  "11-31803647-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "13-48348962-T-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "13-48360005-T-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "13-48362954-T-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "13-48367492-A-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "13-48459790-T-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "13-48465191-T-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "13-48465225-A-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "13-48476751-T-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "17-7669686-G-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "17-7670608-C-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "17-7673782-T-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "17-7674872-T-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "17-7675240-T-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "17-7676095-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "19-1201917-C-T": {
+    "ac": 5,
+    "af": 0.00032769694586446454,
+    "an": 15258,
+    "faf95": null,
+    "hom": 0,
+    "pop": "amr",
+    "release": "gnomad_r4"
+  },
+  "19-1207160-A-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "19-1218483-C-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "19-1221261-C-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "19-1221305-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "19-1226505-C-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "19-13207917-G-A": {
+    "ac": 1,
+    "af": 2.447141738449491e-05,
+    "an": 40864,
+    "faf95": null,
+    "hom": 0,
+    "pop": "amr",
+    "release": "gnomad_r4"
+  },
+  "19-13214317-C-T": {
+    "ac": 2,
+    "af": 1.7988458604959058e-06,
+    "an": 1111824,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "19-13235009-C-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "19-13257487-C-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "19-13261445-C-G": {
+    "ac": 1,
+    "af": 1.4336712018465685e-06,
+    "an": 697510,
+    "faf95": null,
+    "hom": 0,
+    "pop": "xy",
+    "release": "gnomad_r4"
+  },
+  "19-13277123-C-T": {
+    "ac": 1,
+    "af": 1.2330000123300002e-06,
+    "an": 811030,
+    "faf95": null,
+    "hom": 0,
+    "pop": "xx",
+    "release": "gnomad_r4"
+  },
+  "19-13312777-A-G": {
+    "ac": 7,
+    "af": 6.602291183677627e-06,
+    "an": 1060238,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "19-13317128-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165310345-C-T": {
+    "ac": 3,
+    "af": 3.478422187695661e-05,
+    "an": 86246,
+    "faf95": null,
+    "hom": 0,
+    "pop": "sas",
+    "release": "gnomad_r4"
+  },
+  "2-165313665-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165313908-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165314106-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "2-165315479-T-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165367381-G-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-165388765-G-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "2-165388784-T-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "2-166037903-G-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "2-166037928-A-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "2-166038037-G-A": {
+    "ac": 2,
+    "af": 2.4949913049553024e-06,
+    "an": 801606,
+    "faf95": null,
+    "hom": 0,
+    "pop": "xy",
+    "release": "gnomad_r4"
+  },
+  "2-166038130-C-G": {
+    "ac": 1,
+    "af": 1.4700261664657632e-05,
+    "an": 68026,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "2-166039598-T-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "2-166041345-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "2-166046969-C-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "2-166052961-C-T": {
+    "ac": 2,
+    "af": 2.7858412404793874e-06,
+    "an": 717916,
+    "faf95": null,
+    "hom": 0,
+    "pop": "xy",
+    "release": "gnomad_r4"
+  },
+  "20-63413601-G-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "20-63419683-G-A": {
+    "ac": 1,
+    "af": 1.179022825881909e-05,
+    "an": 84816,
+    "faf95": null,
+    "hom": 0,
+    "pop": "sas",
+    "release": "gnomad_r4"
+  },
+  "20-63438642-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "20-63442514-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "20-63444729-C-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "20-63445218-C-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "20-63445266-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "20-63445346-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "3-10142073-T-G": {
+    "ac": 1,
+    "af": 1.3812841522506645e-06,
+    "an": 723964,
+    "faf95": null,
+    "hom": 0,
+    "pop": "xy",
+    "release": "gnomad_r4"
+  },
+  "3-10149849-A-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "5-112766388-T-A": {
+    "ac": 1,
+    "af": 1.3638955037820823e-06,
+    "an": 733194,
+    "faf95": null,
+    "hom": 0,
+    "pop": "xx",
+    "release": "gnomad_r4"
+  },
+  "5-112767220-A-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "5-112819349-G-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "5-112827249-T-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "5-112839347-T-G": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "5-112840294-C-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "5-112841825-A-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "5-112842537-C-T": {
+    "ac": 1,
+    "af": 1.3751412957681402e-06,
+    "an": 727198,
+    "faf95": null,
+    "hom": 0,
+    "pop": "xy",
+    "release": "gnomad_r4"
+  },
+  "9-127653801-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "9-127658374-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "9-127666224-C-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "9-127666307-T-C": {
+    "ac": 10,
+    "af": 8.47437518431766e-06,
+    "an": 1180028,
+    "faf95": null,
+    "hom": 0,
+    "pop": "nfe",
+    "release": "gnomad_r4"
+  },
+  "9-127669949-T-C": {
+    "ac": 2,
+    "af": 2.7501918258798553e-06,
+    "an": 727222,
+    "faf95": null,
+    "hom": 0,
+    "pop": "xy",
+    "release": "gnomad_r4"
+  },
+  "9-127673164-G-T": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  },
+  "9-127680243-G-A": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": 0.0,
+    "hom": 0,
+    "pop": null,
+    "release": "4.1"
+  },
+  "9-127684348-T-C": {
+    "ac": 0,
+    "af": 0.0,
+    "an": 0,
+    "faf95": null,
+    "hom": 0,
+    "pop": null,
+    "release": "gnomad_r4"
+  }
+}

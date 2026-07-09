@@ -139,18 +139,22 @@ def query(variant: Variant) -> Optional[dict]:
             continue
         try:
             recs = list(vf.fetch(chrom, pos - 1, pos))
+            # pysam parses record fields lazily, so accessing rec.info/.alts here
+            # can raise a header-parse error ("Invalid header") on a flaky remote
+            # read — keep the whole record loop inside the guard so it falls back
+            # cleanly instead of propagating and crashing the caller.
+            for rec in recs:
+                if rec.pos != pos or rec.ref != variant.ref:
+                    continue
+                alts = rec.alts or ()
+                if variant.alt not in alts:
+                    continue
+                cand = _best_from_record(rec)
+                if cand and (best is None or (cand["af"] or 0) > (best["af"] or 0)):
+                    best = cand
         except Exception:
             continue
         ran = True
-        for rec in recs:
-            if rec.pos != pos or rec.ref != variant.ref:
-                continue
-            alts = rec.alts or ()
-            if variant.alt not in alts:
-                continue
-            cand = _best_from_record(rec)
-            if cand and (best is None or (cand["af"] or 0) > (best["af"] or 0)):
-                best = cand
     if not ran:
         return None            # nothing queryable → let caller fall back
     if best is not None:

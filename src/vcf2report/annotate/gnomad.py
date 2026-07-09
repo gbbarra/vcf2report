@@ -36,9 +36,12 @@ def _load_local() -> dict:
     return _local
 
 
-# Population ids to exclude from popmax (bottleneck / non-continental groups),
-# Groups gnomAD excludes from grpmax/popmax (bottleneck / small cohorts). The
-# large continental ancestry groups — afr, amr, eas, nfe, sas — are all INCLUDED.
+# grpmax/popmax is computed over the large continental ancestry groups ONLY.
+# An allowlist is used deliberately: gnomAD v4's GraphQL populations array also
+# carries sex-stratified ids ("nfe_XX") and 1KG/HGDP subset ids ("1kg:pel",
+# "hgdp:xx") that must never enter popmax — a denylist silently lets those tiny
+# cohorts win and produces a noisy, wrong AF.
+_POPMAX_INCLUDE = {"afr", "amr", "eas", "nfe", "sas"}
 _POPMAX_EXCLUDE = {"asj", "fin", "oth", "remaining", "mid", "ami"}
 # Ignore degenerate tiny cohorts when picking popmax (guards 1/2-allele artefacts;
 # well below any real continental group's sample size).
@@ -66,9 +69,10 @@ def _from_payload(payload: dict) -> dict:
         total_hom += block.get("homozygote_count") or 0
         for pop in block.get("populations", []) or []:
             pid = (pop.get("id") or "").lower()
-            # Skip sex-stratified / sub-population ids (e.g. "nfe_XX") and the
-            # excluded bottleneck groups; keep top-level ancestry groups only.
-            if "_" in pid or pid in _POPMAX_EXCLUDE:
+            # Keep ONLY the top-level continental groups; this drops sex splits
+            # ("nfe_xx"), 1KG/HGDP subsets ("1kg:pel", "hgdp:xx") and bottleneck
+            # cohorts in one shot.
+            if pid not in _POPMAX_INCLUDE:
                 continue
             pop_ac[pid] = pop_ac.get(pid, 0) + (pop.get("ac") or 0)
             pop_an[pid] = pop_an.get(pid, 0) + (pop.get("an") or 0)

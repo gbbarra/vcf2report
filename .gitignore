@@ -39,3 +39,10 @@ scratch/
 data/real/
 !data/synthetic/
 !data/synthetic/*
+
+# Local annotation toolchains (SnpEff/ClinEff + reference bundles) — large,
+# user-installed per the LOCAL_ANNOTATION guide, never committed.
+snpEff/
+snpEff.zip
+clinEff/
+*.zip
