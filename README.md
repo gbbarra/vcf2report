@@ -77,7 +77,10 @@ is **right whenever it commits**. Speed: the bundled sample runs end-to-end in
 **well under a second** (~0.4 s on a laptop). All numbers are reproducible:
 `python scripts/run_concordance.py`.
 
-An example report lives in [docs/example_reports/](docs/example_reports/).
+**See a real rendered laudo** (self-contained HTML — open in a browser):
+[SYN-001](docs/example_reports/SYN-001.report.html) ·
+[SYN-002](docs/example_reports/SYN-002.report.html). More
+[example reports](docs/example_reports/) (Markdown) are bundled too.
 
 ---
 
@@ -157,30 +160,45 @@ python scripts/run_headless.py path/to/exome.vcf --hpo hpo_terms.txt --stdout   
 
 Flags: `--hpo FILE` · `--out DIR` · `--stdout` · `--sample-id ID` · `--timing`.
 
-### 3. From Claude Desktop (natural language)
+### 3. From Claude — two ways
 
-`pip install -e ".[mcp]"`, add the `mcpServers` block from
-[`claude_desktop_config.example.json`](claude_desktop_config.example.json) to your
-Claude Desktop config, restart, and say: *"Analyze this VCF for a patient with
-seizures: /path/to/exome.vcf"*. Full guide: [docs/SETUP.md](docs/SETUP.md).
+**a) Claude Code (recommended — one-step install, then plain language).** Install the
+guided skill once; it works in any session and bootstraps everything itself:
+
+```bash
+mkdir -p ~/.claude/skills/analyze-vcf && curl -fsSL \
+  https://raw.githubusercontent.com/gbbarra/vcf2report/main/.claude/skills/analyze-vcf/SKILL.md \
+  -o ~/.claude/skills/analyze-vcf/SKILL.md
+```
+
+Then say *"analyze this VCF: /path/to/exome.vcf"* — Claude clones/installs (if
+needed), runs the pipeline, and **renders the laudo inline**. See **[vcf2report.md](vcf2report.md)**.
+
+**b) Claude Desktop (natural-language chat via MCP).** `pip install -e ".[mcp]"`, add the
+`mcpServers` block from [`claude_desktop_config.example.json`](claude_desktop_config.example.json),
+restart, and ask in plain language. Full guide: [docs/SETUP.md](docs/SETUP.md).
 
 ---
 
 ## Architecture
 
+Three front doors, one engine:
+
 ```
-Bench scientist (Claude Desktop)  ── natural language + VCF path ─┐
-                                                                  ▼
-Agent Skills (the clinical SOP) ──►  MCP server (thin adapter) ──► vcf2report package
-                                                                   parse ▸ qc ▸ annotate
-                                                                   ▸ filter ▸ ACMG ▸ report
-                                                                   ├─ live APIs: gnomAD, ClinVar, HPO
-                                                                   └─ local: ClinVar slice, gnomAD cache,
-                                                                      ABraOM, HPO, constraint, AlphaMissense
+Claude Code   ── /analyze-vcf skill (guided harness) ──┐
+Claude Desktop ── Agent Skills ▸ MCP server ───────────┤
+Terminal      ── scripts/run_headless.py ──────────────┤
+                                                       ▼
+                          vcf2report package
+                          parse ▸ qc ▸ annotate ▸ filter ▸ ACMG ▸ report
+                          ├─ live APIs (opt-in): gnomAD, ClinVar, HPO
+                          └─ local: ClinVar slice, gnomAD cache, ABraOM,
+                             HPO, gene constraint, AlphaMissense
 ```
 
 All logic lives in the importable, headless-testable `vcf2report` Python package;
-the MCP server is a thin adapter. Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+the Claude Code skill and the MCP server are thin adapters over the same pipeline.
+Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 **Standards:** ACMG/AMP (Richards et al., Genet Med 2015) + ClinGen SVI refinements
 · ACMG SF v3.2 (Miller et al., 2023) · ClinGen PP3/BP4 calibration (2024) · HGVS ·
@@ -190,7 +208,9 @@ GA4GH Phenopackets.
 
 | Doc | What |
 |---|---|
+| [vcf2report.md](vcf2report.md) | **Run it from Claude** — one-step skill install + the guided harness |
 | [SETUP.md](docs/SETUP.md) | Full install + Claude Desktop / MCP integration |
+| [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | Guided demo walkthrough |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pieces fit together |
 | [CONCORDANCE.md](docs/CONCORDANCE.md) | The ClinVar validation panel + AlphaMissense calibration |
 | [LOCAL_ANNOTATION.md](docs/LOCAL_ANNOTATION.md) | Annotating a raw VCF with SnpEff |
@@ -198,6 +218,7 @@ GA4GH Phenopackets.
 | [PHENOPACKET.md](docs/PHENOPACKET.md) | GA4GH Phenopacket input |
 | [SYNTHETIC_CASES.md](docs/SYNTHETIC_CASES.md) | How the bundled synthetic exomes were built |
 | [DISCLAIMERS.md](docs/DISCLAIMERS.md) | Scope & limitations |
+| [example_reports/](docs/example_reports/) | Rendered (HTML) + Markdown example laudos |
 
 ## Test it
 

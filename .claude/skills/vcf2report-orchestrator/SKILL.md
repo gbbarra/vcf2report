@@ -1,11 +1,10 @@
 ---
 name: vcf2report-orchestrator
 description: >-
-  End-to-end clinical exome interpretation. Use when a user provides a VCF file
-  (exome/genome) and wants a draft variant report, or asks to "analyze this VCF",
-  "interpret these variants", or "find the candidate for this phenotype". Drives
-  parsing, QC, annotation, ACMG classification, and report generation via the
-  vcf2report MCP tools.
+  Claude Desktop only — REQUIRES the vcf2report MCP server. End-to-end clinical
+  exome interpretation via the vcf2report MCP tools (parse, QC, annotate, ACMG,
+  report). Do NOT use in plain Claude Code (the MCP tools are absent there) — the
+  `analyze-vcf` skill runs the whole pipeline via the terminal instead.
 ---
 
 # vcf2report — clinical exome interpretation SOP

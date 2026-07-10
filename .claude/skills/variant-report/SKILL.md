@@ -1,9 +1,9 @@
 ---
 name: variant-report
 description: >-
-  Assemble and present a clinical variant interpretation report from classified
-  variants. Use when producing the final draft report, formatting reportable
-  findings, or writing per-variant ACMG rationale into the lab's template.
+  Claude Desktop / MCP reference for assembling the draft report from already-
+  classified variants (the `run_report` MCP tool). Not the entry point: to go from
+  a VCF to a rendered report in Claude Code, use the `analyze-vcf` skill.
 ---
 
 # Variant report assembly

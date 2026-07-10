@@ -1,10 +1,9 @@
 ---
 name: acmg-classify
 description: >-
-  Apply auditable ACMG/AMP variant classification. Use when interpreting a genetic
-  variant's pathogenicity, evaluating ACMG criteria (PVS1, PM2, PP3, BA1, ...), or
-  explaining why a variant is Pathogenic / Likely Pathogenic / VUS / Likely Benign /
-  Benign. Pairs with the vcf2report engine, which decides deterministic criteria.
+  Claude Desktop / MCP reference for auditable ACMG/AMP criteria (PVS1, PM2, PP3,
+  BA1, …) — pairs with the vcf2report engine's classification. Reference material,
+  not the entry point: to analyze a VCF end-to-end in Claude Code use `analyze-vcf`.
 ---
 
 # Auditable ACMG/AMP classification

@@ -15,19 +15,26 @@ src/vcf2report/
 ├── cli.py           headless CLI (also the `vcf2report` console script)
 ├── mcp_server.py    FastMCP tool wrappers for Claude Desktop
 ├── vcf/             parse (pure-python + cyvcf2 fallback), qc, filter (tiering)
-├── annotate/        gnomad, clinvar, abraom, hpo, extra (constraint/in-silico), cache
+├── annotate/        gnomad, clinvar, abraom, hpo, alphamissense, extra (constraint/in-silico), cache
 ├── acmg/            criteria (28 evaluators), rules (Richards 2015 Table 5), engine
-└── report/          assemble (ReportModel), render (Jinja2 + built-in fallback)
+├── report/          assemble (ReportModel), render (Jinja2 + built-in fallback)
+└── concordance.py   ClinVar-vs-engine validation panel (see docs/CONCORDANCE.md)
 ```
+
+Two thin adapters drive the same package: the Claude Code **`analyze-vcf` skill**
+(a terminal harness — clone/install/run/render, no MCP needed) and the Claude
+Desktop **MCP server** (natural-language chat).
 
 ## Data flow
 
 1. **parse** — read VCF (pure-Python reader by default; `cyvcf2` if installed),
    split multiallelics, detect genome build.
 2. **qc** — drop by FILTER, DP, GQ, het allele balance; record reasons.
-3. **annotate** — merge gnomAD (popmax AF, homozygotes), ClinVar (significance,
-   accession), ABraOM (Brazilian AF), gene constraint (pLI/LOEUF), in-silico
-   (REVEL/CADD), HPO phenotype match. Every field records its source.
+3. **annotate** — merge gnomAD (popmax AF + filtering AF, homozygotes), ClinVar
+   (significance, accession), ABraOM (Brazilian AF), gene constraint (pLI/LOEUF),
+   in-silico (**AlphaMissense** at ClinGen-calibrated PP3/BP4 strength, with
+   REVEL/CADD as fallback), HPO phenotype match. Every field records its source.
+   (AlphaMissense is looked up lazily — only for the surviving candidates.)
 4. **filter** — funnel: rarity (gnomAD **and** ABraOM) → coding/splice impact →
    phenotype ranking. ClinVar P/LP bypass the funnel. Records ABraOM-specific drops.
 5. **acmg** — evaluate 20 of the 28 criteria (the rest need trio/segregation/

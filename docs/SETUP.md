@@ -1,6 +1,26 @@
-# Setup & Claude Desktop integration
+# Setup — run vcf2report from Claude
 
-vcf2report runs **locally**. The right surface is **Claude Desktop** (not
+There are two Claude surfaces. **Claude Code is the quickest** (a one-step skill);
+**Claude Desktop** adds a natural-language chat over the MCP server.
+
+## Option A — Claude Code (recommended, one step)
+
+Install the guided `analyze-vcf` skill once — it works in any session and
+bootstraps everything (clone, install, run, render) itself:
+
+```bash
+mkdir -p ~/.claude/skills/analyze-vcf && curl -fsSL \
+  https://raw.githubusercontent.com/gbbarra/vcf2report/main/.claude/skills/analyze-vcf/SKILL.md \
+  -o ~/.claude/skills/analyze-vcf/SKILL.md
+```
+
+Restart Claude Code, then say *"analyze this VCF: /path/to/exome.vcf"* (or `/analyze-vcf`).
+That's the whole setup — see [../vcf2report.md](../vcf2report.md). Everything below is
+only for the Claude Desktop / MCP path.
+
+## Option B — Claude Desktop (natural-language chat via MCP)
+
+vcf2report runs **locally**. For the chat surface use **Claude Desktop** (not
 claude.ai web — a browser can't read local files, run the annotators, or keep the
 databases local). The MCP server runs as a local subprocess and is the bridge
 between Claude and the tools/databases.
@@ -46,8 +66,10 @@ tools/data are ready.
 
 ## 4. Add the Skill
 
-The clinical SOP lives in `.claude/skills/` (`vcf2report-orchestrator`,
-`acmg-classify`, `variant-report`). Add it to Claude via the **Skills** capability
+The Claude Desktop clinical SOP lives in `.claude/skills/` (`vcf2report-orchestrator`,
+`acmg-classify`, `variant-report`) — these drive the flow through the MCP tools.
+(The separate `analyze-vcf` skill is the terminal-based harness for Option A / Claude
+Code and needs no MCP server.) Add the Desktop skills via the **Skills** capability
 (Settings → Capabilities in the Claude apps), or run from Claude Code where
 `.claude/skills/` is discovered automatically. If Skills aren't available in your
 setup, the MCP tool descriptions still drive the flow.
