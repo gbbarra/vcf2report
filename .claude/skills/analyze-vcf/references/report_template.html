@@ -1,0 +1,158 @@
+<!--
+  vcf2report — laudo render template (for the analyze-vcf skill).
+  Publish via the Artifact tool. Fill the {{placeholders}} from the run's report
+  markdown. Repeat the .vcard block once per candidate. Strip these comments and
+  all {{...}} before publishing. Favicon: 🧬. Keep the DRAFT banner.
+  Tier -> card class: Pathogenic/Likely Pathogenic => class "path" (red rail);
+  for VUS use "vus", for Benign/Likely Benign use "ben" (add matching --tier vars).
+  Criteria rows: class "met" for met (green), "off" for N/A or not-met; state chip
+  <span class="st met|na|no">.
+-->
+<style>
+  :root{
+    --ground:#F7F9FA;--surface:#FFFFFF;--surface-2:#FBFCFD;
+    --ink:#16212B;--sec:#51606B;--muted:#8593A0;--border:#E3E9ED;
+    --accent:#0C6E76;--accent-ink:#095057;--accent-bg:#E9F4F4;
+    --path:#B0241C;--path-bg:#FBEBE9;--path-bd:#F0C9C4;
+    --lp:#9A5300;--lp-bg:#FAF0E1;--lp-bd:#EDD7B4;
+    --vus:#516070;--vus-bg:#EDF1F3;--vus-bd:#D8E0E5;--na:#9AA6AF;
+    --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --serif:ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --ground:#0D1418;--surface:#141D23;--surface-2:#111A20;
+    --ink:#E7EDF1;--sec:#9EABB4;--muted:#68757F;--border:#243039;
+    --accent:#45B3BB;--accent-ink:#8AD3D8;--accent-bg:#122A2D;
+    --path:#F0736A;--path-bg:#2C1613;--path-bd:#4A231E;
+    --lp:#E39A3D;--lp-bg:#2A1F10;--lp-bd:#48351A;
+    --vus:#9EABB4;--vus-bg:#1B242B;--vus-bd:#2A363F;--na:#6C7883;
+  }}
+  :root[data-theme="dark"]{
+    --ground:#0D1418;--surface:#141D23;--surface-2:#111A20;
+    --ink:#E7EDF1;--sec:#9EABB4;--muted:#68757F;--border:#243039;
+    --accent:#45B3BB;--accent-ink:#8AD3D8;--accent-bg:#122A2D;
+    --path:#F0736A;--path-bg:#2C1613;--path-bd:#4A231E;
+    --lp:#E39A3D;--lp-bg:#2A1F10;--lp-bd:#48351A;
+    --vus:#9EABB4;--vus-bg:#1B242B;--vus-bd:#2A363F;--na:#6C7883;
+  }
+  :root[data-theme="light"]{
+    --ground:#F7F9FA;--surface:#FFFFFF;--surface-2:#FBFCFD;
+    --ink:#16212B;--sec:#51606B;--muted:#8593A0;--border:#E3E9ED;
+    --accent:#0C6E76;--accent-ink:#095057;--accent-bg:#E9F4F4;
+    --path:#B0241C;--path-bg:#FBEBE9;--path-bd:#F0C9C4;
+    --lp:#9A5300;--lp-bg:#FAF0E1;--lp-bd:#EDD7B4;
+    --vus:#516070;--vus-bg:#EDF1F3;--vus-bd:#D8E0E5;--na:#9AA6AF;
+  }
+  *{box-sizing:border-box}
+  .doc{font-family:var(--font);color:var(--ink);background:var(--ground);line-height:1.6;padding:clamp(14px,3vw,40px) 14px;}
+  .sheet{max-width:860px;margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+  .pad{padding:clamp(20px,4vw,40px);} .band{border-top:1px solid var(--border);}
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
+  .mast .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);font-weight:600;}
+  .mast h1{font-family:var(--serif);font-weight:600;font-size:clamp(22px,3.4vw,30px);line-height:1.15;margin:.5rem 0 0;text-wrap:balance;}
+  .mast .sub{color:var(--sec);font-size:14px;margin-top:.35rem;}
+  .mast{border-bottom:1px solid var(--border);}
+  .draft{display:inline-flex;align-items:center;gap:7px;margin-top:16px;background:var(--lp-bg);color:var(--lp);border:1px solid var(--lp-bd);padding:7px 13px;border-radius:8px;font-size:13px;font-weight:500;}
+  .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+  .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--border);border-top:1px solid var(--border);}
+  .meta div{background:var(--surface-2);padding:14px 18px;} .meta dt{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;} .meta dd{margin:4px 0 0;font-size:14px;font-weight:500;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px;} .chip{font-size:12px;background:var(--accent-bg);color:var(--accent-ink);padding:3px 9px;border-radius:20px;font-weight:500;font-family:var(--mono);}
+  h2.sec{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--sec);font-weight:600;margin:0 0 16px;display:flex;align-items:center;gap:10px;} h2.sec::after{content:"";flex:1;height:1px;background:var(--border);}
+  .funnel{display:flex;flex-wrap:wrap;gap:8px;} .step{flex:1;min-width:96px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;} .step .n{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;} .step .l{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.3;} .step.final{background:var(--accent-bg);border-color:var(--accent);} .step.final .n,.step.final .l{color:var(--accent-ink);}
+  .cards{display:grid;gap:16px;} .vcard{border:1px solid var(--border);border-radius:12px;overflow:hidden;} .vcard.path{--tier:var(--path);--tier-bg:var(--path-bg);--tier-bd:var(--path-bd);} .vcard.lp{--tier:var(--lp);--tier-bg:var(--lp-bg);--tier-bd:var(--lp-bd);} .vcard.vus{--tier:var(--vus);--tier-bg:var(--vus-bg);--tier-bd:var(--vus-bd);}
+  .vhead{padding:16px 18px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;justify-content:space-between;border-left:4px solid var(--tier);}
+  .vgene{font-size:19px;font-weight:600;} .vgene .coord{display:block;font-family:var(--mono);font-size:12px;color:var(--sec);font-weight:400;margin-top:3px;word-break:break-all;}
+  .tier{font-size:13px;font-weight:600;padding:6px 13px;border-radius:8px;white-space:nowrap;background:var(--tier-bg);color:var(--tier);border:1px solid var(--tier-bd);}
+  .bucket{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+  .facts{display:flex;flex-wrap:wrap;gap:1px;background:var(--border);border-top:1px solid var(--border);} .facts div{background:var(--surface-2);padding:10px 14px;flex:1;min-width:88px;} .facts dt{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;} .facts dd{margin:3px 0 0;font-size:13.5px;font-weight:500;font-variant-numeric:tabular-nums;}
+  .rule{padding:11px 18px;background:var(--accent-bg);border-top:1px solid var(--border);font-size:13px;color:var(--accent-ink);font-family:var(--mono);word-break:break-word;}
+  .tbl-wrap{overflow-x:auto;border-top:1px solid var(--border);} table.acmg{width:100%;border-collapse:collapse;font-size:13px;min-width:520px;}
+  table.acmg th{text-align:left;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--surface-2);}
+  table.acmg td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:top;} table.acmg tr:last-child td{border-bottom:0;}
+  .code{font-weight:600;font-family:var(--mono);font-size:12.5px;white-space:nowrap;} tr.met{background:var(--accent-bg);} tr.met .code{color:var(--accent-ink);} tr.off .code,tr.off td{color:var(--muted);}
+  .st{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:6px;white-space:nowrap;} .st.met{background:var(--accent-bg);color:var(--accent-ink);} .st.na{background:var(--vus-bg);color:var(--na);} .st.no{color:var(--muted);}
+  .why{color:var(--sec);line-height:1.45;} .by{font-size:11px;color:var(--muted);font-style:italic;}
+  .methods{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;} .methods dt{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;} .methods dd{margin:4px 0 0;font-size:13px;line-height:1.5;}
+  footer.disc{background:var(--surface-2);border-top:1px solid var(--border);font-size:12.5px;color:var(--sec);} footer.disc ul{margin:10px 0 0;padding-left:18px;line-height:1.6;} footer.disc strong{color:var(--ink);}
+</style>
+
+<div class="doc">
+  <p class="sr-only">Clinical variant interpretation report for sample {{SAMPLE}} — draft for expert review.</p>
+  <article class="sheet">
+    <header class="mast pad">
+      <p class="eyebrow">Variant interpretation report</p>
+      <h1>Sample {{SAMPLE}} — exome analysis</h1>
+      <p class="sub">Generated by vcf2report {{VERSION}} · single-proband · {{BUILD}}</p>
+      <span class="draft"><span class="dot"></span>Draft for expert review — not for clinical use</span>
+    </header>
+    <dl class="meta">
+      <div><dt>Sample</dt><dd>{{SAMPLE}}</dd></div>
+      <div><dt>Genome build</dt><dd>{{BUILD}}</dd></div>
+      <div><dt>Generated</dt><dd>{{DATE}}</dd></div>
+      <div style="flex-basis:100%"><dt>Patient phenotype (HPO)</dt>
+        <dd class="chips">{{HPO_CHIPS: one <span class="chip">HP:xxxx · Label</span> per term}}</dd></div>
+    </dl>
+
+    <section class="pad band">
+      <h2 class="sec">Quality control &amp; filtering funnel</h2>
+      <div class="funnel">
+        <div class="step"><div class="n">{{TOTAL}}</div><div class="l">Total variants</div></div>
+        <div class="step"><div class="n">{{PASS}}</div><div class="l">PASS filter</div></div>
+        <div class="step"><div class="n">{{QC}}</div><div class="l">After QC</div></div>
+        <div class="step"><div class="n">{{RARITY}}</div><div class="l">After rarity</div></div>
+        <div class="step"><div class="n">{{IMPACT}}</div><div class="l">Coding / splice</div></div>
+        <div class="step final"><div class="n">{{CANDIDATES}}</div><div class="l">Candidates</div></div>
+      </div>
+    </section>
+
+    <section class="pad band">
+      <h2 class="sec">Findings &amp; auditable ACMG rationale</h2>
+      <div class="cards">
+        <!-- Repeat this .vcard per candidate. class: path | lp | vus. -->
+        <div class="vcard path">
+          <div class="vhead">
+            <div><span class="bucket">{{BUCKET: Primary — phenotype-matched | Secondary — ACMG SF v3.2 (actionable) | Other}}</span>
+              <div class="vgene">{{GENE}}<span class="coord">{{COORD}} · {{CONSEQUENCE}}</span></div></div>
+            <span class="tier">{{TIER}}</span>
+          </div>
+          <dl class="facts">
+            <div><dt>Zygosity</dt><dd>{{ZYG}}</dd></div>
+            <div><dt>ClinVar</dt><dd>{{CLINVAR}}</dd></div>
+            <div><dt>gnomAD AF</dt><dd>{{GNOMAD}}</dd></div>
+            <div><dt>ABraOM AF</dt><dd>{{ABRAOM}}</dd></div>
+            <div><dt>HPO match</dt><dd>{{HPO}}</dd></div>
+          </dl>
+          <div class="rule">{{RULE_PATH}}</div>
+          <div class="tbl-wrap"><table class="acmg">
+            <thead><tr><th>Criterion</th><th>State</th><th>Strength</th><th>Reasoning</th></tr></thead>
+            <tbody>
+              <!-- met rows: <tr class="met"><td class="code">PVS1</td><td><span class="st met">met</span></td><td>very strong</td><td class="why">... <span class="by">· engine</span></td></tr> -->
+              <!-- N/A rows: <span class="st na">N/A</span> in class="off" row. Not-met: <span class="st no">—</span>. Group related not-met codes to keep it readable. -->
+            </tbody>
+          </table></div>
+        </div>
+        <!-- If a candidate was dropped by ABraOM, add a short note line here. -->
+      </div>
+    </section>
+
+    <section class="pad band">
+      <h2 class="sec">Methods</h2>
+      <dl class="methods">
+        <div><dt>Databases</dt><dd>{{DATABASES}}</dd></div>
+        <div><dt>Standards</dt><dd>ACMG/AMP (Richards 2015) · ClinGen SVI · ACMG SF v3.2 · HGVS · GA4GH Phenopackets</dd></div>
+        <div><dt>Thresholds</dt><dd>{{THRESHOLDS}}</dd></div>
+        <div><dt>Runtime</dt><dd>{{TIMINGS}}</dd></div>
+      </dl>
+    </section>
+
+    <footer class="disc pad">
+      <ul>
+        <li>Single-proband analysis: criteria requiring parental / segregation / phasing data (PS2, PM3, PM6, PP1, BS4) are reported as N/A.</li>
+        <li>Judgment criteria (PS3, PS4, PM1, PM5, PP2) are surfaced for expert / model adjudication.</li>
+        <li>Population and clinical databases are versioned snapshots; re-check before sign-out.</li>
+        <li><strong>This is a draft-generation aid, not a diagnostic device.</strong> Every call must be verified and signed out by a qualified professional.</li>
+      </ul>
+    </footer>
+  </article>
+</div>
