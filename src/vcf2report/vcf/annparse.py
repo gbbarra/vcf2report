@@ -65,7 +65,8 @@ def parse_snpeff(ann: str, alt: str, ref: str = "", n_alt: int = 1) -> Optional[
     else:
         return None        # multiallelic no-match: never borrow another allele
     return {"gene": f[3] or None, "consequence": _first_term(f[1]),
-            "hgvs_c": f[9] or None, "hgvs_p": f[10] or None}
+            "hgvs_c": f[9] or None, "hgvs_p": f[10] or None,
+            "exon": f[8] or None}   # SnpEff "rank" = exon "N/M"
 
 
 def parse_vep(csq: str, alt: str, field_names: list[str], ref: str = "",
@@ -81,7 +82,8 @@ def parse_vep(csq: str, alt: str, field_names: list[str], ref: str = "",
     def row(f: list[str]) -> dict:
         return {"gene": get(f, "symbol") or get(f, "gene"),
                 "consequence": _first_term(get(f, "consequence") or ""),
-                "hgvs_c": get(f, "hgvsc"), "hgvs_p": get(f, "hgvsp")}
+                "hgvs_c": get(f, "hgvsc"), "hgvs_p": get(f, "hgvsp"),
+                "exon": get(f, "exon")}
 
     entries = [e.split("|") for e in csq.split(",")]
     an = idx.get("allele_num")

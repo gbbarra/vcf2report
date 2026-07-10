@@ -61,22 +61,62 @@ def _na(code: str, name: str, strength: str, reason: str) -> CriterionResult:
 # ===========================================================================
 # Pathogenic criteria
 # ===========================================================================
+def _is_last_exon(exon: Optional[str]) -> bool:
+    """True if the annotation's exon rank 'N/M' places the variant in the last exon
+    (N == M). Single-exon transcripts (1/1) also escape NMD, so they count."""
+    if not exon or "/" not in exon:
+        return False
+    n, _, m = exon.partition("/")
+    try:
+        return int(m) > 0 and int(n) == int(m)
+    except ValueError:
+        return False
+
+
+def _pvs1_strength(v: Variant) -> str:
+    """Deterministic PVS1 strength via the ClinGen SVI decision tree (Abou Tayoun
+    et al. 2018), to the depth a single annotated VCF supports:
+
+      * ``start_lost`` -> Moderate (initiation-codon variant; no downstream evidence)
+      * nonsense/frameshift in the LAST exon (NMD-escaping) -> Strong
+      * everything else qualifying -> Very Strong (the default)
+
+    Needs the VEP EXON / SnpEff rank field. When it is absent (synthetic samples,
+    un-annotated VCFs) the tree can't fire and PVS1 stays Very Strong, so demos and
+    the frozen panel are unaffected. The penultimate-exon last-50-nt NMD rule and
+    the >10%-of-protein refinement need CDS coordinates we don't carry, so they are
+    intentionally not attempted (kept conservative at Very Strong / Strong)."""
+    cons = v.consequence or ""
+    if cons == "start_lost":
+        return "moderate"
+    if cons in ("stop_gained", "frameshift_variant") and _is_last_exon(v.exon):
+        return "strong"
+    return "very_strong"
+
+
 @criterion("PVS1")
 def pvs1(v: Variant, a: Annotation) -> CriterionResult:
     name = "Null variant in a gene where LoF is a known disease mechanism"
     met = bool(v.is_lof and a.gene_lof_intolerant)
+    strength = _pvs1_strength(v) if met else None
     cites = []
     if a.source.get("gene_lof_intolerant"):
         cites.append(a.source["gene_lof_intolerant"])
-    reason = (
-        f"{v.consequence} is loss-of-function and {v.gene} is LoF-intolerant"
-        if met else
-        f"{v.consequence or 'variant'} is not a qualifying null variant in a LoF-intolerant gene"
-    )
+    if met and strength != "very_strong":
+        reason = (
+            f"{v.consequence} is loss-of-function in LoF-intolerant {v.gene}, but the "
+            f"ClinGen SVI PVS1 tree downgrades it to {strength} "
+            f"({'initiation-codon variant' if v.consequence == 'start_lost' else f'NMD-escaping (last exon {v.exon})'})"
+        )
+    elif met:
+        reason = f"{v.consequence} is loss-of-function and {v.gene} is LoF-intolerant"
+    else:
+        reason = f"{v.consequence or 'variant'} is not a qualifying null variant in a LoF-intolerant gene"
     return CriterionResult(
         "PVS1", name, "very_strong", applies=True, met=met,
-        applied_strength="very_strong" if met else None,
-        evidence={"consequence": v.consequence, "gene_lof_intolerant": a.gene_lof_intolerant},
+        applied_strength=strength,
+        evidence={"consequence": v.consequence, "gene_lof_intolerant": a.gene_lof_intolerant,
+                  "exon": v.exon, "pvs1_strength": strength},
         citation=cites, reasoning=reason,
     )
 

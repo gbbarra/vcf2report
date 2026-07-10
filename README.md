@@ -51,9 +51,14 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
 - **Calibrated AlphaMissense (optional).** Missense pathogenicity uses AlphaMissense
   (CC BY 4.0) at a **ClinGen-calibrated evidence strength** (PP3/BP4), validated to
   recover pathogenic missense **without** ever flipping a benign variant (below).
+- **PVS1 strength by the ClinGen SVI tree.** When the VCF carries an exon rank
+  (VEP `EXON` / SnpEff), null variants are graded deterministically — Very Strong for
+  NMD-triggering, **downgraded to Strong** for last-exon (NMD-escaping) nonsense/
+  frameshift and **Moderate** for start-loss (Abou Tayoun 2018). Un-annotated VCFs
+  stay Very Strong, so nothing is silently over-called.
 - **Private by default.** Runs fully offline on bundled data; the VCF never leaves
   the machine, and outbound lookups are opt-in (`VCF2REPORT_ALLOW_NETWORK=1`).
-- **Auditable & tested.** 138 automated tests; the classification logic is validated
+- **Auditable & tested.** 167 automated tests; the classification logic is validated
   against real ClinVar ground truth (below) and was hardened by multi-agent
   adversarial review.
 
