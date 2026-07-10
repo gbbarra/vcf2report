@@ -74,6 +74,28 @@ def _render_markdown_builtin(report: ReportModel) -> str:
             L.append(f"- {note}")
         L.append("")
 
+    sq = report.seq_quality
+    if sq:
+        L.append("## Sequencing quality (estimated from variant sites)")
+        L.append("")
+        L.append(f"- **Assay (by variant count):** {sq.assay_guess} "
+                 f"({sq.n_variants} variants)")
+        if sq.dp_mean is not None:
+            L.append(f"- **Depth at called sites:** {sq.dp_mean}x mean / "
+                     f"{sq.dp_median}x median — {sq.dp_pct_ge10}% ≥10x, "
+                     f"{sq.dp_pct_ge20}% ≥20x")
+        if sq.gq_median is not None:
+            L.append(f"- **Genotype quality:** median {sq.gq_median}, "
+                     f"{sq.gq_pct_ge20}% ≥20")
+        if sq.titv is not None:
+            L.append(f"- **Ti/Tv (SNVs):** {sq.titv} ({sq.n_snv} SNVs)")
+        if sq.het_hom_ratio is not None:
+            L.append(f"- **Het/Hom:** {sq.het_hom_ratio} "
+                     f"({sq.n_het} het / {sq.n_hom} hom)")
+        for note in sq.notes:
+            L.append(f"- _{note}_")
+        L.append("")
+
     primary, secondary, other = split_findings(report.classifications)
 
     def _findings_table(rows):

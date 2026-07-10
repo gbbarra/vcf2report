@@ -29,6 +29,28 @@ Spurious candidates a gnomAD-only pipeline would have kept, removed using ABraOM
 - {{ note }}
 {% endfor %}
 {% endif %}
+{% if r.seq_quality %}
+{% set sq = r.seq_quality %}
+
+## Sequencing quality (estimated from variant sites)
+
+- **Assay (by variant count):** {{ sq.assay_guess }} ({{ sq.n_variants }} variants)
+{% if sq.dp_mean is not none %}
+- **Depth at called sites:** {{ sq.dp_mean }}x mean / {{ sq.dp_median }}x median — {{ sq.dp_pct_ge10 }}% ≥10x, {{ sq.dp_pct_ge20 }}% ≥20x
+{% endif %}
+{% if sq.gq_median is not none %}
+- **Genotype quality:** median {{ sq.gq_median }}, {{ sq.gq_pct_ge20 }}% ≥20
+{% endif %}
+{% if sq.titv is not none %}
+- **Ti/Tv (SNVs):** {{ sq.titv }} ({{ sq.n_snv }} SNVs)
+{% endif %}
+{% if sq.het_hom_ratio is not none %}
+- **Het/Hom:** {{ sq.het_hom_ratio }} ({{ sq.n_het }} het / {{ sq.n_hom }} hom)
+{% endif %}
+{% for note in sq.notes %}
+- _{{ note }}_
+{% endfor %}
+{% endif %}
 
 {% macro findings(rows) %}
 {% if rows %}

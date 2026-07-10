@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from .. import __version__
 from ..config import (AF_BA1, AF_RECESSIVE_MAX, GENOME_BUILD, QC_MIN_DP,
                       QC_MIN_GQ)
-from ..models import Classification, QCSummary
+from ..models import Classification, QCSummary, SeqQuality
 
 
 @dataclass
@@ -22,6 +22,7 @@ class ReportModel:
     generated: str = ""
     methods: dict[str, Any] = field(default_factory=dict)
     timings: dict[str, float] = field(default_factory=dict)  # per-stage seconds
+    seq_quality: Optional[SeqQuality] = None  # estimated from the VCF's variant sites
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -31,6 +32,7 @@ class ReportModel:
             "tool_version": self.tool_version,
             "generated": self.generated,
             "qc": self.qc.to_dict(),
+            "seq_quality": self.seq_quality.to_dict() if self.seq_quality else None,
             "methods": self.methods,
             "timings": self.timings,
             "classifications": [c.to_dict() for c in self.classifications],

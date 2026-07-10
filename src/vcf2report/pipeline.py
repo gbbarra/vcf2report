@@ -14,6 +14,7 @@ from .acmg.engine import classify
 from .annotate import add_alphamissense, annotate_variant
 from .models import Classification, QCSummary
 from .report.assemble import ReportModel, build_report
+from .vcf import seqqc
 from .vcf.filter import filter_variants
 from .vcf.parse import parse_vcf
 from .vcf.qc import apply_qc
@@ -100,6 +101,8 @@ def run_pipeline(
     _mark("classify_s")
 
     report = build_report(sample_id, hpo_terms, qc, classifications)
+    # Sequencing-quality estimate over ALL called variants (pre-filter callset).
+    report.seq_quality = seqqc.estimate(variants)
     total = round(sum(timings.values()), 4)
     timings["total_s"] = total
     if total > 0:

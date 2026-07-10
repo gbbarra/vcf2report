@@ -165,3 +165,34 @@ class QCSummary:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass
+class SeqQuality:
+    """Sequencing-quality estimate derived from the VCF's variant sites.
+
+    A variants-only VCF carries data ONLY at called variant sites, so these are a
+    proxy for how well the sample sequenced *at those sites* — NOT genome-wide
+    breadth of coverage (that needs a gVCF or BAM). Depth (DP) at called sites is
+    the closest coverage proxy; Ti/Tv and het:hom are orthogonal quality signals.
+    """
+
+    n_variants: int = 0
+    assay_guess: str = "unknown"          # whole-genome / exome / panel / demo, by count
+    n_with_dp: int = 0
+    dp_mean: Optional[float] = None       # mean read depth at variant sites
+    dp_median: Optional[float] = None
+    dp_pct_ge10: Optional[float] = None   # % of sites with DP >= 10
+    dp_pct_ge20: Optional[float] = None
+    n_with_gq: int = 0
+    gq_median: Optional[float] = None
+    gq_pct_ge20: Optional[float] = None
+    n_snv: int = 0
+    titv: Optional[float] = None          # transition/transversion ratio (SNVs)
+    n_het: int = 0
+    n_hom: int = 0
+    het_hom_ratio: Optional[float] = None
+    notes: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)

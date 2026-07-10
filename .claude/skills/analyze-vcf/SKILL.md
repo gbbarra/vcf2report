@@ -80,7 +80,8 @@ Read back the **candidate list** and per-stage timings to the user in plain term
    located/cloned in Step 0) as the exact style + structure. If this skill is
    installed at the user level, that template still lives in the cloned repo.
    Fill it from the run: masthead (sample, build, generated, HPO chips), the QC
-   funnel, one card per candidate (gene, coordinate, tier pill, the data-fact row,
+   funnel, the **Sequencing quality** panel (depth/GQ at variant sites, Ti/Tv,
+   het:hom), one card per candidate (gene, coordinate, tier pill, the data-fact row,
    the `rule_path`, and the full ACMG criteria table with met / N-A / — states),
    then Methods + the disclaimer footer.
 3. Give the user the Artifact link and a 2–3 line summary of the findings
