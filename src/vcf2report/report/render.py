@@ -123,13 +123,13 @@ def _render_markdown_builtin(report: ReportModel) -> str:
             L.append("_None._")
             L.append("")
             return
-        L.append("| Gene | Variant (c./p.) | Zyg | Consequence | ClinVar | gnomAD AF | ABraOM AF | HPO | ACMG |")
-        L.append("|---|---|---|---|---|---|---|---|---|")
+        L.append("| Gene | Transcript | Variant (c./p.) | Zyg | Consequence | ClinVar | gnomAD AF | ABraOM AF | HPO | ACMG |")
+        L.append("|---|---|---|---|---|---|---|---|---|---|")
         for c in rows:
             v, a = c.variant, c.annotation
             hgvs = " ".join(x for x in [v.hgvs_c, v.hgvs_p] if x) or v.key
             L.append(
-                f"| {v.gene or '?'} | {hgvs} | {v.zygosity or '?'} | {v.consequence or '?'} "
+                f"| {v.gene or '?'} | {v.transcript or '—'} | {hgvs} | {v.zygosity or '?'} | {v.consequence or '?'} "
                 f"| {a.clinvar_significance or '—'} | {_fmt_af(a.gnomad_af)} | {_fmt_af(a.abraom_af)} "
                 f"| {a.hpo_match_score if a.hpo_match_score is not None else '—'} | **{c.tier}** |"
             )
@@ -161,7 +161,10 @@ def _render_markdown_builtin(report: ReportModel) -> str:
     for c in report.classifications:
         v = c.variant
         L.append("")
-        L.append(f"### {v.gene or '?'} — {v.hgvs_p or v.hgvs_c or v.key} → {c.tier}")
+        tx = f"{v.transcript}:" if v.transcript else ""
+        hp = f" ({v.hgvs_p})" if v.hgvs_p else ""
+        label = f"{tx}{v.hgvs_c}{hp}" if (v.hgvs_c or v.hgvs_p) else v.key
+        L.append(f"### {v.gene or '?'} — {label} → {c.tier}")
         L.append("")
         L.append(f"**Rule path:** `{c.rule_path}`")
         L.append("")

@@ -83,12 +83,19 @@ Read back the **candidate list** and per-stage timings to the user in plain term
    **Conclusion** (executive summary, from the report's Conclusion section), the QC
    funnel, the **Sequencing quality** panel (depth/GQ at variant sites, Ti/Tv,
    het:hom, indel:SNV, multiallelic, novelty, PASS), one card per candidate (gene,
-   coordinate, tier pill, the data-fact row, the `rule_path`, and the full ACMG
-   criteria table with met / N-A / — states), then Methods + the disclaimer footer.
+   **HGVS c./p. and transcript** from the report's Transcript + "Variant (c./p.)"
+   columns, coordinate, tier pill, the data-fact row, the `rule_path`, and the full
+   ACMG criteria table with met / N-A / — states), then Methods + the disclaimer
+   footer. If the VCF was not VEP/SnpEff-annotated the HGVS/transcript will be blank
+   (the report shows the coordinate instead) — say so rather than inventing HGVS.
 3. Give the user the Artifact link and a 2–3 line summary of the findings
    (primary vs secondary/ACMG-SF, and any ABraOM-dropped candidates).
 
 ## Guardrails (always)
+- **Compact layout.** Save vertical space: when a section holds several short values
+  (QC metrics, per-variant facts), render them **inline** (the template's `.kv` class)
+  so they flow horizontally and wrap to fill the width — never a tall narrow column
+  with empty sides.
 - **Draft, not diagnostic.** Keep the "not for clinical use" banner in every laudo.
 - **GRCh38 only.** Flag any other build.
 - **Privacy.** The VCF never leaves the machine; confirm before any network step.

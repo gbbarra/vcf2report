@@ -3,7 +3,7 @@
 Supports SnpEff ``ANN`` and Ensembl VEP ``CSQ`` (whose subfield order is read
 from the VCF header). Falls back to plain ``GENE``/``CSQ``/``HGVSC``/``HGVSP``
 keys (as the bundled synthetic sample uses). Returns a dict with gene,
-consequence, hgvs_c, hgvs_p — or None if nothing usable is found.
+consequence, hgvs_c, hgvs_p, exon, transcript — or None if nothing usable is found.
 """
 from __future__ import annotations
 
@@ -66,7 +66,8 @@ def parse_snpeff(ann: str, alt: str, ref: str = "", n_alt: int = 1) -> Optional[
         return None        # multiallelic no-match: never borrow another allele
     return {"gene": f[3] or None, "consequence": _first_term(f[1]),
             "hgvs_c": f[9] or None, "hgvs_p": f[10] or None,
-            "exon": f[8] or None}   # SnpEff "rank" = exon "N/M"
+            "exon": f[8] or None,          # SnpEff "rank" = exon "N/M"
+            "transcript": f[6] or None}    # SnpEff "feature_id" = transcript
 
 
 def parse_vep(csq: str, alt: str, field_names: list[str], ref: str = "",
@@ -83,7 +84,8 @@ def parse_vep(csq: str, alt: str, field_names: list[str], ref: str = "",
         return {"gene": get(f, "symbol") or get(f, "gene"),
                 "consequence": _first_term(get(f, "consequence") or ""),
                 "hgvs_c": get(f, "hgvsc"), "hgvs_p": get(f, "hgvsp"),
-                "exon": get(f, "exon")}
+                "exon": get(f, "exon"),
+                "transcript": get(f, "feature")}   # VEP "Feature" = transcript id
 
     entries = [e.split("|") for e in csq.split(",")]
     an = idx.get("allele_num")
@@ -128,5 +130,6 @@ def extract(info: dict[str, str], alt: str, csq_format: Optional[list[str]] = No
     # Plain keys (synthetic sample / simple pipelines).
     simple = {"gene": info.get("GENE"),
               "consequence": info.get("CSQ") if (info.get("CSQ") and "|" not in info["CSQ"]) else None,
-              "hgvs_c": info.get("HGVSC"), "hgvs_p": info.get("HGVSP")}
+              "hgvs_c": info.get("HGVSC"), "hgvs_p": info.get("HGVSP"),
+              "transcript": info.get("TRANSCRIPT") or info.get("FEATURE")}
     return simple if any(simple.values()) else None

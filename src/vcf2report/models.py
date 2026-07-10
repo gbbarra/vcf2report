@@ -26,6 +26,7 @@ class Variant:
     hgvs_p: Optional[str] = None
     consequence: Optional[str] = None  # e.g. missense_variant, stop_gained
     exon: Optional[str] = None         # SnpEff rank / VEP EXON as "N/M" (for PVS1 NMD tree)
+    transcript: Optional[str] = None   # SnpEff feature_id / VEP Feature — reported with HGVS
     zygosity: Optional[str] = None     # het | hom | hemi
     depth: Optional[int] = None        # DP
     gq: Optional[int] = None           # genotype quality
