@@ -9,6 +9,12 @@
 - **Generated:** {{ r.generated }}
 - **Patient HPO terms:** {{ r.hpo_terms | join(', ') if r.hpo_terms else 'none provided' }}
 
+## Conclusion (draft interpretation)
+
+{% for line in conclusion %}
+- {{ line }}
+{% endfor %}
+
 ## Quality control & filtering funnel
 
 - Total variants: **{{ r.qc.total_variants }}**

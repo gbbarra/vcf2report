@@ -92,3 +92,53 @@ def split_findings(classifications):
         else:
             other.append(c)
     return primary, secondary, other
+
+
+def summarize(report: "ReportModel") -> list[str]:
+    """A deterministic, QC-aware interpretive conclusion for the report.
+
+    Bottom-line-up-front: the likely explanatory finding (or its absence), any
+    reportable secondary finding, an honest coverage caveat, the single-proband
+    limitation, and recommended next steps. Derived only from the classifications
+    and the sequencing-quality estimate — no model judgment.
+    """
+    primary, secondary, _other = split_findings(report.classifications)
+    lines: list[str] = []
+
+    diag = [c for c in primary if c.tier in _PLP]
+    if diag:
+        g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in diag)
+        lines.append(f"Likely explanatory finding for the clinical indication: **{g}** "
+                     "(in a gene overlapping the patient's phenotype) — confirm and review.")
+    else:
+        vus = [c for c in primary if c.tier == "Uncertain Significance (VUS)"]
+        msg = ("**No Pathogenic / Likely Pathogenic finding** was identified in "
+               "phenotype-matched genes")
+        if vus:
+            msg += f"; {len(vus)} variant(s) of uncertain significance need further evaluation"
+        lines.append(msg + ".")
+
+    sec = [c for c in secondary if c.tier in _PLP]
+    if sec:
+        g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in sec)
+        lines.append(f"Reportable **secondary finding** (ACMG SF v3.2 — actionable, subject to "
+                     f"the patient's opt-in policy): {g}.")
+
+    sq = report.seq_quality
+    if sq and sq.dp_median is not None and sq.dp_median < 20:
+        lines.append(f"⚠️ **Coverage limitation:** median depth at variant sites is {sq.dp_median}x, "
+                     "below a 20–30x clinical target. Findings in low-coverage regions are less "
+                     "reliable and a negative result does not exclude a diagnosis — consider "
+                     "higher-depth resequencing before ruling out a genetic cause.")
+    elif sq and sq.dp_median is not None:
+        lines.append(f"Sequencing depth at called sites is adequate (median {sq.dp_median}x); note "
+                     "that a variant-only VCF conveys no breadth of coverage, so poorly-covered "
+                     "regions cannot be assessed from this input.")
+
+    lines.append("Single-proband analysis: de novo / segregation / phasing criteria (PS2, PM3, "
+                 "PM6, PP1, BS4) are N/A — parental or trio testing could upgrade candidates or "
+                 "resolve VUS.")
+    lines.append("**Recommended next steps:** expert review and sign-out; orthogonal confirmation "
+                 "(e.g. Sanger) of any reported P/LP variant; segregation / functional evidence to "
+                 "resolve variants of uncertain significance.")
+    return lines

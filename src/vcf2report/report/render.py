@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .. import config
-from .assemble import ReportModel, split_findings
+from .assemble import ReportModel, split_findings, summarize
 
 
 def render_markdown(report: ReportModel) -> str:
@@ -29,7 +29,8 @@ def render_markdown(report: ReportModel) -> str:
             )
             primary, secondary, other = split_findings(report.classifications)
             return env.get_template("report.md.j2").render(
-                r=report, primary=primary, secondary=secondary, other=other)
+                r=report, primary=primary, secondary=secondary, other=other,
+                conclusion=summarize(report))
     except ImportError:
         pass
     return _render_markdown_builtin(report)
@@ -51,6 +52,12 @@ def _render_markdown_builtin(report: ReportModel) -> str:
     L.append(f"- **Pipeline:** vcf2report v{report.tool_version}")
     L.append(f"- **Generated:** {report.generated}")
     L.append(f"- **Patient HPO terms:** {', '.join(report.hpo_terms) or 'none provided'}")
+    L.append("")
+
+    L.append("## Conclusion (draft interpretation)")
+    L.append("")
+    for line in summarize(report):
+        L.append(f"- {line}")
     L.append("")
 
     q = report.qc
