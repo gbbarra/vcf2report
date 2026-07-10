@@ -16,6 +16,10 @@ for expert review**, with the full ACMG reasoning shown for every variant.
 > be verified and signed out by a qualified professional. See
 > [docs/DISCLAIMERS.md](docs/DISCLAIMERS.md).
 
+> 🤖 **Want Claude to run it for you?** Install the guided skill in **one step** and
+> just say *"analyze this VCF"* — Claude sets up dependencies, runs the pipeline, and
+> renders the report. See **[vcf2report.md](vcf2report.md)**.
+
 ---
 
 ## What it does

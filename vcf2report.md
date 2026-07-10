@@ -1,8 +1,27 @@
 # Run vcf2report *with Claude* (guided harness)
 
 vcf2report is designed to be driven **from Claude** — you don't memorise commands.
-Open this repository in **Claude Code** (or any Claude coding surface that reads
-`.claude/skills/`) and just ask, in plain language:
+
+## Install into Claude — one step
+
+Install the skill once (copies a single file into Claude's user skills folder — it
+then works in **any** Claude Code session, in any folder):
+
+```bash
+mkdir -p ~/.claude/skills/analyze-vcf && curl -fsSL \
+  https://raw.githubusercontent.com/gbbarra/vcf2report/main/.claude/skills/analyze-vcf/SKILL.md \
+  -o ~/.claude/skills/analyze-vcf/SKILL.md
+```
+
+Restart Claude Code. That's it — you don't need to clone the repo or install
+anything else yet; the skill does the rest on first use.
+
+> Already have the repo open in Claude Code? You can skip the install — the same
+> skill ships in this repo's `.claude/skills/` and is picked up automatically.
+
+## Use it — just ask
+
+In any Claude Code session, type `/analyze-vcf` or just say, in plain language:
 
 > *"Analyze this VCF for a patient with seizures: `/path/to/exome.vcf`"*
 > *"Set up vcf2report and run the demo."*
