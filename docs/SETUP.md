@@ -36,7 +36,7 @@ toolchain (below) and leave network off (or set `OFFLINE=1` to hard-guarantee it
 
 ```bash
 git clone <repo> && cd vcf2report
-python -m pip install -e ".[mcp]"        # engine + MCP SDK (jinja2 included)
+python3 -m pip install -e ".[mcp]"        # engine + MCP SDK (jinja2 included)
 # annotation toolchain (all MIT/permissive), via bioconda:
 conda install -c bioconda bcftools snpeff vcfanno htslib
 ```

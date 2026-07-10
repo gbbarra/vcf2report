@@ -31,6 +31,26 @@ Claude picks up the **`analyze-vcf`** skill (`.claude/skills/analyze-vcf/SKILL.m
 and acts as a guided harness — it sets up the environment, runs the pipeline, and
 renders an auditable ACMG report (laudo) inline.
 
+## What it looks like
+
+> **You** — *"analyze this VCF for a patient with seizures: `~/SYN-001.vcf.gz`
+> (HPO HP:0001250, HP:0002133, HP:0011097)"*
+>
+> **Claude** — checks Python + the package (installs if missing), writes the HPO
+> file, then runs:
+> ```
+> python3 scripts/run_headless.py ~/SYN-001.vcf.gz --hpo /tmp/hpo.txt --out out/ --timing
+> ```
+> *"Filtered **24,801 variants → 2 candidates** in 2.8 s:*
+> - ***SCN1A*** *(frameshift) → **Pathogenic** — matches the seizure phenotype (PVS1 + PM2 + PP4 + PP5)*
+> - ***RB1*** *(frameshift) → **Pathogenic** — actionable secondary finding (ACMG SF v3.2)"*
+>
+> …and renders the full auditable laudo inline → 🧬 **a clinical report** with the
+> QC funnel, findings by category, and every variant's ACMG criterion trail
+> ([see a rendered example](docs/example_reports/SYN-001.report.html)).
+
+You never touched a command reference — you described the case, Claude did the rest.
+
 ## What Claude does for you (the harness flow)
 
 1. **Environment & install** — checks Python ≥ 3.10 and the package; if missing it
@@ -55,9 +75,9 @@ runs itself.
 
 ```bash
 git clone https://github.com/gbbarra/vcf2report.git && cd vcf2report
-python -m pip install -e .
-python scripts/run_headless.py                                   # bundled demo
-python scripts/run_headless.py my.vcf --hpo hpo.txt --out out/   # your case
+python3 -m pip install -e .
+python3 scripts/run_headless.py                                   # bundled demo
+python3 scripts/run_headless.py my.vcf --hpo hpo.txt --out out/   # your case
 ```
 
 See the full [README](README.md) for install tiers, the observed performance, and

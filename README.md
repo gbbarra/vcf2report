@@ -75,7 +75,7 @@ The engine is deliberately **conservative** (it defers to VUS unless it has stro
 deterministic evidence) — the value is that it is **never dangerously wrong** and
 is **right whenever it commits**. Speed: the bundled sample runs end-to-end in
 **well under a second** (~0.4 s on a laptop). All numbers are reproducible:
-`python scripts/run_concordance.py`.
+`python3 scripts/run_concordance.py`.
 
 **See a real rendered laudo** (self-contained HTML — open in a browser):
 [SYN-001](docs/example_reports/SYN-001.report.html) ·
@@ -91,7 +91,7 @@ You need **Python ≥ 3.10**. Pick the tier you want — the demo needs only the
 ```bash
 git clone https://github.com/gbbarra/vcf2report.git
 cd vcf2report
-python -m pip install -e .            # core engine (only dependency: jinja2)
+python3 -m pip install -e .            # core engine (only dependency: jinja2)
 ```
 
 That is enough to run the offline demo below — **all databases for it are already
@@ -101,16 +101,16 @@ in-silico; ~2 MB total, no download).
 Optional extras:
 
 ```bash
-python -m pip install -e ".[fast]"    # + cyvcf2 (htslib-backed VCF reader, faster)
-python -m pip install -e ".[mcp]"     # + MCP SDK (to drive it from Claude Desktop)
-python -m pip install -e ".[dev]"     # + pytest/hypothesis (to run the test suite)
+python3 -m pip install -e ".[fast]"    # + cyvcf2 (htslib-backed VCF reader, faster)
+python3 -m pip install -e ".[mcp]"     # + MCP SDK (to drive it from Claude Desktop)
+python3 -m pip install -e ".[dev]"     # + pytest/hypothesis (to run the test suite)
 ```
 
 ### Optional databases (for richer / real-exome analysis)
 
 | Database | Needed for | How |
 |---|---|---|
-| **AlphaMissense hg38** (~1 GB, CC BY 4.0) | calibrated missense PP3/BP4 (v2) | `bash scripts/fetch_alphamissense.sh` then `python scripts/freeze_alphamissense.py` (needs htslib: `brew install htslib` / `conda install -c bioconda htslib`) |
+| **AlphaMissense hg38** (~1 GB, CC BY 4.0) | calibrated missense PP3/BP4 (v2) | `bash scripts/fetch_alphamissense.sh` then `python3 scripts/freeze_alphamissense.py` (needs htslib: `brew install htslib` / `conda install -c bioconda htslib`) |
 | **Live gnomAD / ClinVar** | up-to-the-minute frequencies | opt in with `VCF2REPORT_ALLOW_NETWORK=1` (sends only variant coordinates, never the VCF) |
 | **SnpEff + reference** | annotating a *raw* (un-annotated) VCF | `conda install -c bioconda snpeff bcftools vcfanno htslib` — see [docs/LOCAL_ANNOTATION.md](docs/LOCAL_ANNOTATION.md) |
 
@@ -124,7 +124,7 @@ If your VCF is already annotated (SnpEff/VEP `ANN`/`CSQ`, gnomAD/AlphaMissense i
 ### 1. The bundled demo (offline, zero setup)
 
 ```bash
-python scripts/run_headless.py
+python3 scripts/run_headless.py
 ```
 
 ```
@@ -142,8 +142,8 @@ Open `data/out/sample_exome_report.md` to read the full auditable report.
 ### 2. Your own VCF + phenotype
 
 ```bash
-python scripts/run_headless.py path/to/exome.vcf --hpo hpo_terms.txt --out out/
-python scripts/run_headless.py path/to/exome.vcf --hpo hpo_terms.txt --stdout   # print to screen
+python3 scripts/run_headless.py path/to/exome.vcf --hpo hpo_terms.txt --out out/
+python3 scripts/run_headless.py path/to/exome.vcf --hpo hpo_terms.txt --stdout   # print to screen
 ```
 
 - **VCF**: single-proband, **GRCh38**. A multi-sample VCF analyses the first column
@@ -156,7 +156,7 @@ python scripts/run_headless.py path/to/exome.vcf --hpo hpo_terms.txt --stdout   
   HP:0002133   Status epilepticus
   ```
 
-  (Have a GA4GH Phenopacket instead? `python scripts/phenopacket_to_inputs.py`.)
+  (Have a GA4GH Phenopacket instead? `python3 scripts/phenopacket_to_inputs.py`.)
 
 Flags: `--hpo FILE` · `--out DIR` · `--stdout` · `--sample-id ID` · `--timing`.
 
@@ -223,8 +223,8 @@ GA4GH Phenopackets.
 ## Test it
 
 ```bash
-python -m pip install -e ".[dev]"
-python -m pytest -q        # 138 tests
+python3 -m pip install -e ".[dev]"
+python3 -m pytest -q        # 138 tests
 ```
 
 ## License

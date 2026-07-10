@@ -36,10 +36,10 @@ not assume the repo is already present. First put the project on the machine:
 2. Check the package: `python3 -c "import vcf2report; print('ok')"`.
 3. If it's not installed, from the repo root:
    ```bash
-   python -m pip install -e .          # only runtime dep is jinja2 — demo databases are bundled
+   python3 -m pip install -e .          # only runtime dep is jinja2 — demo databases are bundled
    ```
    Run it yourself if you can; otherwise hand the user the command and wait.
-4. Confirm with a dry run on the bundled sample: `python scripts/run_headless.py`
+4. Confirm with a dry run on the bundled sample: `python3 scripts/run_headless.py`
    → it must print 5 candidates. If it does, the environment is good.
 
 ## Step 2 — Optional: AlphaMissense (calibrated missense PP3/BP4)
@@ -48,7 +48,7 @@ Only if the user wants to recover pathogenic **missense** variants (v2). It need
 ```bash
 brew install htslib                         # or: conda install -c bioconda htslib
 bash scripts/fetch_alphamissense.sh         # download + index (~1 GB, CC BY 4.0)
-python scripts/freeze_alphamissense.py      # local, offline
+python3 scripts/freeze_alphamissense.py      # local, offline
 ```
 Without it, the pipeline still runs (missense pathogenicity defers to VUS). Live
 gnomAD/ClinVar are also opt-in (`VCF2REPORT_ALLOW_NETWORK=1`) — never on by default.
@@ -63,11 +63,11 @@ Ask the user for:
   ```bash
   printf 'HP:0001250\nHP:0002133\n' > /tmp/hpo.txt
   ```
-  (If they have a GA4GH phenopacket: `python scripts/phenopacket_to_inputs.py <file>`.)
+  (If they have a GA4GH phenopacket: `python3 scripts/phenopacket_to_inputs.py <file>`.)
 
 ## Step 4 — Run the analysis
 ```bash
-python scripts/run_headless.py <VCF> --hpo <HPO_FILE> --out <OUT_DIR> --timing
+python3 scripts/run_headless.py <VCF> --hpo <HPO_FILE> --out <OUT_DIR> --timing
 ```
 Read back the **candidate list** and per-stage timings to the user in plain terms
 (gene → tier), and note the funnel (how many variants → how many candidates).
