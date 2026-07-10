@@ -27,8 +27,9 @@ for expert review**, with the full ACMG reasoning shown for every variant.
 Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report with:
 
 - a **QC & filtering funnel** (total → PASS → QC → rarity → impact → candidates);
-- an **estimated sequencing-quality** read — depth & genotype quality at the called
-  variant sites, Ti/Tv, and het:hom — a quick sanity-check on how the run sequenced;
+- an **estimated sequencing-quality** panel from the VCF itself — depth & genotype
+  quality at called sites, Ti/Tv, indel:SNV, % multiallelic, dbSNP novelty,
+  het-allele-balance and PASS rate — a quick read on how the run sequenced;
 - **primary findings** (candidates in genes overlapping the patient's phenotype);
 - **secondary findings** (P/LP variants in the ACMG SF v3.2 actionable-gene list);
 - a **per-variant, fully auditable ACMG trail** — all 28 ACMG/AMP criteria shown,

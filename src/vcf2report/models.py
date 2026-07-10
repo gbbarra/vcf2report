@@ -30,6 +30,8 @@ class Variant:
     gq: Optional[int] = None           # genotype quality
     allele_balance: Optional[float] = None
     filter_status: Optional[str] = None  # VCF FILTER column
+    variant_id: Optional[str] = None   # VCF ID column (dbSNP rsID if present, else None)
+    n_alts: int = 1                    # ALT alleles at this site (>1 => multiallelic)
     info: dict[str, str] = field(default_factory=dict)  # raw INFO (annotator fields)
     alt_index: int = 0  # 0-based index of this ALT in the original record (for Number=A INFO)
 
@@ -192,6 +194,16 @@ class SeqQuality:
     n_het: int = 0
     n_hom: int = 0
     het_hom_ratio: Optional[float] = None
+    n_indel: int = 0
+    indel_snv_ratio: Optional[float] = None
+    n_sites: int = 0
+    n_multiallelic_sites: int = 0
+    pct_multiallelic: Optional[float] = None
+    n_with_rsid: int = 0
+    pct_novel: Optional[float] = None          # % without a dbSNP rsID (only if annotated)
+    n_het_ab: int = 0
+    pct_het_ab_balanced: Optional[float] = None
+    pct_pass: Optional[float] = None
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:

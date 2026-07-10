@@ -194,6 +194,8 @@ def _parse_pure(path: Path, sample: str | None = None
                     hgvs_p=ann.get("hgvs_p"),
                     consequence=ann.get("consequence"),
                     filter_status=filt,
+                    variant_id=_id if _id not in (".", "") else None,
+                    n_alts=len(alts),
                     zygosity=metrics.get("zygosity"),
                     depth=metrics.get("depth"),
                     gq=metrics.get("gq"),
@@ -254,6 +256,8 @@ def _parse_cyvcf2(path: Path, sample: str | None = None
                 gene=ann.get("gene"), hgvs_c=ann.get("hgvs_c"),
                 hgvs_p=ann.get("hgvs_p"), consequence=ann.get("consequence"),
                 filter_status=rec.FILTER or "PASS", zygosity=zyg,
+                variant_id=rec.ID if rec.ID not in (None, ".", "") else None,
+                n_alts=len(alts),
                 depth=depth, gq=gq, allele_balance=allele_balance, info=info,
                 alt_index=i,
             ))

@@ -10,7 +10,7 @@ from __future__ import annotations
 import statistics
 from typing import Iterable, Optional
 
-from ..config import QC_MIN_GQ
+from ..config import QC_AB_MAX, QC_AB_MIN, QC_MIN_GQ
 from ..models import SeqQuality, Variant
 
 # Transitions: purine<->purine (A<->G) and pyrimidine<->pyrimidine (C<->T).
@@ -47,6 +47,11 @@ def _notes(q: SeqQuality) -> list[str]:
         notes.append(
             f"Median depth at variant sites is {q.dp_median}x — below a typical 20-30x "
             "clinical target; interpret low-depth calls with caution."
+        )
+    if q.n_variants and q.pct_novel is None:
+        notes.append(
+            "VCF is not dbSNP-annotated (few/no rsIDs in the ID column) — novelty "
+            "rate not computed (annotate with dbSNP IDs to enable it)."
         )
     return notes
 
@@ -89,6 +94,40 @@ def estimate(variants: Iterable[Variant]) -> SeqQuality:
     q.n_hom = sum(1 for v in variants if v.zygosity == "hom")
     if q.n_hom:
         q.het_hom_ratio = round(q.n_het / q.n_hom, 2)
+
+    # Indel:SNV ratio (indel = a length change; SNV counted above).
+    q.n_indel = sum(1 for v in variants if len(v.ref) != len(v.alt))
+    if q.n_snv:
+        q.indel_snv_ratio = round(q.n_indel / q.n_snv, 3)
+
+    # % multiallelic sites — records are split per ALT, so regroup by site.
+    site_alts: dict = {}
+    for v in variants:
+        k = (v.chrom, v.pos)
+        site_alts[k] = max(site_alts.get(k, 1), v.n_alts)
+    q.n_sites = len(site_alts)
+    q.n_multiallelic_sites = sum(1 for a in site_alts.values() if a > 1)
+    q.pct_multiallelic = _pct(q.n_multiallelic_sites, q.n_sites)
+
+    # Novelty vs dbSNP — only meaningful when the VCF is actually dbSNP-annotated
+    # (most known variants carry an rsID). A handful of stray rsIDs is not enough.
+    q.n_with_rsid = sum(1 for v in variants if (v.variant_id or "").startswith("rs"))
+    if variants and q.n_with_rsid >= 0.2 * len(variants):
+        q.pct_novel = _pct(len(variants) - q.n_with_rsid, len(variants))
+
+    # Het allele balance in [QC_AB_MIN, QC_AB_MAX] — a contamination / miscall signal.
+    het_ab = [v.allele_balance for v in variants
+              if v.zygosity == "het" and v.allele_balance is not None]
+    if het_ab:
+        q.n_het_ab = len(het_ab)
+        q.pct_het_ab_balanced = _pct(
+            sum(1 for ab in het_ab if QC_AB_MIN <= ab <= QC_AB_MAX), len(het_ab))
+
+    # Fraction of records with FILTER = PASS (or unfiltered).
+    if variants:
+        q.pct_pass = _pct(
+            sum(1 for v in variants if (v.filter_status or "") in ("PASS", ".", "")),
+            len(variants))
 
     q.notes = _notes(q)
     return q

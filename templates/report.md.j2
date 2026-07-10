@@ -47,6 +47,21 @@ Spurious candidates a gnomAD-only pipeline would have kept, removed using ABraOM
 {% if sq.het_hom_ratio is not none %}
 - **Het/Hom:** {{ sq.het_hom_ratio }} ({{ sq.n_het }} het / {{ sq.n_hom }} hom)
 {% endif %}
+{% if sq.indel_snv_ratio is not none %}
+- **Indel:SNV ratio:** {{ sq.indel_snv_ratio }} ({{ sq.n_indel }} indels)
+{% endif %}
+{% if sq.pct_multiallelic is not none %}
+- **Multiallelic sites:** {{ sq.pct_multiallelic }}% ({{ sq.n_multiallelic_sites }} / {{ sq.n_sites }})
+{% endif %}
+{% if sq.pct_novel is not none %}
+- **Novel (not in dbSNP):** {{ sq.pct_novel }}% ({{ sq.n_with_rsid }} carry an rsID)
+{% endif %}
+{% if sq.pct_het_ab_balanced is not none %}
+- **Het allele balance:** {{ sq.pct_het_ab_balanced }}% balanced
+{% endif %}
+{% if sq.pct_pass is not none %}
+- **FILTER = PASS:** {{ sq.pct_pass }}%
+{% endif %}
 {% for note in sq.notes %}
 - _{{ note }}_
 {% endfor %}

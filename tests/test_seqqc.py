@@ -63,5 +63,44 @@ def test_pipeline_attaches_and_renders():
     md = render_markdown(r)
     assert "Sequencing quality" in md
     assert "Depth at called sites" in md
+    assert "Indel:SNV ratio" in md and "FILTER = PASS" in md
     # honest caveat present
     assert "not genome-wide breadth" in md
+
+
+def test_indel_snv_ratio():
+    vs = [_v("A", "G", pos=1), _v("A", "G", pos=2),
+          Variant(chrom="1", pos=3, ref="AT", alt="A"),
+          Variant(chrom="1", pos=4, ref="C", alt="CGG")]
+    q = seqqc.estimate(vs)
+    assert q.n_snv == 2 and q.n_indel == 2 and q.indel_snv_ratio == 1.0
+
+
+def test_multiallelic_by_site():
+    vs = [_v(pos=10, alt="G"), _v(pos=10, alt="T"), _v(pos=20, alt="G")]
+    vs[0].n_alts = vs[1].n_alts = 2   # the two records at pos 10 share a multiallelic site
+    q = seqqc.estimate(vs)
+    assert q.n_sites == 2 and q.n_multiallelic_sites == 1 and q.pct_multiallelic == 50.0
+
+
+def test_novelty_needs_a_dbsnp_annotated_vcf():
+    vs = [_v(pos=i) for i in range(10)]
+    vs[0].variant_id = "rs123"                      # one stray rsID
+    q = seqqc.estimate(vs)
+    assert q.n_with_rsid == 1 and q.pct_novel is None   # not treated as annotated
+    for v in vs:
+        v.variant_id = "rs1"
+    vs[0].variant_id = None                          # 9/10 annotated, 1 novel
+    q2 = seqqc.estimate(vs)
+    assert q2.n_with_rsid == 9 and q2.pct_novel == 10.0
+
+
+def test_het_allele_balance_and_pass():
+    vs = [_v(zyg="het", pos=1), _v(zyg="het", pos=2), _v(zyg="het", pos=3)]
+    vs[0].allele_balance = vs[1].allele_balance = 0.5   # balanced
+    vs[2].allele_balance = 0.9                          # skewed
+    vs[0].filter_status = vs[1].filter_status = "PASS"
+    vs[2].filter_status = "LowQual"
+    q = seqqc.estimate(vs)
+    assert q.n_het_ab == 3 and q.pct_het_ab_balanced == 66.7
+    assert q.pct_pass == 66.7

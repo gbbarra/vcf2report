@@ -172,10 +172,15 @@
     <section class="pad band">
       <h2 class="sec">Sequencing quality (estimated from variant sites)</h2>
       <dl class="methods">
-        <div><dt>Assay (by variant count)</dt><dd>exome / large-panel-scale · 24,801 variants</dd></div>
+        <div><dt>Assay</dt><dd>exome / large-panel-scale · 24,801 variants</dd></div>
         <div><dt>Depth at called sites</dt><dd>36.3x mean / 35.0x median · 97.6% ≥20x</dd></div>
         <div><dt>Genotype quality</dt><dd>median 54 · 93.3% ≥20</dd></div>
-        <div><dt>Ti/Tv · Het:Hom</dt><dd>2.91 · 1.56</dd></div>
+        <div><dt>Ti/Tv (SNVs)</dt><dd>2.91</dd></div>
+        <div><dt>Het:Hom</dt><dd>1.56</dd></div>
+        <div><dt>Indel:SNV</dt><dd>0.028 (674 indels)</dd></div>
+        <div><dt>Multiallelic sites</dt><dd>0.0%</dd></div>
+        <div><dt>Het allele balance</dt><dd>98.3% balanced</dd></div>
+        <div><dt>FILTER = PASS</dt><dd>100.0%</dd></div>
       </dl>
       <p style="margin:12px 0 0;font-size:12.5px;color:var(--muted);">Depth is measured only at called variant sites — a proxy for sequencing quality, not genome-wide breadth of coverage (a variants-only VCF cannot give breadth; a gVCF/BAM would).</p>
     </section>

@@ -92,6 +92,19 @@ def _render_markdown_builtin(report: ReportModel) -> str:
         if sq.het_hom_ratio is not None:
             L.append(f"- **Het/Hom:** {sq.het_hom_ratio} "
                      f"({sq.n_het} het / {sq.n_hom} hom)")
+        if sq.indel_snv_ratio is not None:
+            L.append(f"- **Indel:SNV ratio:** {sq.indel_snv_ratio} ({sq.n_indel} indels)")
+        if sq.pct_multiallelic is not None:
+            L.append(f"- **Multiallelic sites:** {sq.pct_multiallelic}% "
+                     f"({sq.n_multiallelic_sites} / {sq.n_sites})")
+        if sq.pct_novel is not None:
+            L.append(f"- **Novel (not in dbSNP):** {sq.pct_novel}% "
+                     f"({sq.n_with_rsid} carry an rsID)")
+        if sq.pct_het_ab_balanced is not None:
+            L.append(f"- **Het allele balance:** {sq.pct_het_ab_balanced}% balanced "
+                     f"({config.QC_AB_MIN:g}–{config.QC_AB_MAX:g})")
+        if sq.pct_pass is not None:
+            L.append(f"- **FILTER = PASS:** {sq.pct_pass}%")
         for note in sq.notes:
             L.append(f"- _{note}_")
         L.append("")
