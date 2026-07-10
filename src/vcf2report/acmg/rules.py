@@ -84,12 +84,51 @@ def _likely_benign_rule(c: dict[str, int]) -> str | None:
     return None
 
 
-def combine(criteria: list[CriterionResult]) -> tuple[str, str]:
-    """Return (tier, rule_path) applying Richards 2015 Table 5.
+# ClinGen/Tavtigian (2020) naturally-scaled points: each strength is a power-of-two
+# so the categorical Richards rules fall out of a single additive score. Benign
+# evidence is negative. Thresholds (Tavtigian 2020, adopted by ClinGen SVI):
+# Pathogenic >=10, Likely Pathogenic 6..9, VUS 0..5, Likely Benign -1..-6, Benign <=-7.
+_PATH_POINTS = {"very_strong": 8, "strong": 4, "moderate": 2, "supporting": 1}
+_BENIGN_POINTS = {"stand_alone": -8, "strong": -4, "moderate": -2, "supporting": -1}
 
-    If pathogenic and benign evidence both fire, the result is reported as VUS
-    (conflicting), matching lab practice of not force-resolving contradictions.
+
+def _combine_points(criteria: list[CriterionResult]) -> tuple[str, str]:
+    """ClinGen/Tavtigian points model (used when VCF2REPORT_ACMG_MODEL=clingen)."""
+    total = 0
+    for cr in criteria:
+        if not (cr.applies and cr.met):
+            continue
+        strength = cr.applied_strength or cr.default_strength
+        table = _BENIGN_POINTS if cr.code in _BENIGN_CODES else _PATH_POINTS
+        total += table.get(strength, 0)
+
+    if total >= 10:
+        tier = PATHOGENIC
+    elif total >= 6:
+        tier = LIKELY_PATHOGENIC
+    elif total >= 0:
+        tier = VUS
+    elif total >= -6:
+        tier = LIKELY_BENIGN
+    else:
+        tier = BENIGN
+
+    met = [cr.code for cr in criteria if cr.applies and cr.met]
+    trail = " + ".join(met) if met else "no criteria met"
+    return tier, f"{trail} => {total:+d} points (ClinGen/Tavtigian) => {tier}"
+
+
+def combine(criteria: list[CriterionResult]) -> tuple[str, str]:
+    """Return (tier, rule_path).
+
+    Uses Richards 2015 Table 5 by default; the ClinGen/Tavtigian points model when
+    ``VCF2REPORT_ACMG_MODEL=clingen``. Under Richards, if pathogenic and benign
+    evidence both fire the result is reported as VUS (conflicting).
     """
+    from .. import config
+    if config.acmg_model() == "clingen":
+        return _combine_points(criteria)
+
     c = _counts(criteria)
     path = _pathogenic_rule(c) or _likely_pathogenic_rule(c)
     benign = _benign_rule(c) or _likely_benign_rule(c)

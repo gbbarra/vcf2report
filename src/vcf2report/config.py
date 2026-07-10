@@ -72,6 +72,22 @@ def offline() -> bool:
 
 
 # ---------------------------------------------------------------------------
+# ACMG combining model — Richards 2015 Table 5 (default) vs the ClinGen/Tavtigian
+# naturally-scaled POINTS system (Tavtigian et al., Genet Med 2020) together with
+# the ClinGen SVI 2020 refinement that downgrades PM2 from Moderate to Supporting.
+# Toggle with VCF2REPORT_ACMG_MODEL=clingen. Deterministic either way.
+# ---------------------------------------------------------------------------
+def acmg_model() -> str:
+    m = (os.environ.get("VCF2REPORT_ACMG_MODEL") or "richards").strip().lower()
+    return "clingen" if m in ("clingen", "clingen2020", "points") else "richards"
+
+
+def pm2_strength() -> str:
+    """PM2 applied strength: Moderate (Richards) or Supporting (ClinGen SVI 2020)."""
+    return "supporting" if acmg_model() == "clingen" else "moderate"
+
+
+# ---------------------------------------------------------------------------
 # Filtering / QC thresholds (documented so the report can cite them)
 # ---------------------------------------------------------------------------
 QC_MIN_DP = 10          # minimum read depth

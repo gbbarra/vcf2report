@@ -171,9 +171,9 @@ def pm2(v: Variant, a: Annotation) -> CriterionResult:
     )
     return CriterionResult(
         "PM2", name, "moderate", applies=True, met=met,
-        applied_strength="moderate" if met else None,
+        applied_strength=config.pm2_strength() if met else None,
         evidence={"gnomad_af": a.gnomad_af, "abraom_af": a.abraom_af,
-                  "ceiling": ceiling, "moi": moi},
+                  "ceiling": ceiling, "moi": moi, "strength_model": config.acmg_model()},
         citation=cites, reasoning=reason,
     )
 

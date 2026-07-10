@@ -55,6 +55,38 @@ Pathogenic, or a ClinVar-pathogenic variant Benign. A VUS on either side is a
 conservative non-call; a flip is a real error. `tests/test_concordance_panel.py`
 asserts this is zero on the frozen panel.
 
+## ACMG combining model — Richards vs ClinGen (a validated trade-off)
+
+The engine can combine criteria two ways, toggled by `VCF2REPORT_ACMG_MODEL`:
+
+- **`richards`** (default) — Richards 2015 Table 5 categorical rules; PM2 at **Moderate**.
+- **`clingen`** — the ClinGen/Tavtigian 2020 **naturally-scaled points** system
+  (Very Strong 8 · Strong 4 · Moderate 2 · Supporting 1; benign negative; Pathogenic ≥10,
+  LP 6–9, VUS 0–5, LB −1..−6, Benign ≤−7) with the ClinGen SVI 2020 refinement that
+  downgrades PM2 to **Supporting**.
+
+The panel measures the exact effect (200 variants, ClinVar withheld, no phenotype):
+
+| Metric | `richards` | `clingen` |
+|---|---|---|
+| Gross discordances (P↔B) | **0** | **0** |
+| Pathogenic / benign precision | 100% / 100% | 100% / 100% |
+| Pathogenic sensitivity | **60%** | **37%** |
+| — LoF-only sensitivity | 84.1% | **84.1%** |
+| Decisiveness | 30.5% | 21% |
+
+Both models are **equally safe** (zero gross discordances, 100% precision). LoF
+sensitivity is **identical** — under the points system PVS1 alone (8 pts) already
+reaches Likely Pathogenic, so downgrading PM2 doesn't hurt null variants. The drop
+in overall sensitivity (60% → 37%) is the **calibrated-missense recovery**: a rare
+missense with a strong AlphaMissense prediction scores `PM2_Supporting (1) +
+PP3_Strong (4) = 5 points`, one point short of LP — so it defers to VUS. (In a real
+case with phenotype (PP4) or functional data those variants cross back to LP; the
+panel withholds that context, so 37% is a floor.) `richards` is kept as the default
+because it recovers more on this panel with the same safety; `clingen` is available
+for labs requiring strict ClinGen-SVI-2020 alignment. Reproduce both:
+`VCF2REPORT_ACMG_MODEL=clingen python scripts/run_concordance.py`.
+
 ## Building the panel (once, with network)
 
 The build harvests real ClinVar variants (coordinates and labels **always from
