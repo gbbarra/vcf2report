@@ -1,0 +1,35 @@
+##fileformat=VCFv4.2
+##fileDate=2024-11-01
+##source=vcf2report_demo
+##reference=GRCh38
+##contig=<ID=1>
+##contig=<ID=2>
+##contig=<ID=3>
+##contig=<ID=7>
+##contig=<ID=13>
+##contig=<ID=11>
+##contig=<ID=19>
+##contig=<ID=20>
+##INFO=<ID=GENE,Number=1,Type=String,Description="Gene symbol">
+##INFO=<ID=CSQ,Number=1,Type=String,Description="Molecular consequence">
+##INFO=<ID=HGVSC,Number=1,Type=String,Description="HGVS coding">
+##INFO=<ID=HGVSP,Number=1,Type=String,Description="HGVS protein">
+##FILTER=<ID=PASS,Description="All filters passed">
+##FILTER=<ID=LowQual,Description="Low quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">
+##comment=SYNTHETIC, de-identified demonstration variants. Not real patient data. Not for clinical use.
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	DEMO-001
+2	166003360	.	C	T	800	PASS	GENE=SCN1A;CSQ=stop_gained;HGVSC=c.1834C>T;HGVSP=p.Arg612Ter	GT:DP:GQ:AD	0/1:45:99:22,23
+20	63446204	.	G	A	800	PASS	GENE=KCNQ2;CSQ=missense_variant;HGVSC=c.637C>T;HGVSP=p.Arg213Trp	GT:DP:GQ:AD	0/1:38:99:19,19
+19	13318000	.	T	C	800	PASS	GENE=CACNA1A;CSQ=missense_variant;HGVSC=c.100T>C;HGVSP=p.Ser34Pro	GT:DP:GQ:AD	0/1:40:99:20,20
+11	31806340	.	G	A	800	PASS	GENE=PAX6;CSQ=stop_gained;HGVSC=c.202C>T;HGVSP=p.Arg68Ter	GT:DP:GQ:AD	0/1:46:99:23,23
+13	48367226	.	C	T	800	PASS	GENE=RB1;CSQ=stop_gained;HGVSC=c.958C>T;HGVSP=p.Arg320Ter	GT:DP:GQ:AD	0/1:44:99:22,22
+1	228208000	.	G	A	800	PASS	GENE=OBSCN;CSQ=missense_variant;HGVSC=c.298G>A;HGVSP=p.Val100Ile	GT:DP:GQ:AD	0/1:50:99:26,24
+2	178562809	.	G	A	800	PASS	GENE=TTN;CSQ=missense_variant;HGVSC=c.1000G>A;HGVSP=p.Val334Ile	GT:DP:GQ:AD	0/1:60:99:30,30
+1	11790000	.	A	G	800	PASS	GENE=MTOR;CSQ=intron_variant	GT:DP:GQ:AD	0/1:42:99:21,21
+3	37000000	.	C	T	800	PASS	GENE=MLH1;CSQ=synonymous_variant;HGVSC=c.655C>T;HGVSP=p.=	GT:DP:GQ:AD	0/1:48:99:24,24
+7	117559590	.	G	T	800	PASS	GENE=CFTR;CSQ=missense_variant;HGVSC=c.254G>T;HGVSP=p.Gly85Val	GT:DP:GQ:AD	0/1:6:30:3,3
+11	5227000	.	A	T	800	LowQual	GENE=HBB;CSQ=missense_variant;HGVSC=c.20A>T;HGVSP=p.Glu7Val	GT:DP:GQ:AD	0/1:35:45:18,17

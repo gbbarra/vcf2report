@@ -1,0 +1,201 @@
+# Concordance-panel ground truth (real ClinVar, GRCh38). Columns: key gene consequence hgvs_p clinvar_significance review_status accession condition
+1-42927256-G-A	SLC2A1			Likely benign	criteria provided, single submitter	VCV004770387	GLUT1 deficiency syndrome 1, autosomal recessive
+1-42927701-G-C	SLC2A1	synonymous_variant	p.Leu394=	Likely benign	criteria provided, single submitter	VCV004821055	not provided
+1-42927785-A-T	SLC2A1	stop_gained	p.Tyr366Ter	Likely pathogenic	criteria provided, single submitter	VCV004293909	SLC2A1-related disorder
+1-42928912-T-G	SLC2A1			Likely benign	criteria provided, single submitter	VCV004806584	GLUT1 deficiency syndrome 1, autosomal recessive
+1-42929315-C-T	SLC2A1	splice_acceptor_variant		Likely pathogenic	criteria provided, single submitter	VCV004293941	SLC2A1-related disorder
+1-42929500-G-C	SLC2A1			Likely benign	criteria provided, single submitter	VCV004847431	not specified
+1-42929662-G-C	SLC2A1	synonymous_variant	p.Pro266=	Likely benign	criteria provided, single submitter	VCV004807301	GLUT1 deficiency syndrome 1, autosomal recessive
+1-42929733-C-T	SLC2A1	missense_variant	p.Glu243Lys	Likely pathogenic	criteria provided, single submitter	VCV004755312	GLUT1 deficiency syndrome 1, autosomal recessive
+1-42929755-A-T	SLC2A1	synonymous_variant	p.Ala235=	Likely benign	criteria provided, single submitter	VCV004801912	GLUT1 deficiency syndrome 1, autosomal recessive
+1-42929777-A-T	SLC2A1	missense_variant	p.Leu228Gln	Likely pathogenic	criteria provided, single submitter	VCV004799892	GLUT1 deficiency syndrome 1, autosomal recessive
+1-42929864-T-A	SLC2A1			Likely benign	criteria provided, single submitter	VCV004765009	GLUT1 deficiency syndrome 1, autosomal recessive
+1-42929918-G-C	SLC2A1	missense_variant	p.Arg212Gly	Likely pathogenic	criteria provided, single submitter	VCV004799893	GLUT1 deficiency syndrome 1, autosomal recessive
+1-42929955-C-T	SLC2A1	synonymous_variant	p.Leu199=	Likely benign	criteria provided, single submitter	VCV004799536	GLUT1 deficiency syndrome 1, autosomal recessive
+1-42930010-C-A	SLC2A1	missense_variant	p.Gly181Val	Likely pathogenic	criteria provided, single submitter	VCV004167450	Inborn genetic diseases
+1-42930683-A-C	SLC2A1	synonymous_variant	p.Arg153=	Likely benign	criteria provided, single submitter	VCV004734961	GLUT1 deficiency syndrome 1, autosomal recessive
+1-42930749-C-T	SLC2A1	synonymous_variant	p.Val131=	Likely benign	criteria provided, single submitter	VCV004751066	GLUT1 deficiency syndrome 1, autosomal recessive
+1-42930791-C-T	SLC2A1	synonymous_variant	p.Lys117=	Likely benign	criteria provided, single submitter	VCV004801957	GLUT1 deficiency syndrome 1, autosomal recessive
+1-42931125-A-G	SLC2A1	missense_variant	p.Ser66Pro	Likely pathogenic	criteria provided, single submitter	VCV004081841	Childhood onset GLUT1 deficiency syndrome 2
+1-42943225-C-A	SLC2A1	splice_donor_variant		Likely pathogenic	criteria provided, single submitter	VCV004293223	SLC2A1-related disorder
+1-42943225-C-T	SLC2A1	splice_donor_variant		Pathogenic	criteria provided, single submitter	VCV004710674	GLUT1 deficiency syndrome 1, autosomal recessive
+1-42943233-G-C	SLC2A1	missense_variant	p.Pro36Arg	Likely pathogenic	criteria provided, single submitter	VCV004073672	Seizure
+1-42943267-G-A	SLC2A1	stop_gained	p.Gln25Ter	Pathogenic	criteria provided, single submitter	VCV004763740	GLUT1 deficiency syndrome 1, autosomal recessive
+1-45329419-C-G	MUTYH	missense_variant	p.Val485Leu	Likely benign	criteria provided, single submitter	VCV004843753	Hereditary cancer-predisposing syndrome
+1-45331456-C-G	MUTYH	synonymous_variant	p.Gly401=	Likely benign	criteria provided, single submitter	VCV004843755	Hereditary cancer-predisposing syndrome
+1-45331537-C-T	MUTYH	stop_gained	p.Trp374Ter	Pathogenic	criteria provided, single submitter	VCV004843751	Hereditary cancer-predisposing syndrome
+1-45331557-C-A	MUTYH	splice_acceptor_variant		Likely pathogenic	criteria provided, single submitter	VCV004827487	Hereditary cancer-predisposing syndrome
+1-45332490-T-C	MUTYH	splice_acceptor_variant		Likely pathogenic	criteria provided, single submitter	VCV004762167	Familial adenomatous polyposis 2
+1-45332803-T-G	MUTYH	missense_variant	p.Tyr151Ser	Likely pathogenic	criteria provided, single submitter	VCV004843754	Hereditary cancer-predisposing syndrome
+1-45334411-G-A	MUTYH	missense_variant	p.Ala32Val	Benign	criteria provided, single submitter	VCV004843752	Hereditary cancer-predisposing syndrome
+1-45340249-T-A	MUTYH	synonymous_variant	p.Thr2=	Likely benign	criteria provided, single submitter	VCV004849086	not specified
+10-87864070-C-T	PTEN	missense_variant		Likely benign	criteria provided, single submitter	VCV004851839	not provided
+10-87933011-A-C	PTEN	splice_acceptor_variant		Likely pathogenic	criteria provided, single submitter	VCV004852439	Cowden syndrome 1
+10-87933127-A-T	PTEN	missense_variant	p.His123Leu	Likely pathogenic	criteria provided, single submitter	VCV004852443	Cowden syndrome 1
+10-87933214-T-A	PTEN	missense_variant	p.Leu152Gln	Likely pathogenic	criteria provided, single submitter	VCV004852444	Cowden syndrome 1
+10-87933253-T-A	PTEN	splice_donor_variant		Likely pathogenic	criteria provided, single submitter	VCV004841123	Hereditary cancer-predisposing syndrome
+10-87952050-A-G	PTEN			Benign	criteria provided, single submitter	VCV004851934	not provided
+11-31790825-G-T	PAX6	stop_gained	p.Cys370Ter	Likely pathogenic	criteria provided, single submitter	VCV004292893	Aniridia 1
+11-31793680-G-A	PAX6	synonymous_variant	p.Tyr310=	Likely benign	criteria provided, single submitter	VCV004785623	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31793707-G-A	PAX6	synonymous_variant	p.Ile301=	Likely benign	criteria provided, single submitter	VCV004788434	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31794015-G-A	PAX6			Likely benign	criteria provided, single submitter	VCV004790683	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31794033-T-C	PAX6	missense_variant	p.Gln269Arg	Likely pathogenic	criteria provided, single submitter	VCV004537480	Aniridia 1
+11-31794062-G-C	PAX6	synonymous_variant	p.Ala259=	Likely benign	criteria provided, single submitter	VCV004790510	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31794115-C-T	PAX6	splice_acceptor_variant		Pathogenic	criteria provided, single submitter	VCV004783872	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31794631-T-G	PAX6	missense_variant	p.Lys241Asn	Likely pathogenic	criteria provided, single submitter	VCV004526342	See cases
+11-31794679-T-C	PAX6	synonymous_variant	p.Gln225=	Likely benign	criteria provided, single submitter	VCV004784052	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31794789-C-G	PAX6	splice_acceptor_variant		Pathogenic	criteria provided, single submitter	VCV004786881	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31801548-T-C	PAX6			Likely benign	criteria provided, single submitter	VCV004783635	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31801563-T-G	PAX6	missense_variant	p.Ser133Arg	Pathogenic	criteria provided, single submitter	VCV004785254	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31801630-G-A	PAX6	synonymous_variant	p.Ser110=	Likely benign	criteria provided, single submitter	VCV004784222	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31801728-C-T	PAX6	missense_variant	p.Gly78Ser	Likely pathogenic	criteria provided, single submitter	VCV004526724	not provided
+11-31801776-C-T	PAX6	missense_variant	p.Val62Met	Likely pathogenic	criteria provided, single submitter	VCV004791945	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31802704-C-T	PAX6	synonymous_variant	p.Gln47=	Likely pathogenic	criteria provided, single submitter	VCV004528317	not provided
+11-31802720-A-T	PAX6	missense_variant	p.Ile42Asn	Likely pathogenic	criteria provided, single submitter	VCV004783142	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31802785-T-C	PAX6	synonymous_variant	p.Pro20=	Likely benign	criteria provided, single submitter	VCV004791778	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31802809-A-G	PAX6	synonymous_variant	p.Gly12=	Likely benign	criteria provided, single submitter	VCV004792251	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31802853-G-A	PAX6			Likely benign	criteria provided, single submitter	VCV003763354	Aniridia 1; Irido-corneo-trabecular dysgenesis
+11-31803647-C-T	PAX6	missense_variant		Likely benign	criteria provided, single submitter	VCV004814059	Aniridia 1
+11-31806927-T-C	PAX6	splice_acceptor_variant		Likely pathogenic	criteria provided, single submitter	VCV004689838	not provided
+13-48307279-G-T	RB1	splice_acceptor_variant		Pathogenic	criteria provided, single submitter	VCV004759395	Hereditary retinoblastoma
+13-48348962-T-C	RB1	synonymous_variant	p.Ser182=	Likely benign	criteria provided, single submitter	VCV004842605	Hereditary cancer-predisposing syndrome
+13-48360005-T-G	RB1			Pathogenic	criteria provided, single submitter	VCV004851983	not provided
+13-48362954-T-C	RB1	synonymous_variant	p.Asp286=	Likely benign	criteria provided, single submitter	VCV004842601	Hereditary cancer-predisposing syndrome
+13-48367492-A-T	RB1	splice_acceptor_variant		Pathogenic	criteria provided, single submitter	VCV004759399	Hereditary retinoblastoma
+13-48381269-T-C	RB1	synonymous_variant	p.Asp507=	Likely benign	criteria provided, single submitter	VCV004842596	Hereditary cancer-predisposing syndrome
+13-48459790-T-G	RB1	missense_variant	p.Leu688Arg	Pathogenic	criteria provided, single submitter	VCV004824136	Hereditary cancer-predisposing syndrome
+13-48465191-T-A	RB1			Likely pathogenic	criteria provided, single submitter	VCV004813171	Retinoblastoma
+13-48465225-A-C	RB1	synonymous_variant	p.Ile782=	Likely benign	criteria provided, single submitter	VCV004842599	Hereditary cancer-predisposing syndrome
+13-48476751-T-G	RB1	synonymous_variant	p.Arg857=	Likely benign	criteria provided, single submitter	VCV004842608	Hereditary cancer-predisposing syndrome
+17-7669686-G-T	TP53	missense_variant	p.Leu369Met	Likely benign	criteria provided, single submitter	VCV004826639	Hereditary cancer-predisposing syndrome
+17-7670608-C-G	TP53	splice_donor_variant		Likely pathogenic	criteria provided, single submitter	VCV004855662	Bone marrow failure syndrome 5
+17-7673782-T-A	TP53	stop_gained	p.Arg280Ter	Pathogenic/Likely pathogenic	criteria provided, multiple submitters, no conflicts	VCV004685939	not provided; Li-Fraumeni syndrome
+17-7674872-T-A	TP53	missense_variant	p.Tyr220Phe	Likely benign	criteria provided, single submitter	VCV004828481	Hereditary cancer-predisposing syndrome
+17-7675240-T-C	TP53			Likely benign	criteria provided, single submitter	VCV004842677	Hereditary cancer-predisposing syndrome
+17-7676095-G-A	TP53	missense_variant	p.Pro92Ser	Likely benign	criteria provided, single submitter	VCV004828470	Hereditary cancer-predisposing syndrome
+19-1201917-C-T	STK11			Likely benign	criteria provided, single submitter	VCV004822177	not provided
+19-1207160-A-T	STK11	stop_gained	p.Lys83Ter	Pathogenic	criteria provided, single submitter	VCV004845303	Peutz-Jeghers syndrome
+19-1218483-C-A	STK11	missense_variant	p.Asn119Lys	Likely benign	criteria provided, single submitter	VCV004827073	Hereditary cancer-predisposing syndrome
+19-1221261-C-A	STK11	stop_gained	p.Tyr261Ter	Pathogenic	criteria provided, single submitter	VCV004796636	Peutz-Jeghers syndrome
+19-1221305-G-C	STK11	missense_variant	p.Gly276Ala	Likely benign	criteria provided, single submitter	VCV004843196	Hereditary cancer-predisposing syndrome
+19-1226505-C-G	STK11	missense_variant	p.Pro387Arg	Likely benign	criteria provided, single submitter	VCV004824775	Hereditary cancer-predisposing syndrome
+19-13207917-G-A	CACNA1A	missense_variant	p.Ala2306Val	Likely benign	criteria provided, single submitter	VCV004821003	not provided
+19-13209402-C-A	CACNA1A	stop_gained	p.Glu2146Ter	Pathogenic	criteria provided, single submitter	VCV004784290	Developmental and epileptic encephalopathy, 42; Episodic ataxia type 2
+19-13210653-C-T	CACNA1A	splice_acceptor_variant		Likely pathogenic	criteria provided, single submitter	VCV004785176	Developmental and epileptic encephalopathy, 42; Episodic ataxia type 2
+19-13214317-C-T	CACNA1A	synonymous_variant	p.Val1952=	Likely benign	criteria provided, single submitter	VCV004794996	Episodic ataxia type 2; Developmental and epileptic encephalopathy, 42
+19-13231878-T-C	CACNA1A			Likely benign	criteria provided, single submitter	VCV004793633	Developmental and epileptic encephalopathy, 42; Episodic ataxia type 2
+19-13235009-C-A	CACNA1A	stop_gained	p.Glu1721Ter	Likely pathogenic	criteria provided, single submitter	VCV004850769	Autosomal dominant CACNA1A-related disorders
+19-13235261-A-T	CACNA1A	missense_variant	p.Val1694Asp	Likely pathogenic	criteria provided, single submitter	VCV004789716	Episodic ataxia type 2; Developmental and epileptic encephalopathy, 42
+19-13235702-C-A	CACNA1A	missense_variant	p.Arg1660Leu	Likely pathogenic	criteria provided, single submitter	VCV004789718	Episodic ataxia type 2; Developmental and epileptic encephalopathy, 42
+19-13235745-G-A	CACNA1A			Likely benign	criteria provided, single submitter	VCV004793615	Developmental and epileptic encephalopathy, 42; Episodic ataxia type 2
+19-13257487-C-A	CACNA1A	stop_gained	p.Glu1485Ter	Likely pathogenic	criteria provided, single submitter	VCV004819916	Developmental and epileptic encephalopathy, 42
+19-13261445-C-G	CACNA1A			Likely pathogenic	criteria provided, single submitter	VCV004856390	Migraine, familial hemiplegic, 1; Episodic ataxia type 2
+19-13262838-G-C	CACNA1A			Likely benign	criteria provided, single submitter	VCV004794293	Episodic ataxia type 2; Developmental and epileptic encephalopathy, 42
+19-13275867-C-T	CACNA1A	synonymous_variant	p.Leu1324=	Likely benign	criteria provided, single submitter	VCV004793857	Developmental and epileptic encephalopathy, 42; Episodic ataxia type 2
+19-13277123-C-T	CACNA1A	synonymous_variant	p.Leu1276=	Likely benign	criteria provided, single submitter	VCV004794980	Episodic ataxia type 2; Developmental and epileptic encephalopathy, 42
+19-13286982-G-A	CACNA1A			Likely benign	criteria provided, single submitter	VCV004793826	Developmental and epileptic encephalopathy, 42; Episodic ataxia type 2
+19-13298822-C-T	CACNA1A	synonymous_variant	p.Gly937=	Likely benign	criteria provided, single submitter	VCV004793890	Developmental and epileptic encephalopathy, 42; Episodic ataxia type 2
+19-13300650-G-A	CACNA1A	stop_gained	p.Gln727Ter	Pathogenic	criteria provided, single submitter	VCV004602322	Inborn genetic diseases
+19-13303604-A-T	CACNA1A	missense_variant	p.Leu705Gln	Likely pathogenic	criteria provided, single submitter	VCV004681325	not provided
+19-13308173-A-G	CACNA1A	synonymous_variant	p.Leu620=	Likely benign	criteria provided, single submitter	VCV004794377	Episodic ataxia type 2; Developmental and epileptic encephalopathy, 42
+19-13308252-C-T	CACNA1A	splice_acceptor_variant		Likely pathogenic	criteria provided, single submitter	VCV004790945	Episodic ataxia type 2; Developmental and epileptic encephalopathy, 42
+19-13312777-A-G	CACNA1A	synonymous_variant	p.Tyr520=	Likely benign	criteria provided, single submitter	VCV004795082	Episodic ataxia type 2; Developmental and epileptic encephalopathy, 42
+19-13317128-C-T	CACNA1A	stop_gained	p.Trp513Ter	Pathogenic	criteria provided, single submitter	VCV004851549	Developmental and epileptic encephalopathy
+2-165296060-G-A	SCN2A	synonymous_variant	p.Glu79=	Likely benign	criteria provided, single submitter	VCV004792561	Developmental and epileptic encephalopathy, 11; Seizures, benign familial infantile, 3
+2-165309376-G-C	SCN2A	synonymous_variant	p.Leu210=	Likely benign	criteria provided, single submitter	VCV004793716	Developmental and epileptic encephalopathy, 11; Seizures, benign familial infantile, 3
+2-165310345-C-T	SCN2A	synonymous_variant	p.Ala240=	Likely benign	criteria provided, single submitter	VCV004794332	Developmental and epileptic encephalopathy, 11; Seizures, benign familial infantile, 3
+2-165312093-G-A	SCN2A			Likely pathogenic	criteria provided, single submitter	VCV004850096	Developmental and epileptic encephalopathy, 11
+2-165313665-C-T	SCN2A	synonymous_variant	p.Pro360=	Likely benign	criteria provided, single submitter	VCV004795042	Developmental and epileptic encephalopathy, 11; Seizures, benign familial infantile, 3
+2-165313908-C-T	SCN2A	missense_variant	p.Arg395Cys	Likely pathogenic	criteria provided, single submitter	VCV004854063	SCN2A-related disorder
+2-165314106-C-T	SCN2A	stop_gained	p.Gln461Ter	Likely pathogenic	criteria provided, single submitter	VCV004857018	Autosomal dominant non-syndromic intellectual disability
+2-165315479-T-C	SCN2A	synonymous_variant	p.Ala464=	Likely benign	criteria provided, single submitter	VCV004822786	not provided
+2-165342459-C-T	SCN2A	missense_variant	p.Ser851Leu	Likely pathogenic	criteria provided, single submitter	VCV004814183	SCN2A-related disorder
+2-165344651-G-T	SCN2A	missense_variant	p.Val887Leu	Pathogenic/Likely pathogenic	criteria provided, multiple submitters, no conflicts	VCV004850844	Developmental and epileptic encephalopathy, 11; Complex neurodevelopmental disorder
+2-165367381-G-C	SCN2A			Likely benign	criteria provided, single submitter	VCV004794716	Developmental and epileptic encephalopathy, 11; Seizures, benign familial infantile, 3
+2-165373210-G-A	SCN2A			Likely benign	criteria provided, single submitter	VCV004792702	Developmental and epileptic encephalopathy, 11; Seizures, benign familial infantile, 3
+2-165374719-C-T	SCN2A	missense_variant	p.Ser1336Phe	Likely pathogenic	criteria provided, single submitter	VCV004789350	Developmental and epileptic encephalopathy, 11; Seizures, benign familial infantile, 3
+2-165374750-C-G	SCN2A	missense_variant	p.Ile1346Met	Likely pathogenic	criteria provided, single submitter	VCV004789351	Developmental and epileptic encephalopathy, 11; Seizures, benign familial infantile, 3
+2-165380572-C-T	SCN2A			Likely benign	criteria provided, single submitter	VCV004794111	Developmental and epileptic encephalopathy, 11; Seizures, benign familial infantile, 3
+2-165380627-C-T	SCN2A	synonymous_variant	p.Tyr1448=	Likely benign	criteria provided, single submitter	VCV004792600	Developmental and epileptic encephalopathy, 11; Seizures, benign familial infantile, 3
+2-165381180-C-G	SCN2A	missense_variant	p.Pro1512Ala	Likely pathogenic	criteria provided, single submitter	VCV004851535	Developmental and epileptic encephalopathy
+2-165388765-G-T	SCN2A	missense_variant	p.Leu1653Phe	Likely pathogenic	criteria provided, single submitter	VCV004854127	Developmental and epileptic encephalopathy, 11
+2-165388784-T-G	SCN2A	missense_variant	p.Leu1660Val	Likely pathogenic	criteria provided, single submitter	VCV004854186	SCN2A-related disorder
+2-165388804-T-G	SCN2A	synonymous_variant	p.Leu1666=	Likely benign	criteria provided, single submitter	VCV004793139	Developmental and epileptic encephalopathy, 11; Seizures, benign familial infantile, 3
+2-165388807-T-C	SCN2A	synonymous_variant	p.Leu1667=	Likely benign	criteria provided, single submitter	VCV004793140	Developmental and epileptic encephalopathy, 11; Seizures, benign familial infantile, 3
+2-165389114-A-G	SCN2A	missense_variant	p.Met1770Val	Pathogenic	criteria provided, single submitter	VCV004814186	SCN2A-related disorder
+2-165991569-G-T	SCN1A	synonymous_variant	p.Ser1902=	Likely benign	criteria provided, single submitter	VCV004806329	Early-infantile DEE
+2-165991932-G-C	SCN1A	stop_gained	p.Tyr1781Ter	Pathogenic	criteria provided, single submitter	VCV004819944	Generalized epilepsy with febrile seizures plus, type 2
+2-165992225-A-G	SCN1A	missense_variant	p.Tyr1684His	Likely pathogenic	criteria provided, single submitter	VCV004851464	Generalized epilepsy with febrile seizures plus, type 2; Migraine, familial hemiplegic, 3; Developmental and epileptic encephalopathy 6B; Severe myoclonic epilepsy in infancy
+2-165992297-G-C	SCN1A	missense_variant	p.Leu1660Val	Likely pathogenic	criteria provided, single submitter	VCV004823245	not provided
+2-165992382-G-A	SCN1A	synonymous_variant	p.Ser1631=	Likely benign	criteria provided, single submitter	VCV004781158	Early-infantile DEE
+2-165996084-G-A	SCN1A	stop_gained	p.Gln1504Ter	Pathogenic/Likely pathogenic	criteria provided, multiple submitters, no conflicts	VCV004839842	Inborn genetic diseases; SCN1A-related disorder
+2-166013822-C-T	SCN1A	synonymous_variant	p.Arg1209=	Likely benign	criteria provided, single submitter	VCV004798017	Early-infantile DEE
+2-166015746-T-G	SCN1A			Likely benign	criteria provided, single submitter	VCV004778328	Early-infantile DEE
+2-166037903-G-T	SCN1A	missense_variant	p.Ser940Tyr	Likely pathogenic	criteria provided, single submitter	VCV004854630	Generalized epilepsy with febrile seizures plus, type 2
+2-166037928-A-G	SCN1A	missense_variant	p.Trp932Arg	Likely pathogenic	criteria provided, single submitter	VCV004856336	SCN1A-related disorder
+2-166038037-G-A	SCN1A	synonymous_variant	p.Leu895=	Likely benign	criteria provided, single submitter	VCV004808861	Early-infantile DEE
+2-166038130-C-G	SCN1A	synonymous_variant	p.Leu864=	Likely benign	criteria provided, single submitter	VCV004821580	not provided
+2-166039598-T-G	SCN1A	splice_acceptor_variant		Pathogenic	criteria provided, single submitter	VCV004852168	Autosomal dominant SCN1A-related disorders
+2-166041315-A-G	SCN1A	synonymous_variant	p.Cys777=	Likely benign	criteria provided, single submitter	VCV004806751	Early-infantile DEE
+2-166041345-G-A	SCN1A	synonymous_variant	p.Asp767=	Likely benign	criteria provided, single submitter	VCV004808361	Early-infantile DEE
+2-166045186-T-A	SCN1A	stop_gained	p.Lys507Ter	Pathogenic	criteria provided, single submitter	VCV004840450	Inborn genetic diseases
+2-166046969-C-A	SCN1A	missense_variant	p.Arg393Leu	Likely pathogenic	criteria provided, single submitter	VCV004852170	Autosomal dominant SCN1A-related disorders
+2-166051853-C-G	SCN1A	missense_variant	p.Cys277Ser	Likely pathogenic	criteria provided, single submitter	VCV004851537	Severe myoclonic epilepsy in infancy
+2-166052961-C-T	SCN1A			Likely benign	criteria provided, single submitter	VCV004809209	Early-infantile DEE
+2-166054627-A-G	SCN1A			Likely benign	criteria provided, single submitter	VCV004782145	Early-infantile DEE
+2-166054678-C-A	SCN1A	missense_variant	p.Asp188Tyr	Likely pathogenic	criteria provided, single submitter	VCV004840535	Inborn genetic diseases
+2-166073538-G-A	SCN1A	synonymous_variant	p.Arg28=	Likely benign	criteria provided, single submitter	VCV004776697	Early-infantile DEE
+20-63407386-G-C	KCNQ2			Likely benign	criteria provided, single submitter	VCV004766885	Early-infantile DEE
+20-63413500-G-A	KCNQ2	synonymous_variant	p.Tyr571=	Likely benign	criteria provided, single submitter	VCV004774438	Early-infantile DEE
+20-63413601-G-T	KCNQ2			Likely benign	criteria provided, single submitter	VCV004779845	Early-infantile DEE
+20-63415039-C-G	KCNQ2	synonymous_variant	p.Val463=	Likely benign	criteria provided, single submitter	VCV004776583	Early-infantile DEE
+20-63419683-G-A	KCNQ2			Likely benign	criteria provided, single submitter	VCV004848312	not specified
+20-63433869-C-G	KCNQ2	missense_variant	p.Arg353Pro	Likely pathogenic	criteria provided, single submitter	VCV004803153	Early-infantile DEE
+20-63433887-T-G	KCNQ2	missense_variant	p.Tyr347Ser	Likely pathogenic	criteria provided, single submitter	VCV004803154	Early-infantile DEE
+20-63438642-C-T	KCNQ2	missense_variant	p.Ala336Thr	Likely pathogenic	criteria provided, single submitter	VCV004856160	Developmental and epileptic encephalopathy, 7
+20-63438687-G-A	KCNQ2	stop_gained	p.Gln321Ter	Pathogenic	criteria provided, single submitter	VCV004533319	Seizures, benign familial neonatal, 1
+20-63439721-A-G	KCNQ2			Likely benign	criteria provided, single submitter	VCV004773330	Early-infantile DEE
+20-63442488-A-C	KCNQ2	missense_variant	p.Leu245Arg	Likely pathogenic	criteria provided, single submitter	VCV004803157	Early-infantile DEE
+20-63442506-C-T	KCNQ2	missense_variant	p.Gly239Asp	Likely pathogenic	criteria provided, single submitter	VCV004803158	Early-infantile DEE
+20-63442514-C-T	KCNQ2	stop_gained	p.Trp236Ter	Pathogenic	criteria provided, single submitter	VCV004823837	not provided
+20-63444729-C-G	KCNQ2	missense_variant	p.Arg207Pro	Likely pathogenic	criteria provided, single submitter	VCV004855328	Developmental and epileptic encephalopathy, 7
+20-63445218-C-A	KCNQ2			Likely benign	criteria provided, single submitter	VCV004810691	Early-infantile DEE
+20-63445266-C-T	KCNQ2	synonymous_variant	p.Lys162=	Likely benign	criteria provided, single submitter	VCV004778524	Early-infantile DEE
+20-63445346-C-T	KCNQ2	missense_variant	p.Val136Met	Likely pathogenic	criteria provided, single submitter	VCV004839067	Inborn genetic diseases
+20-63446804-A-G	KCNQ2	synonymous_variant	p.Ser110=	Likely benign	criteria provided, single submitter	VCV004767080	Early-infantile DEE
+20-63472179-G-C	KCNQ2	stop_gained	p.Tyr95Ter	Pathogenic	criteria provided, single submitter	VCV004735532	Early-infantile DEE
+20-63472257-C-T	KCNQ2	synonymous_variant	p.Lys69=	Likely benign	criteria provided, single submitter	VCV004776206	Early-infantile DEE
+20-63472260-G-A	KCNQ2	synonymous_variant	p.Pro68=	Likely benign	criteria provided, single submitter	VCV004778331	Early-infantile DEE
+20-63472457-G-A	KCNQ2	stop_gained	p.Gln3Ter	Pathogenic	criteria provided, single submitter	VCV004718575	Early-infantile DEE
+3-10142073-T-G	VHL	missense_variant	p.Phe76Val	Likely pathogenic	criteria provided, single submitter	VCV004789510	Chuvash polycythemia; Von Hippel-Lindau syndrome
+3-10149849-A-T	VHL	missense_variant	p.Arg176Trp	Pathogenic	criteria provided, single submitter	VCV004789511	Chuvash polycythemia; Von Hippel-Lindau syndrome
+5-112766388-T-A	APC	synonymous_variant	p.Ile66=	Likely benign	criteria provided, single submitter	VCV004843538	Hereditary cancer-predisposing syndrome
+5-112767220-A-C	APC	synonymous_variant	p.Gly84=	Likely benign	criteria provided, single submitter	VCV004843537	Hereditary cancer-predisposing syndrome
+5-112819349-G-T	APC			Likely pathogenic	criteria provided, single submitter	VCV004856704	Familial adenomatous polyposis 1
+5-112827249-T-A	APC	splice_donor_variant		Pathogenic	criteria provided, single submitter	VCV004856771	Familial adenomatous polyposis 1
+5-112839347-T-G	APC	synonymous_variant	p.Val1251=	Likely benign	criteria provided, single submitter	VCV004843536	Hereditary cancer-predisposing syndrome
+5-112840294-C-A	APC	stop_gained	p.Ser1567Ter	Likely pathogenic	criteria provided, single submitter	VCV004853923	Familial adenomatous polyposis 1
+5-112841825-A-T	APC	synonymous_variant	p.Thr2077=	Likely benign	criteria provided, single submitter	VCV004843518	Hereditary cancer-predisposing syndrome
+5-112842537-C-T	APC	stop_gained	p.Gln2315Ter	Pathogenic	criteria provided, single submitter	VCV004856772	Familial adenomatous polyposis 1
+9-127653709-T-C	STXBP1			Likely benign	criteria provided, single submitter	VCV004730562	Early-infantile DEE
+9-127653801-G-A	STXBP1			Pathogenic	criteria provided, single submitter	VCV004819533	not provided
+9-127658374-G-A	STXBP1	splice_acceptor_variant		Likely pathogenic	criteria provided, single submitter	VCV004849577	Developmental and epileptic encephalopathy, 4
+9-127658395-C-T	STXBP1	missense_variant	p.Arg64Cys	Benign	criteria provided, single submitter	VCV004703153	Early-infantile DEE
+9-127658399-G-T	STXBP1	missense_variant	p.Arg65Ile	Pathogenic	criteria provided, single submitter	VCV004801820	Early-infantile DEE
+9-127658406-G-C	STXBP1	synonymous_variant	p.Pro67=	Likely benign	criteria provided, single submitter	VCV004085908	not provided
+9-127658419-G-T	STXBP1	stop_gained	p.Glu72Ter	Pathogenic	criteria provided, single submitter	VCV004710756	Early-infantile DEE
+9-127665286-G-A	STXBP1	synonymous_variant	p.Gln206=	Likely benign	criteria provided, single submitter	VCV004535216	not provided
+9-127665346-G-A	STXBP1			Likely benign	criteria provided, single submitter	VCV004713377	Early-infantile DEE
+9-127666224-C-T	STXBP1	missense_variant	p.Ser241Phe	Likely pathogenic	criteria provided, single submitter	VCV004820078	Developmental and epileptic encephalopathy, 4
+9-127666294-C-T	STXBP1	synonymous_variant	p.Tyr264=	Likely benign	criteria provided, single submitter	VCV004712926	Early-infantile DEE
+9-127666307-T-C	STXBP1			Likely benign	criteria provided, single submitter	VCV004777129	Early-infantile DEE
+9-127668078-A-G	STXBP1	splice_acceptor_variant		Pathogenic	criteria provided, single submitter	VCV004688643	Developmental and epileptic encephalopathy, 4
+9-127668185-C-G	STXBP1	synonymous_variant	p.Ser300=	Likely benign	criteria provided, single submitter	VCV004720545	Early-infantile DEE
+9-127669949-T-C	STXBP1	synonymous_variant	p.Thr318=	Likely benign	criteria provided, single submitter	VCV004741054	Early-infantile DEE
+9-127673164-G-T	STXBP1			Likely benign	criteria provided, single submitter	VCV004749296	Early-infantile DEE
+9-127675910-G-C	STXBP1	missense_variant	p.Arg406Pro	Likely pathogenic	criteria provided, single submitter	VCV004801824	Early-infantile DEE
+9-127680243-G-A	STXBP1	splice_donor_variant		Likely pathogenic	criteria provided, single submitter	VCV004852513	West syndrome
+9-127682404-A-G	STXBP1	splice_acceptor_variant		Pathogenic	criteria provided, single submitter	VCV004536239	not provided
+9-127682507-T-G	STXBP1	missense_variant	p.Met550Arg	Pathogenic	criteria provided, single submitter	VCV004801829	Early-infantile DEE
+9-127684348-T-C	STXBP1			Likely benign	criteria provided, single submitter	VCV004772387	Early-infantile DEE
+9-127684385-A-C	STXBP1	missense_variant	p.Thr574Pro	Pathogenic	criteria provided, single submitter	VCV004709697	Early-infantile DEE

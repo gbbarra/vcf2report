@@ -1,0 +1,15 @@
+{
+  "_comment": "Copy the mcpServers block into your Claude Desktop config. On macOS this lives at ~/Library/Application Support/Claude/claude_desktop_config.json. Replace /ABS/PATH/TO/vcf2report with the absolute path to this repo. IMPORTANT: 'command' must point at the SAME Python interpreter where you ran 'pip install -e .[mcp]' (mcp[cli] + jinja2 must be importable there) — if you used a venv, set command to /ABS/PATH/TO/vcf2report/.venv/bin/python instead of a bare 'python3'. After editing, fully quit and reopen Claude Desktop.",
+  "mcpServers": {
+    "vcf2report": {
+      "command": "python3",
+      "args": ["-m", "vcf2report.mcp_server"],
+      "env": {
+        "PYTHONPATH": "/ABS/PATH/TO/vcf2report/src",
+        "VCF2REPORT_DATA": "/ABS/PATH/TO/vcf2report/data",
+        "VCF2REPORT_TEMPLATES": "/ABS/PATH/TO/vcf2report/templates",
+        "_comment_network": "Egress is OFF by default (patient coords stay local). Add VCF2REPORT_ALLOW_NETWORK=1 ONLY to enable live gnomAD/ClinVar lookups."
+      }
+    }
+  }
+}

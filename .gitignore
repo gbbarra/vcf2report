@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+
+# Environment
+.env
+
+# Generated at runtime (kept out of version control)
+data/out/
+data/cache/
+
+# Patient data — NEVER commit real VCFs / phenotypes. The bundled *synthetic*
+# samples under data/sample are force-tracked below.
+*.vcf
+*.vcf.gz
+*.vcf.gz.tbi
+*.hpo.txt
+annotation_data/
+!data/sample/sample_exome.vcf
+# Bundled *synthetic* demo exomes (de-identified; real 1000G background + spiked
+# ClinVar pathogenics) — the realistic inputs the e2e tests and demo run on.
+!data/example/*.synthetic.vcf.gz
+
+# OS
+.DS_Store
+
+# Remote-tabix index files pysam downloads into cwd, scratch working dir, and the
+# reproducible (script-generated) real-exome outputs — all regenerable, not tracked.
+/*.tbi
+*.bgz.tbi
+scratch/
+data/real/
+!data/synthetic/
+!data/synthetic/*
+
+# Local annotation toolchains (SnpEff/ClinEff + reference bundles) — large,
+# user-installed per the LOCAL_ANNOTATION guide, never committed.
+snpEff/
+snpEff.zip
+clinEff/
+*.zip
+
+# AlphaMissense hg38 predictions (~1 GB, CC BY 4.0) — fetched locally via
+# scripts/fetch_alphamissense.sh; only the small frozen per-variant slice
+# (data/concordance/alphamissense_frozen.json) is committed.
+data/alphamissense/

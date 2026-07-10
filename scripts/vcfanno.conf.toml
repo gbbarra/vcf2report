@@ -1,0 +1,34 @@
+# vcfanno config for vcf2report. Point `file` at your local GRCh38 data files.
+# The `names` MUST match vcf2report's config.INFO_ALIASES so the pipeline reads
+# them directly. All sources here are free/public (gnomAD, ClinVar, HPO, ABraOM).
+
+# gnomAD v4 sites (genomes or exomes). Download the sites-only VCF (no genotypes).
+# fafmax_faf95_max is gnomAD's filtering AF (95% CI, grpmax) — the field vcf2report
+# uses for BS1/BA1 (see config.INFO_ALIASES["gnomad_faf95"]).
+[[annotation]]
+file = "gnomad.genomes.v4.1.sites.GRCh38.vcf.gz"
+fields = ["AF", "AC", "AN", "nhomalt", "fafmax_faf95_max"]
+names  = ["gnomad_AF", "gnomad_AC", "gnomad_AN", "gnomad_nhomalt", "gnomad_faf95"]
+ops    = ["max", "max", "max", "max", "max"]
+
+# ClinVar weekly VCF (GRCh38). ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/
+[[annotation]]
+file = "clinvar_GRCh38.vcf.gz"
+fields = ["CLNSIG", "CLNREVSTAT", "CLNDN"]
+names  = ["CLNSIG", "CLNREVSTAT", "CLNDN"]
+ops    = ["concat", "concat", "concat"]
+
+# ABraOM (admixed Brazilian, SABE cohort) — the local differentiator.
+# http://abraom.ib.usp.br/  (convert the release to a bgzipped, tabix-indexed VCF)
+[[annotation]]
+file = "abraom_GRCh38.vcf.gz"
+fields = ["AF"]
+names  = ["ABraOM_AF"]
+ops    = ["max"]
+
+# In-silico predictors (optional). Prepare a REVEL/CADD VCF or use dbNSFP.
+[[annotation]]
+file = "insilico_GRCh38.vcf.gz"
+fields = ["REVEL", "CADD_phred"]
+names  = ["REVEL", "CADD_PHRED"]
+ops    = ["max", "max"]
