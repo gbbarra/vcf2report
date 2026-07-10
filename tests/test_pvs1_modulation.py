@@ -36,13 +36,19 @@ def _v(consequence, exon=None):
 
 
 def test_pvs1_strength_tree():
-    assert _pvs1_strength(_v("start_lost")) == "moderate"
-    assert _pvs1_strength(_v("start_lost", "5/10")) == "moderate"          # exon irrelevant
+    assert _pvs1_strength(_v("start_lost", "1/12")) == "moderate"          # annotated start-loss
     assert _pvs1_strength(_v("stop_gained", "10/10")) == "strong"          # NMD-escaping
     assert _pvs1_strength(_v("frameshift_variant", "8/8")) == "strong"
     assert _pvs1_strength(_v("stop_gained", "5/10")) == "very_strong"      # NMD-triggering
-    assert _pvs1_strength(_v("stop_gained", None)) == "very_strong"        # unannotated
     assert _pvs1_strength(_v("splice_donor_variant", "1/1")) == "very_strong"  # not in downgrade set
+
+
+def test_pvs1_tree_gated_on_exon():
+    # THE invariant: no exon rank -> the tree never engages, PVS1 stays Very Strong.
+    # (start_lost must be gated too, not just the NMD-escape branch.)
+    for cons in ("start_lost", "stop_gained", "frameshift_variant", "splice_donor_variant"):
+        assert _pvs1_strength(_v(cons, None)) == "very_strong"
+        assert _pvs1_strength(_v(cons, "")) == "very_strong"
 
 
 # ---------------------------------------------------------------------------

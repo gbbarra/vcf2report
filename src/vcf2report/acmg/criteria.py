@@ -75,17 +75,24 @@ def _is_last_exon(exon: Optional[str]) -> bool:
 
 def _pvs1_strength(v: Variant) -> str:
     """Deterministic PVS1 strength via the ClinGen SVI decision tree (Abou Tayoun
-    et al. 2018), to the depth a single annotated VCF supports:
+    et al. 2018), to the depth a single annotated VCF supports.
+
+    The tree engages ONLY when the annotation carries an exon rank (VEP EXON /
+    SnpEff rank); without it PVS1 stays Very Strong. This single gate keeps the
+    refinement purely additive on tree-annotated VCFs, so un-annotated inputs — the
+    synthetic demos and the frozen panel — are provably unchanged. Real annotators
+    always emit an exon rank alongside these consequences (the start codon and any
+    premature stop sit in a coding exon), so a genuine clinical variant is graded;
+    only degenerate consequence-only records fall back to Very Strong.
 
       * ``start_lost`` -> Moderate (initiation-codon variant; no downstream evidence)
       * nonsense/frameshift in the LAST exon (NMD-escaping) -> Strong
       * everything else qualifying -> Very Strong (the default)
 
-    Needs the VEP EXON / SnpEff rank field. When it is absent (synthetic samples,
-    un-annotated VCFs) the tree can't fire and PVS1 stays Very Strong, so demos and
-    the frozen panel are unaffected. The penultimate-exon last-50-nt NMD rule and
-    the >10%-of-protein refinement need CDS coordinates we don't carry, so they are
-    intentionally not attempted (kept conservative at Very Strong / Strong)."""
+    The penultimate-exon last-50-nt NMD rule and the >10%-of-protein refinement need
+    CDS coordinates we don't carry, so they are intentionally not attempted."""
+    if not v.exon:
+        return "very_strong"
     cons = v.consequence or ""
     if cons == "start_lost":
         return "moderate"
