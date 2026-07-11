@@ -1,4 +1,6 @@
-"""gnomAD DuckDB/Parquet source: batch prime + the covered-contig absence guard."""
+"""gnomAD DuckDB/Parquet source: batch prime, the full/partial absence guard, case."""
+import json
+
 import pytest
 
 from vcf2report import config
@@ -8,7 +10,7 @@ from vcf2report.models import Variant
 duckdb = pytest.importorskip("duckdb")
 
 
-def _make_parquet(tmp_path):
+def _make_parquet(tmp_path, mode=None, contigs=("chr1",)):
     p = tmp_path / "g.parquet"
     con = duckdb.connect()
     con.execute(f"""COPY (SELECT * FROM (VALUES
@@ -17,15 +19,20 @@ def _make_parquet(tmp_path):
         AS t(chrom, pos, ref, alt, af, af_grpmax, ac, an, nhomalt, faf95, grpmax_pop))
         TO '{p}' (FORMAT PARQUET)""")
     con.close()
+    if mode:   # a build that vouches for the store writes this sidecar
+        (tmp_path / "g.parquet.meta.json").write_text(
+            json.dumps({"mode": mode, "contigs": list(contigs)}))
     return p
 
 
 @pytest.fixture
 def parquet(tmp_path, monkeypatch):
-    p = _make_parquet(tmp_path)
-    monkeypatch.setattr(config, "GNOMAD_PARQUET", str(p))
-    gnomad_parquet._reset_for_tests()
-    yield p
+    def _setup(mode=None, contigs=("chr1",)):
+        p = _make_parquet(tmp_path, mode, contigs)
+        monkeypatch.setattr(config, "GNOMAD_PARQUET", str(p))
+        gnomad_parquet._reset_for_tests()
+        return p
+    yield _setup
     gnomad_parquet._reset_for_tests()
 
 
@@ -34,6 +41,7 @@ def _v(chrom, pos, ref, alt):
 
 
 def test_prime_and_match(parquet):
+    parquet()
     n = gnomad_parquet.prime([_v("1", 100, "A", "T"), _v("chr1", 200, "C", "G")])
     assert n == 2
     r = gnomad_parquet.get("1-100-A-T")
@@ -41,20 +49,38 @@ def test_prime_and_match(parquet):
     assert r["af"] == 0.50 and r["faf95"] == 0.48 and r["pop"] == "nfe" and r["hom"] == 20
 
 
-def test_covered_contig_absence_is_zero(parquet):
-    gnomad_parquet.prime([_v("1", 999, "A", "T")])   # chr1 covered, no such variant
+def test_partial_default_never_fabricates_absence(parquet):
+    # No sidecar -> partial -> a covered-site miss must be None (fall through), NOT 0.0.
+    parquet()
+    gnomad_parquet.prime([_v("1", 999, "A", "T")])
+    assert gnomad_parquet.get("1-999-A-T") is None
+
+
+def test_full_covered_absence_is_zero(parquet):
+    # A build that declares mode=full + contigs may assert absence on those contigs.
+    parquet(mode="full", contigs=("chr1",))
+    gnomad_parquet.prime([_v("1", 999, "A", "T")])
     assert gnomad_parquet.get("1-999-A-T") == {
         "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
 
 
-def test_uncovered_contig_left_unprimed(parquet):
-    # chr2 is not in the parquet, so the variant is NOT primed -> caller falls back,
-    # never a fabricated absence.
+def test_full_uncovered_contig_left_unprimed(parquet):
+    # chr2 isn't in the full store's contigs -> unprimed -> caller falls back.
+    parquet(mode="full", contigs=("chr1",))
     gnomad_parquet.prime([_v("2", 500, "A", "T")])
     assert gnomad_parquet.get("2-500-A-T") is None
 
 
+def test_case_insensitive_alleles(parquet):
+    # Lowercase input alleles must still match (VCF alleles are case-insensitive) —
+    # a byte-exact join would fabricate an absence.
+    parquet(mode="full", contigs=("chr1",))
+    gnomad_parquet.prime([_v("1", 100, "a", "t")])
+    assert gnomad_parquet.get("1-100-a-t")["af"] == 0.50
+
+
 def test_chrom_prefix_tolerated(parquet):
+    parquet()
     gnomad_parquet.prime([_v("chr1", 100, "A", "T")])
     assert gnomad_parquet.get("1-100-A-T")["af"] == 0.50
 
@@ -69,6 +95,7 @@ def test_off_when_unconfigured(tmp_path, monkeypatch):
 
 def test_lookup_prefers_primed_parquet(parquet, monkeypatch):
     from vcf2report.annotate import cache
+    parquet()
     monkeypatch.setattr(cache, "get", lambda *a, **k: None)
     gnomad_parquet.prime([_v("1", 100, "A", "T")])
     r = gnomad.lookup(_v("1", 100, "A", "T"))

@@ -22,6 +22,7 @@ the full v4.1 joint (29.6M variants); the raw VCFs are never kept.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -159,12 +160,32 @@ def main(argv: list[str] | None = None) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     chroms = _chroms(args.region.split(":")[0] if args.region else args.chroms)
 
+    full_set = {str(i) for i in range(1, 23)} | {"X", "Y"}
+    built: dict[str, int] = {}
     total = 0
     for c in chroms:
-        total += build_chrom(c, url_tmpl, fields, args.src, out_dir, args.region)
+        n = build_chrom(c, url_tmpl, fields, args.src, out_dir, args.region)
+        built[c] = n
+        total += n
 
-    (out_dir / "_SUCCESS").write_text(f"preset={args.preset} chroms={','.join(chroms)} rows={total}\n")
-    print(f"\nDone: {total:,} variants across {len(chroms)} chrom(s) -> {out_dir}", file=sys.stderr)
+    ok = {c for c, n in built.items() if n > 0}
+    # Declare 'full' ONLY for a whole-genome build where every requested chromosome
+    # streamed successfully and there was no --region slice — so the client may assert
+    # a variant absent from these contigs. Anything else is 'partial': the client then
+    # never fabricates an absence off it (a region test, a panel, or a truncated build).
+    is_full = (not args.region) and (set(chroms) >= full_set) and (ok >= set(chroms))
+    _pref = lambda c: c if str(c).lower().startswith("chr") else f"chr{c}"
+    meta = {"mode": "full" if is_full else "partial",
+            "contigs": sorted(_pref(c) for c in ok),
+            "preset": args.preset, "rows": total,
+            "source": f"gnomAD v4.1 {args.preset}"}
+    (out_dir / "_meta.json").write_text(json.dumps(meta, indent=2) + "\n")
+
+    print(f"\nDone ({meta['mode']}): {total:,} variants across {len(ok)} chrom(s) -> {out_dir}",
+          file=sys.stderr)
+    if not is_full and not args.region:
+        _warn("mode=partial: some chromosomes did not build — the client will NOT assert "
+              "absence off this store (falls back instead). Re-run to complete for full mode.")
     print(f"Point vcf2report at it: VCF2REPORT_GNOMAD_PARQUET={out_dir}", file=sys.stderr)
     return 0
 
