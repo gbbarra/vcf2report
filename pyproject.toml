@@ -24,10 +24,13 @@ dependencies = [
 fast = ["cyvcf2>=0.30"]
 # The MCP server that Claude Desktop connects to.
 mcp = ["mcp[cli]>=1.2"]
+# gnomAD as a local DuckDB/Parquet store (scripts/build_gnomad_parquet.py + the
+# fast-path client); without it that path is simply off (tabix/remote still work).
+parquet = ["duckdb>=0.9"]
 # Live annotation clients (gnomAD / ClinVar) use only the standard library —
 # no extra deps required.
 dev = ["pytest>=7.0", "hypothesis>=6.0"]
-all = ["cyvcf2>=0.30", "mcp[cli]>=1.2", "pytest>=7.0", "hypothesis>=6.0"]
+all = ["cyvcf2>=0.30", "mcp[cli]>=1.2", "duckdb>=0.9", "pytest>=7.0", "hypothesis>=6.0"]
 
 [project.scripts]
 vcf2report = "vcf2report.cli:main"

@@ -90,13 +90,20 @@ def run_pipeline(
     # exclude common variants (unknown AF is treated as 0) and BA1/BS1 can't fire to
     # down-weight them -> gross over-calling. Flag it loudly, don't ship a wrong report.
     if config.GNOMAD_PARQUET and len(kept) >= 50 and primed == 0:
+        from .annotate.gnomad_parquet import _get_duckdb
+        store_present = Path(config.GNOMAD_PARQUET).exists()
+        if store_present and _get_duckdb() is None:
+            cause = "the 'duckdb' package is not installed — run `pip install duckdb`"
+        elif not store_present:
+            cause = ("the store is unavailable (e.g. the drive is unmounted) or empty — "
+                     "mount it and re-run")
+        else:
+            cause = "the store matched no variants (a schema or coordinate mismatch)"
         qc.warnings.append(
-            "gnomAD parquet is configured (VCF2REPORT_GNOMAD_PARQUET) but 0 of "
-            f"{len(kept)} post-QC variants resolved from it — the store is "
-            "unavailable (e.g. the drive is unmounted) or empty. Population "
-            "frequencies were NOT applied: the rarity filter cannot exclude common "
-            "variants and BA1/BS1 cannot down-weight them, so the report likely "
-            "OVER-calls. Mount the store and re-run."
+            f"gnomAD parquet is configured but 0 of {len(kept)} post-QC variants "
+            f"resolved from it — {cause}. Population frequencies were NOT applied: the "
+            "rarity filter cannot exclude common variants and BA1/BS1 cannot down-weight "
+            "them, so the report likely OVER-calls."
         )
     _mark("gnomad_prime_s")
     # AlphaMissense is deferred: it only feeds PP3/BP4 at classification, never the

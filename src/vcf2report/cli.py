@@ -15,16 +15,23 @@ from .report.render import render_markdown, write_report
 
 
 def read_hpo_file(path: str | Path) -> list[str]:
-    terms: list[str] = []
+    """Resolve patient HPO terms from either a file (one HP:id per line) OR an inline
+    list of HP: ids (comma/space/semicolon-separated). Inline is accepted because
+    ``--hpo HP:0001250,HP:0001263`` is a natural thing to type; treating it strictly as
+    a path would silently drop the terms and disable PP4 — dangerous for a clinical tool.
+    """
     p = Path(path)
-    if not p.exists():
+    if p.exists():
+        terms: list[str] = []
+        for line in p.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            terms.append(line.split()[0])  # first token = HP:xxxxxxx
         return terms
-    for line in p.read_text().splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        terms.append(line.split()[0])  # first token = HP:xxxxxxx
-    return terms
+    # Not a file -> parse HP: ids straight out of the argument (e.g. "HP:1,HP:2").
+    import re
+    return [t.upper() for t in re.findall(r"HP:\d+", str(path), flags=re.IGNORECASE)]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -35,7 +42,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("vcf", nargs="?", default=str(config.SAMPLE_VCF),
                         help="Path to the input VCF (defaults to the bundled sample).")
     parser.add_argument("--hpo", default=None,
-                        help="Path to a file of patient HPO terms (defaults to the sample).")
+                        help="Patient HPO terms: a file (one HP:id per line) OR an inline "
+                             "list like HP:0001250,HP:0001263 (defaults to the sample).")
     parser.add_argument("--sample-id", default=None, help="Override the sample identifier.")
     parser.add_argument("--out", default=None, help="Output directory for the report.")
     parser.add_argument("--stdout", action="store_true",

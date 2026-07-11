@@ -57,6 +57,21 @@ def test_unconfigured_parquet_does_not_warn(tmp_path, monkeypatch):
     _reset()
 
 
+def test_present_store_but_duckdb_missing_blames_duckdb(tmp_path, monkeypatch):
+    # Store dir EXISTS (e.g. fetched with gh+zstd) but duckdb isn't installed -> the
+    # guard must point at `pip install duckdb`, not an unmounted drive.
+    store = tmp_path / "gnomad_parquet"
+    store.mkdir()
+    monkeypatch.setattr(config, "GNOMAD_PARQUET", str(store))
+    from vcf2report.annotate import gnomad_parquet
+    monkeypatch.setattr(gnomad_parquet, "_get_duckdb", lambda: None)
+    _reset()
+    report = pipeline.run_pipeline(_big_vcf(tmp_path))
+    assert any("pip install duckdb" in w for w in report.qc.warnings)
+    assert not any("unmounted" in w for w in report.qc.warnings)
+    _reset()
+
+
 def test_small_callset_does_not_warn(tmp_path, monkeypatch):
     # A tiny demo VCF (< 50 kept) must not trip the guard even if the store is absent.
     monkeypatch.setattr(config, "GNOMAD_PARQUET", str(tmp_path / "nope.parquet"))

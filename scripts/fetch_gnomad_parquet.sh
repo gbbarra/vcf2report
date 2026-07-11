@@ -31,3 +31,6 @@ mkdir -p "$DEST"
 zstd -dc "$WORK/$ASSET" | tar -C "$DEST" -xf -
 [ -f "$STORE/_meta.json" ] || { echo "ERROR: extraction did not produce $STORE/_meta.json" >&2; exit 1; }
 echo "OK: $STORE is ready — vcf2report auto-detects it (no env var needed)." >&2
+# Reading the store needs duckdb; fetch itself does not. Warn (don't fail) if it is absent.
+python3 -c "import duckdb" 2>/dev/null || \
+  echo "NOTE: the 'duckdb' package is not installed — run 'pip install duckdb' (or 'pip install .[parquet]') so vcf2report can read the store." >&2
