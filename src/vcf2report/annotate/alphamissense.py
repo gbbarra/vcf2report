@@ -26,6 +26,10 @@ _tabix = None
 _tabix_tried = False
 _pysam = None
 _pysam_tried = False
+# In-memory batch cache, filled by prime(). key -> best dict, or None for a definitive
+# no-score (a *present* key with a None value). Lets lookup() skip the on-disk cache,
+# whose put() rewrites the whole JSON per key (O(n^2) across a candidate list).
+_primed: dict = {}
 
 
 def _get_pysam():
@@ -96,12 +100,46 @@ def _best(rows: list[str], variant: Variant) -> Optional[dict]:
     return {"am_pathogenicity": best_score, "am_class": best_class}
 
 
+def prime(variants) -> int:
+    """Batch-resolve AlphaMissense for ``variants`` into an in-memory cache so the
+    per-variant lookup skips the on-disk cache round-trip. Mirrors
+    ``gnomad_parquet.prime``. The tabix fetches themselves are cheap (indexed random
+    access); the slow part avoided here is ``cache.put`` rewriting the whole JSON per
+    key. Returns the number newly primed. No-op if the local file/pysam is absent.
+    """
+    tabix = _open()
+    if tabix is None or not variants:
+        return 0
+    n = 0
+    with _lock:
+        for v in variants:
+            if v.key in _primed:
+                continue
+            _primed[v.key] = _best(_fetch(tabix, v.chrom, v.pos), v)  # dict or None
+            n += 1
+    return n
+
+
+def _reset_for_tests() -> None:
+    global _tabix, _tabix_tried
+    _tabix = None
+    _tabix_tried = False
+    _primed.clear()
+
+
 def lookup(variant: Variant) -> dict:
     """Return ``{'am_pathogenicity','am_class','_source'}`` for a variant.
 
     ``am_pathogenicity`` is None when AlphaMissense has no score (non-missense, or
     the local file / pysam is unavailable) — never a fabricated 0.
     """
+    if variant.key in _primed:      # batch-resolved; authoritative for this run
+        p = _primed[variant.key]
+        if p is None:
+            return {"am_pathogenicity": None, "am_class": None,
+                    "_source": "AlphaMissense hg38 (primed, no missense score)"}
+        return {**p, "_source": "AlphaMissense hg38 (primed)"}
+
     cached = cache.get(_SOURCE, variant.key)
     if cached is not None:
         return {**cached, "_source": "AlphaMissense (cache)"}

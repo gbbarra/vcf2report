@@ -114,6 +114,8 @@ def run_pipeline(
     _mark("filter_s")
 
     if build_trusted:
+        from .annotate import alphamissense
+        alphamissense.prime([v for v, a in candidates])
         for v, a in candidates:
             add_alphamissense(v, a)
     _mark("alphamissense_s")

@@ -71,6 +71,25 @@ LEFT JOIN read_parquet('gnomad_parquet/**/data.parquet', hive_partitioning=true)
 Measured: a single-variant lookup ~70 ms; a join against the full 29.6M-variant table
 ~0.4 s. Point vcf2report at it with `VCF2REPORT_GNOMAD_PARQUET=<dir>`.
 
+### End-to-end, measured (NA12878 whole exome, fully offline)
+
+`28,565 variants → 23,773 post-QC → 19,647 gnomAD-resolved → 1,564 candidates` in
+**~7.4 s** on a laptop, no network. Both heavy stages are batch-primed (the whole set
+in one pass), not per-variant:
+
+| stage | time | note |
+|---|---|---|
+| parse | 0.8 s | pure-Python VCF reader |
+| gnomAD prime | ~2 s | one DuckDB join over 23.7k sites |
+| annotate | ~3.6 s | per-variant; HPO match memoised by gene |
+| filter | 0.03 s | rarity + impact funnel |
+| AlphaMissense | **0.7 s** | batch-primed for the 1,564 candidates (was ~8.7 s per-variant before priming) |
+| classify | 0.2 s | ACMG engine |
+
+The per-stage numbers are emitted in every report's **Performance (this run)** section.
+The AlphaMissense speed-up is priming the candidates into memory instead of round-tripping
+the on-disk cache per variant (a whole-file rewrite per key — O(n²) over a candidate list).
+
 ## Build modes
 
 | Mode | Command | Size / cost | Reusable for |

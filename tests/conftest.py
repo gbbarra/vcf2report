@@ -23,4 +23,5 @@ def hermetic_env(tmp_path, monkeypatch):
     from vcf2report.annotate import alphamissense
     monkeypatch.setattr(alphamissense, "_tabix", None)
     monkeypatch.setattr(alphamissense, "_tabix_tried", False)
+    alphamissense._primed.clear()
     yield
