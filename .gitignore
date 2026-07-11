@@ -51,3 +51,10 @@ clinEff/
 # scripts/fetch_alphamissense.sh; only the small frozen per-variant slice
 # (data/concordance/alphamissense_frozen.json) is committed.
 data/alphamissense/
+
+# User-built local gnomAD reduced table (scripts/build_gnomad_local.py) and the
+# liftover chain — machine-specific / large; never committed.
+data/gnomad/gnomad_freq.local.tsv.gz
+data/gnomad/gnomad_freq.local.tsv.gz.tbi
+data/gnomad/gnomad_freq.local.tsv.gz.meta
+data/liftover/

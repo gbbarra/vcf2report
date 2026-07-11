@@ -139,6 +139,16 @@ def lookup(variant: Variant) -> dict:
     if cached is not None:
         return {**cached, "_source": f"gnomAD {config.GNOMAD_DATASET} (cache)"}
 
+    # Reduced local tabix (built by scripts/build_gnomad_local.py) is preferred when
+    # present: offline, instant, and the same grpmax/faf95 reduction as remote. None
+    # means "no local answer" (no table, or a partial table that can't assert absence)
+    # -> fall through to remote/live/bundled unchanged.
+    from . import gnomad_local
+    loc = gnomad_local.query(variant)
+    if loc is not None:
+        cache.put(_SOURCE, variant.key, loc)
+        return {**loc, "_source": "gnomAD v4.1 (local tabix)"}
+
     live_failed = False
     if not config.offline():
         # Prefer remote tabix over the public GCS bucket: it carries no API rate

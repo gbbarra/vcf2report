@@ -1,0 +1,99 @@
+"""Local gnomAD reduced-tabix client + its integration into gnomad.lookup."""
+import json
+
+import pytest
+
+from vcf2report import config
+from vcf2report.annotate import gnomad, gnomad_local
+from vcf2report.models import Variant
+
+pysam = pytest.importorskip("pysam")
+
+_ROWS = [
+    "#chrom\tpos\tref\talt\taf\tac\tan\thom\tfaf95\tpop",
+    "1\t100\tA\tT\t0.30\t300\t1000\t20\t0.28\tnfe",     # common
+    "1\t100\tA\tG\t0.001\t1\t1000\t0\t0.0005\tafr",     # same site, other allele
+    "1\t200\tC\tG\t0.0\t0\t1000\t0\t0.0\t",             # covered, absent allele (empty pop)
+]
+
+
+def _make_table(tmp_path, mode):
+    tsv = tmp_path / "g.tsv"
+    tsv.write_text("\n".join(_ROWS) + "\n")
+    out = tmp_path / "g.tsv.gz"
+    pysam.tabix_compress(str(tsv), str(out), force=True)
+    pysam.tabix_index(str(out), seq_col=0, start_col=1, end_col=1, meta_char="#", force=True)
+    (tmp_path / "g.tsv.gz.meta").write_text(json.dumps({"mode": mode}))
+    return out
+
+
+@pytest.fixture
+def local_table(tmp_path, monkeypatch):
+    def _setup(mode="partial"):
+        out = _make_table(tmp_path, mode)
+        monkeypatch.setattr(config, "GNOMAD_LOCAL_TABIX", out)
+        gnomad_local._reset_for_tests()
+        return out
+    yield _setup
+    gnomad_local._reset_for_tests()
+
+
+def _v(pos, ref, alt, chrom="1"):
+    return Variant(chrom=chrom, pos=pos, ref=ref, alt=alt)
+
+
+def test_exact_match_returns_grpmax_fields(local_table):
+    local_table("partial")
+    r = gnomad_local.query(_v(100, "A", "T"))
+    assert r["af"] == 0.30 and r["faf95"] == 0.28
+    assert r["pop"] == "nfe" and r["hom"] == 20 and r["an"] == 1000
+
+
+def test_covered_site_other_allele_is_absent(local_table):
+    # Site 100 carries A>T and A>G; querying A>C is a true absence (site is covered).
+    local_table("partial")
+    assert gnomad_local.query(_v(100, "A", "C")) == {
+        "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
+
+
+def test_partial_miss_returns_none(local_table):
+    # A partial table cannot assert absence off its covered sites -> None -> fall back.
+    local_table("partial")
+    assert gnomad_local.query(_v(999, "A", "T")) is None
+
+
+def test_full_miss_asserts_absence(local_table):
+    # A full table treats a miss as genuinely absent from gnomAD.
+    local_table("full")
+    assert gnomad_local.query(_v(999, "A", "T"))["af"] == 0.0
+
+
+def test_chrom_prefix_tolerated(local_table):
+    local_table("partial")
+    assert gnomad_local.query(_v(100, "A", "T", chrom="chr1"))["af"] == 0.30
+
+
+def test_no_table_returns_none(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "GNOMAD_LOCAL_TABIX", tmp_path / "absent.tsv.gz")
+    gnomad_local._reset_for_tests()
+    assert gnomad_local.query(_v(100, "A", "T")) is None
+    gnomad_local._reset_for_tests()
+
+
+def test_lookup_prefers_local(local_table, monkeypatch):
+    from vcf2report.annotate import cache
+    local_table("partial")
+    monkeypatch.setattr(cache, "get", lambda *a, **k: None)
+    monkeypatch.setattr(cache, "put", lambda *a, **k: None)
+    r = gnomad.lookup(_v(100, "A", "T"))
+    assert r["af"] == 0.30 and "local tabix" in r["_source"]
+
+
+def test_lookup_partial_miss_falls_through_offline(local_table, monkeypatch):
+    # Local partial miss -> None -> offline with no cache/bundled -> 'unavailable' (af None).
+    from vcf2report.annotate import cache
+    local_table("partial")
+    monkeypatch.setattr(cache, "get", lambda *a, **k: None)
+    monkeypatch.setattr(config, "offline", lambda: True)
+    r = gnomad.lookup(_v(999, "A", "T"))
+    assert r["af"] is None

@@ -23,6 +23,12 @@ SAMPLE_VCF = DATA_DIR / "sample" / "sample_exome.vcf"
 SAMPLE_HPO = DATA_DIR / "sample" / "patient_hpo_terms.txt"
 CLINVAR_LOCAL = DATA_DIR / "clinvar" / "clinvar_grch38_slice.tsv"
 GNOMAD_LOCAL = DATA_DIR / "gnomad" / "gnomad_cache.json"
+# Reduced local gnomAD frequency table (bgzipped TSV + .tbi), built by
+# scripts/build_gnomad_local.py. Offline, authoritative when present. Overridable so
+# a large full build can live on an external disk. Schema (tabix -s1 -b2 -e2):
+#   #chrom  pos  ref  alt  af  ac  an  hom  faf95  pop
+GNOMAD_LOCAL_TABIX = Path(os.environ.get(
+    "VCF2REPORT_GNOMAD_TABIX", str(DATA_DIR / "gnomad" / "gnomad_freq.local.tsv.gz")))
 ABRAOM_LOCAL = DATA_DIR / "abraom" / "abraom_sabe.tsv"
 HPO_GENES_LOCAL = DATA_DIR / "hpo" / "genes_to_phenotype.tsv.gz"
 HPO_GRAPH_LOCAL = DATA_DIR / "hpo" / "hpo_graph.tsv.gz"  # ontology + IC (build_hpo_graph.py)
