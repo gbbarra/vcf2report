@@ -102,6 +102,9 @@ def _sample_metrics(fmt: str, sample: str, alt_index: int) -> dict:
             # AD is [ref, alt1, alt2, ...]; use THIS allele's depth.
             if total > 0 and len(parts) > alt_index + 1:
                 out["allele_balance"] = round(parts[alt_index + 1] / total, 3)
+            # Many callers omit FORMAT/DP but carry AD; sum(AD) is the site depth.
+            if "depth" not in out and total > 0:
+                out["depth"] = total
         except ValueError:
             pass
     return out
@@ -243,12 +246,15 @@ def _parse_cyvcf2(path: Path, sample: str | None = None
                 continue
             zyg = zygosity([str(a) for a in gts], i + 1) if gts else None
             allele_balance = None
+            depth_i = depth
             if ad_arr is not None:
                 try:
                     ad = [x for x in list(ad_arr[s]) if x is not None and x >= 0]
                     total = sum(ad)
                     if total > 0 and len(ad) > i + 1:
                         allele_balance = round(ad[i + 1] / total, 3)
+                    if depth_i is None and total > 0:  # DP absent -> sum(AD)
+                        depth_i = total
                 except (TypeError, ValueError, IndexError):
                     allele_balance = None
             info = {k: str(v) for k, v in dict(rec.INFO).items()}
@@ -261,7 +267,7 @@ def _parse_cyvcf2(path: Path, sample: str | None = None
                 filter_status=rec.FILTER or "PASS", zygosity=zyg,
                 variant_id=rec.ID if rec.ID not in (None, ".", "") else None,
                 n_alts=len(alts),
-                depth=depth, gq=gq, allele_balance=allele_balance, info=info,
+                depth=depth_i, gq=gq, allele_balance=allele_balance, info=info,
                 alt_index=i,
             ))
     return variants, detect_build(header), header

@@ -114,11 +114,71 @@ def parse_vep(csq: str, alt: str, field_names: list[str], ref: str = "",
     return row(candidates[0])
 
 
+# Legacy SnpEff EFF effect names -> Sequence Ontology terms the engine uses.
+_EFF_SO = {
+    "NON_SYNONYMOUS_CODING": "missense_variant", "SYNONYMOUS_CODING": "synonymous_variant",
+    "STOP_GAINED": "stop_gained", "STOP_LOST": "stop_lost", "START_LOST": "start_lost",
+    "NON_SYNONYMOUS_START": "start_lost", "FRAME_SHIFT": "frameshift_variant",
+    "SPLICE_SITE_ACCEPTOR": "splice_acceptor_variant", "SPLICE_SITE_DONOR": "splice_donor_variant",
+    "CODON_DELETION": "inframe_deletion", "CODON_INSERTION": "inframe_insertion",
+    "CODON_CHANGE_PLUS_CODON_DELETION": "inframe_deletion",
+    "CODON_CHANGE_PLUS_CODON_INSERTION": "inframe_insertion", "EXON_DELETED": "transcript_ablation",
+    "SYNONYMOUS_STOP": "stop_retained_variant", "UTR_5_PRIME": "5_prime_UTR_variant",
+    "UTR_3_PRIME": "3_prime_UTR_variant", "INTRON": "intron_variant",
+    "UPSTREAM": "upstream_gene_variant", "DOWNSTREAM": "downstream_gene_variant",
+    "INTERGENIC": "intergenic_variant",
+}
+_EFF_IMPACT = {"HIGH": 3, "MODERATE": 2, "LOW": 1, "MODIFIER": 0}
+_AA3 = {"A": "Ala", "R": "Arg", "N": "Asn", "D": "Asp", "C": "Cys", "Q": "Gln", "E": "Glu",
+        "G": "Gly", "H": "His", "I": "Ile", "L": "Leu", "K": "Lys", "M": "Met", "F": "Phe",
+        "P": "Pro", "S": "Ser", "T": "Thr", "W": "Trp", "Y": "Tyr", "V": "Val", "*": "Ter"}
+
+
+def _eff_hgvs_p(aa: str) -> Optional[str]:
+    """SnpEff EFF one-letter AA change ('W169R', 'Q59*') -> HGVS.p ('p.Trp169Arg')."""
+    m = re.match(r"^([A-Z*])(\d+)([A-Z*])$", aa or "")
+    if not m:
+        return None
+    a, pos, b = m.groups()
+    return f"p.{_AA3.get(a, a)}{pos}{_AA3.get(b, b)}"
+
+
+def parse_snpeff_eff(eff: str, alt_index: int = 0, n_alt: int = 1) -> Optional[dict]:
+    """Parse the legacy SnpEff ``EFF`` INFO (pre-``ANN`` format, still common in older
+    public VCFs). Picks the most severe effect (impact, protein-coding preferred) for
+    this ALT; EFF carries no HGVS.c so that stays None."""
+    best, best_score = None, -1
+    for entry in eff.split(","):
+        if "(" not in entry:
+            continue
+        effect, rest = entry.split("(", 1)
+        f = rest.rstrip(")").split("|")
+        if len(f) < 10:
+            continue
+        gt = f[10] if len(f) > 10 else ""
+        if n_alt > 1 and gt.isdigit() and int(gt) != alt_index + 1:
+            continue  # multiallelic: only this ALT's effects
+        score = _EFF_IMPACT.get(f[0], 0) * 2 + (1 if f[6] == "protein_coding" else 0)
+        if score > best_score:
+            best_score, best = score, (effect.strip(), f)
+    if not best:
+        return None
+    effect, f = best
+    return {"gene": f[5] or None,
+            "consequence": _EFF_SO.get(effect, effect.lower() or None),
+            "hgvs_c": None, "hgvs_p": _eff_hgvs_p(f[3]),
+            "exon": f[9] or None, "transcript": f[8] or None}
+
+
 def extract(info: dict[str, str], alt: str, csq_format: Optional[list[str]] = None,
             ref: str = "", alt_index: int = 0, n_alt: int = 1) -> Optional[dict]:
-    """Best consequence/HGVS from ANN, then CSQ, then plain keys."""
+    """Best consequence/HGVS from ANN, then legacy EFF, then CSQ, then plain keys."""
     if info.get("ANN"):
         r = parse_snpeff(info["ANN"], alt, ref, n_alt)
+        if r and (r.get("gene") or r.get("consequence")):
+            return r
+    if info.get("EFF"):
+        r = parse_snpeff_eff(info["EFF"], alt_index, n_alt)
         if r and (r.get("gene") or r.get("consequence")):
             return r
     csq = info.get("CSQ")
