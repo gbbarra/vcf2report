@@ -121,12 +121,15 @@ def query(variant: Variant) -> Optional[dict]:
                 "hom": _to_int(f[7]) if len(f) > 7 else None,
                 "faf95": _to_float(f[8]) if len(f) > 8 else None,
                 "pop": (f[9].strip() or None) if len(f) > 9 else None}
-    _absent = {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
-    if rows:
-        return _absent   # position carries gnomAD variant(s), just not this allele
-    # No row at this position: only a FULL build may call that a true absence; a
-    # partial table returns None so the caller falls back (never fabricates absence).
-    return _absent if _mode == "full" else None
+    # No exact allele match. Only a FULL table (every gnomAD allele at every site)
+    # may call that a true absence. A partial table (panel / per-VCF) is not even
+    # position-complete — a --from-vcf table holds only the sample's own alleles — so
+    # it returns None and the caller falls back, NEVER fabricating an absence.
+    # (Genuinely-absent input variants still resolve: build writes them an explicit
+    # af 0.0 row, which is matched above.)
+    if _mode == "full":
+        return {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
+    return None
 
 
 def _reset_for_tests() -> None:

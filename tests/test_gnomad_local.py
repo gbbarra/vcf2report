@@ -49,11 +49,19 @@ def test_exact_match_returns_grpmax_fields(local_table):
     assert r["pop"] == "nfe" and r["hom"] == 20 and r["an"] == 1000
 
 
-def test_covered_site_other_allele_is_absent(local_table):
-    # Site 100 carries A>T and A>G; querying A>C is a true absence (site is covered).
+def test_partial_other_allele_does_not_fabricate_absence(local_table):
+    # Site 100 carries A>T and A>G, but a partial table may not enumerate every allele
+    # (a --from-vcf table holds only the sample's), so a non-exact hit must be None,
+    # never a fabricated absence.
     local_table("partial")
-    assert gnomad_local.query(_v(100, "A", "C")) == {
-        "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
+    assert gnomad_local.query(_v(100, "A", "C")) is None
+
+
+def test_full_other_allele_is_absent(local_table):
+    # A full table has every gnomAD allele, so a non-exact hit at a covered site is
+    # a genuine absence.
+    local_table("full")
+    assert gnomad_local.query(_v(100, "A", "C"))["af"] == 0.0
 
 
 def test_partial_miss_returns_none(local_table):
