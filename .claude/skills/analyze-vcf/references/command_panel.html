@@ -1,0 +1,58 @@
+<h2 class="sr-only">Painel de comandos do vcf2report para a amostra {{SAMPLE}}: botões que disparam cada etapa da análise no chat.</h2>
+<div style="background: var(--surface-2); border: 0.5px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem;">
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+    <div style="width:34px; height:34px; border-radius:8px; background: var(--bg-accent); display:flex; align-items:center; justify-content:center;">
+      <i class="ti ti-dna-2" style="font-size:20px; color: var(--text-accent);" aria-hidden="true"></i>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:15px; font-weight:500;">vcf2report</div>
+      <div style="font-size:12.5px; color: var(--text-secondary);">amostra ativa · {{SAMPLE}}</div>
+    </div>
+    <span style="font-size:11.5px; font-weight:500; background: var(--{{STATUS_BG}}); color: var(--{{STATUS_FG}}); padding:4px 10px; border-radius:20px;">{{STATUS}}</span>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:6px; padding:10px 0 14px; border-top:0.5px solid var(--border); border-bottom:0.5px solid var(--border); margin-bottom:14px;">
+    <span style="font-size:12px; color: var(--text-secondary); align-self:center; margin-right:2px;">pipeline</span>
+    <span style="font-size:12px; background: var(--surface-1); border:0.5px solid var(--border); padding:3px 9px; border-radius:6px;">parse</span>
+    <i class="ti ti-chevron-right" style="font-size:14px; color: var(--text-muted); align-self:center;" aria-hidden="true"></i>
+    <span style="font-size:12px; background: var(--surface-1); border:0.5px solid var(--border); padding:3px 9px; border-radius:6px;">qc</span>
+    <i class="ti ti-chevron-right" style="font-size:14px; color: var(--text-muted); align-self:center;" aria-hidden="true"></i>
+    <span style="font-size:12px; background: var(--surface-1); border:0.5px solid var(--border); padding:3px 9px; border-radius:6px;">annotate</span>
+    <i class="ti ti-chevron-right" style="font-size:14px; color: var(--text-muted); align-self:center;" aria-hidden="true"></i>
+    <span style="font-size:12px; background: var(--surface-1); border:0.5px solid var(--border); padding:3px 9px; border-radius:6px;">acmg</span>
+    <i class="ti ti-chevron-right" style="font-size:14px; color: var(--text-muted); align-self:center;" aria-hidden="true"></i>
+    <span style="font-size:12px; background: var(--bg-accent); color: var(--text-accent); padding:3px 9px; border-radius:6px;">laudo</span>
+  </div>
+
+  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px;">
+    <button onclick="sendPrompt('Analisa o exoma {{SAMPLE}} no vcf2report do começo: parse, QC, anotação, ACMG e laudo.')" style="display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:12px 14px; text-align:left; height:auto;">
+      <span style="display:flex; align-items:center; gap:8px; font-weight:500; font-size:14px;"><i class="ti ti-player-play" style="font-size:18px;" aria-hidden="true"></i> Rodar análise ↗</span>
+      <span style="font-size:12px; color: var(--text-secondary);">pipeline completo</span>
+    </button>
+
+    <button onclick="sendPrompt('A amostra {{SAMPLE}} e GRCh37. Roda o liftover pra GRCh38 (scripts/liftover_to_grch38.py) antes de continuar.')" style="display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:12px 14px; text-align:left; height:auto;">
+      <span style="display:flex; align-items:center; gap:8px; font-weight:500; font-size:14px;"><i class="ti ti-arrows-exchange" style="font-size:18px;" aria-hidden="true"></i> Liftover 37 → 38 ↗</span>
+      <span style="font-size:12px; color: var(--text-secondary);">converte build se preciso</span>
+    </button>
+
+    <button onclick="sendPrompt('Estima a qualidade de sequenciamento e a cobertura da amostra {{SAMPLE}} (painel de QC).')" style="display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:12px 14px; text-align:left; height:auto;">
+      <span style="display:flex; align-items:center; gap:8px; font-weight:500; font-size:14px;"><i class="ti ti-chart-histogram" style="font-size:18px;" aria-hidden="true"></i> Cobertura e QC ↗</span>
+      <span style="font-size:12px; color: var(--text-secondary);">profundidade, Ti/Tv, PASS</span>
+    </button>
+
+    <button onclick="sendPrompt('Constroi a tabela gnomAD local pra amostra {{SAMPLE}} com build_gnomad_local.py --from-vcf --jobs 24, e me diz o tempo.')" style="display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:12px 14px; text-align:left; height:auto;">
+      <span style="display:flex; align-items:center; gap:8px; font-weight:500; font-size:14px;"><i class="ti ti-database" style="font-size:18px;" aria-hidden="true"></i> gnomAD local ↗</span>
+      <span style="font-size:12px; color: var(--text-secondary);">frequências offline, paralelo</span>
+    </button>
+
+    <button onclick="sendPrompt('Gera o laudo ACMG da amostra {{SAMPLE}} e renderiza como Artifact, com a analise de tempo.')" style="display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:12px 14px; text-align:left; height:auto;">
+      <span style="display:flex; align-items:center; gap:8px; font-weight:500; font-size:14px;"><i class="ti ti-file-text" style="font-size:18px;" aria-hidden="true"></i> Gerar laudo ↗</span>
+      <span style="font-size:12px; color: var(--text-secondary);">HGVS, tiers, conclusão</span>
+    </button>
+
+    <button onclick="sendPrompt('Roda o painel de concordancia (ClinVar vs engine) e me mostra precisao, sensibilidade e discordancias graves.')" style="display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:12px 14px; text-align:left; height:auto;">
+      <span style="display:flex; align-items:center; gap:8px; font-weight:500; font-size:14px;"><i class="ti ti-checkup-list" style="font-size:18px;" aria-hidden="true"></i> Concordância ↗</span>
+      <span style="font-size:12px; color: var(--text-secondary);">valida contra ClinVar</span>
+    </button>
+  </div>
+</div>

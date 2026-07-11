@@ -65,12 +65,41 @@ Ask the user for:
   ```
   (If they have a GA4GH phenopacket: `python3 scripts/phenopacket_to_inputs.py <file>`.)
 
-## Step 4 — Run the analysis
-```bash
-python3 scripts/run_headless.py <VCF> --hpo <HPO_FILE> --out <OUT_DIR> --timing
-```
-Read back the **candidate list** and per-stage timings to the user in plain terms
-(gene → tier), and note the funnel (how many variants → how many candidates).
+## Step 3.5 — App surfaces (sample name · command panel · per-sample session)
+Make the run feel like an app inside Claude Code. **Best-effort** — if a tool below is
+not available in this environment, skip it silently and continue with plain text.
+
+1. **Sample name.** Read it from the VCF — the sample columns of the `#CHROM` header
+   line (`grep -m1 '^#CHROM' <VCF> | cut -f10-`), or `bcftools query -l <VCF>` if
+   present; fall back to the filename stem. Use it as `<SAMPLE>` everywhere below.
+2. **Per-sample session (left panel).** Offer this analysis as its own entry in
+   Recents: call `spawn_task` with `title: "VCF2Report - <SAMPLE>"` and a prompt that
+   re-runs `/analyze-vcf` for this VCF. One click spins it into a titled session. Skip
+   if `spawn_task` isn't available.
+3. **Command panel (center panel).** Render the interactive control panel: read
+   `references/command_panel.html`, substitute `{{SAMPLE}}` with the sample name and
+   the status tokens for the build state — GRCh38 ready → `{{STATUS}}`=`GRCh38 · pronto`,
+   `{{STATUS_BG}}`=`bg-success`, `{{STATUS_FG}}`=`text-success`; GRCh37 → `GRCh37 ·
+   liftover`, `bg-warning`, `text-warning` — then publish it with the `visualize`
+   `show_widget` tool. Its buttons drive each step via `sendPrompt`. If `show_widget`
+   isn't available, list the same actions as a short markdown menu instead.
+
+## Step 4 — Run the analysis (visible phases, right panel)
+Run the pipeline so the user watches it work in the **Background Tasks** pane. Two ways:
+- **Rich (named phases)** — when there's real background work (a liftover or a gnomAD
+  build): invoke the `Workflow` tool with `scriptPath:
+  <repo>/.claude/skills/analyze-vcf/references/analyze.workflow.js` and `args: { repo,
+  vcf, sample, hpo, out, lift, buildGnomad, jobs }`. The phases **Setup → Frequencies →
+  Classify → Report** show live in the right panel. Set `lift: true` if Step 3 detected
+  GRCh37; `buildGnomad: true` for offline population frequency when no local table
+  exists (`build_gnomad_local.py --from-vcf --jobs 24` — an exome build is ~45–60 min,
+  so confirm first and mention the ETA).
+- **Lean** — just run it yourself:
+  ```bash
+  python3 scripts/run_headless.py <VCF> --hpo <HPO_FILE> --out <OUT_DIR> --timing
+  ```
+Either way, read back the **candidate list** (gene → tier), the funnel (variants →
+candidates), and the per-stage **timings** in plain terms.
 
 ## Step 5 — Render the laudo (inline)
 1. Read the generated report markdown (`<OUT_DIR>/<name>_report.md`).
