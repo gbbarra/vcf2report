@@ -83,7 +83,22 @@ def run_pipeline(
     # up front — annotate_variant's per-variant gnomad.lookup then reads that cache
     # instead of ~11k tabix/remote round-trips. No-op when the parquet isn't configured.
     from .annotate import gnomad_parquet
-    gnomad_parquet.prime(kept)
+    primed = gnomad_parquet.prime(kept)
+    # Safety net: if the operator pointed us at a parquet store but 0 of a real
+    # callset resolved, the store is unavailable (drive unmounted) or empty. Left
+    # silent, every variant looks absent from gnomAD: the rarity filter can no longer
+    # exclude common variants (unknown AF is treated as 0) and BA1/BS1 can't fire to
+    # down-weight them -> gross over-calling. Flag it loudly, don't ship a wrong report.
+    if config.GNOMAD_PARQUET and len(kept) >= 50 and primed == 0:
+        qc.warnings.append(
+            "gnomAD parquet is configured (VCF2REPORT_GNOMAD_PARQUET) but 0 of "
+            f"{len(kept)} post-QC variants resolved from it — the store is "
+            "unavailable (e.g. the drive is unmounted) or empty. Population "
+            "frequencies were NOT applied: the rarity filter cannot exclude common "
+            "variants and BA1/BS1 cannot down-weight them, so the report likely "
+            "OVER-calls. Mount the store and re-run."
+        )
+    _mark("gnomad_prime_s")
     # AlphaMissense is deferred: it only feeds PP3/BP4 at classification, never the
     # filter, so we skip the (per-variant, ~1 GB tabix) lookup across the whole
     # post-QC set and query just the surviving candidates below.

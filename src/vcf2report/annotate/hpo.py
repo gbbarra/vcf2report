@@ -27,6 +27,10 @@ _term_names: dict[str, str] = {}
 # graph = (parents: id->list[id], ic: id->float, names: id->name); None until loaded,
 # {} tuple parts when the file is absent (=> exact-overlap fallback).
 _graph: Optional[tuple[dict, dict, dict]] = None
+# match() is gene-keyed and the pipeline calls it once per post-QC variant (~24k on an
+# exome), where variants share genes heavily; memoise by (gene, patient terms). The
+# loaders clear this on any (re)load so a changed graph/table never serves a stale hit.
+_match_cache: dict = {}
 
 
 def _read_lines(fp):
@@ -44,6 +48,7 @@ def _read_lines(fp):
 def _load() -> dict[str, set[str]]:
     global _gene_terms
     if _gene_terms is None:
+        _match_cache.clear()
         d: dict[str, set[str]] = {}
         names: dict[str, str] = {}
         fp = config.HPO_GENES_LOCAL
@@ -66,6 +71,7 @@ def _load() -> dict[str, set[str]]:
 def _load_graph() -> tuple[dict, dict, dict]:
     global _graph
     if _graph is None:
+        _match_cache.clear()
         parents: dict[str, list[str]] = {}
         ic: dict[str, float] = {}
         names: dict[str, str] = {}
@@ -153,6 +159,18 @@ def match(gene: Optional[str], patient_hpo: list[str]) -> dict:
     """
     if not gene or not patient_hpo:
         return {"score": 0.0, "best": 0.0, "matched_terms": [], "_source": "HPO (no gene/terms)"}
+    _load()          # loaders clear _match_cache on a (re)load, so hits are never stale
+    _load_graph()
+    ck = (gene, tuple(patient_hpo))
+    hit = _match_cache.get(ck)
+    if hit is not None:
+        return hit
+    r = _match_compute(gene, patient_hpo)
+    _match_cache[ck] = r
+    return r
+
+
+def _match_compute(gene: str, patient_hpo: list[str]) -> dict:
     gene_terms = _load().get(gene, set())
     if not gene_terms:
         return {"score": 0.0, "best": 0.0, "matched_terms": [],

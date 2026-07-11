@@ -123,7 +123,7 @@ _Incidental P/LP not on the ACMG SF list, plus phenotype-unrelated uncertain/ben
 
 ## Performance (this run)
 {% for k, v in r.timings.items() %}
-- **{{ k | replace('_s', '') | replace('_', ' ') }}:** {{ v }}{% if k != 'variants_per_s' %} s{% endif %}
+- **{{ k | replace('_s', '') | replace('_', ' ') }}:** {{ v }}{{ ' s' if k != 'variants_per_s' else '' }}
 {% endfor %}
 {% endif %}
 
