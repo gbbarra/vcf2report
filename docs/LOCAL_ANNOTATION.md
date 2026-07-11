@@ -27,6 +27,50 @@ python3 scripts/run_headless.py exome.hg38.vcf --hpo hpo.txt --out out/
 present, behaviour is unchanged (remote-if-network, else the bundled demo slice).
 Point the table elsewhere (e.g. an external disk) with `VCF2REPORT_GNOMAD_TABIX=/path`.
 
+## Fast path — gnomAD as a DuckDB/Parquet store (recommended for exomes)
+
+The per-variant tabix build above is fine for a panel, but a whole exome is
+latency-bound (~7–10 h of remote round-trips). The reproducible, offline-fast answer —
+the one a genomic-lakehouse uses — is a **columnar Parquet** of gnomAD frequencies,
+joined with **DuckDB**. Building it is a *sequential scan* of gnomAD (bandwidth-bound,
+one-time), and then every query is a single vectorised join.
+
+### Build it from scratch (download → Parquet)
+
+```bash
+# one chromosome, end-to-end, to prove it (streams from the internet, ~minutes)
+VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_gnomad_parquet.py --chroms 21
+
+# the whole thing (v4.1 joint = exomes+genomes), one-time, ~1–2 h, ~786 MB out
+VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_gnomad_parquet.py --chroms 1-22,X,Y
+
+# from local per-chrom gnomAD VCFs instead of the network:
+python3 scripts/build_gnomad_parquet.py --src /Volumes/DISK/gnomad_joint
+```
+
+For each chromosome it **streams** the gnomAD sites VCF with `bcftools` (never storing
+the ~150–200 GB raw — a sequential scan, not per-variant seeks), extracts only
+`af, af_grpmax, ac, an, nhomalt, faf95, grpmax_pop`, and writes
+`<out>/chrom=chrN/data.parquet` (Hive-partitioned). Peak disk ≈ the ~786 MB output plus
+one chromosome's temp extract; the raw VCFs are discarded. `faf95` is gnomAD's grpmax
+filtering AF (`fafmax_faf95_max_joint`, the ClinGen value for BA1/BS1). Needs
+`bcftools` + `duckdb` (`pip install duckdb`).
+
+### Why it's fast
+
+DuckDB does partition pruning + row-group skipping, so a whole exome's frequencies come
+from **one join** in ~seconds, fully offline:
+
+```sql
+SELECT v.*, g.af_grpmax, g.faf95, g.nhomalt
+FROM my_variants v
+LEFT JOIN read_parquet('gnomad_parquet/**/data.parquet', hive_partitioning=true) g
+  ON g.chrom = v.chrom AND g.pos = v.pos AND g.ref = v.ref AND g.alt = v.alt;
+```
+
+Measured: a single-variant lookup ~70 ms; a join against the full 29.6M-variant table
+~0.4 s. Point vcf2report at it with `VCF2REPORT_GNOMAD_PARQUET=<dir>`.
+
 ## Build modes
 
 | Mode | Command | Size / cost | Reusable for |
