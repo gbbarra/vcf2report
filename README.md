@@ -62,13 +62,18 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
   and adding more (explained) phenotypes no longer dilutes the score, the failure
   mode of plain term overlap on phenotype-rich cases. Falls back to exact overlap
   when the graph isn't built.
-- **Offline gnomAD, no 150 GB download.** Instead of the full gnomAD (~150–200 GB),
-  build a **reduced local tabix** of just the frequencies the engine cites
-  (`scripts/build_gnomad_local.py`, per-VCF / panel / full modes) so a real exome runs
-  fully offline with genuine population frequency — the rarity filter narrows and
-  BA1/BS1 fire. A safety model (partial tables never assert absence; full tables vouch
-  only for streamed contigs) makes a false-absence impossible. GRCh37 VCFs lift with
-  `scripts/liftover_to_grch38.py`. See [docs/LOCAL_ANNOTATION.md](docs/LOCAL_ANNOTATION.md).
+- **Offline gnomAD, no 150 GB download.** A local **DuckDB/Parquet** store of gnomAD
+  v4.1 frequencies (29.6M variants) resolves a whole exome's frequencies in *one*
+  vectorised join — a real exome classifies **fully offline in ~7 s**. Get it two ways,
+  same result, into the auto-detected local `data/gnomad/gnomad_parquet/`:
+  `scripts/fetch_gnomad_parquet.sh` (download a checksummed copy) **or**
+  `scripts/build_gnomad_parquet.py` (rebuild from the public bucket — prove it on one
+  chromosome in minutes). A reduced-tabix path (`build_gnomad_local.py`) and GRCh37
+  liftover (`liftover_to_grch38.py`) also exist. A safety model makes a false-absence
+  impossible (partial stores never assert absence; a configured-but-missing store warns
+  loudly instead of silently over-calling). See
+  [docs/LOCAL_ANNOTATION.md](docs/LOCAL_ANNOTATION.md) · gnomAD ODbL-1.0:
+  [data/gnomad/NOTICE.md](data/gnomad/NOTICE.md).
 - **Private by default.** Runs fully offline on bundled data; the VCF never leaves
   the machine, and outbound lookups are opt-in (`VCF2REPORT_ALLOW_NETWORK=1`).
 - **Auditable & tested.** 194 automated tests; the classification logic is validated

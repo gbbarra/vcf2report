@@ -32,8 +32,20 @@ GNOMAD_LOCAL_TABIX = Path(os.environ.get(
 # gnomAD frequencies as a DuckDB/Parquet store (built by scripts/build_gnomad_parquet.py,
 # or an existing lakehouse gnomad_freq.parquet). A single .parquet file or a Hive-
 # partitioned dir (chrom=chrN/). Whole-exome frequencies come from one vectorised join
-# in ~seconds, offline. Absent -> feature off. Overridable env.
-GNOMAD_PARQUET = os.environ.get("VCF2REPORT_GNOMAD_PARQUET") or None
+# in ~seconds, offline. The env var wins; otherwise the LOCAL default store
+# (data/gnomad/gnomad_parquet/, built or fetched into the repo) is auto-detected so it
+# is always used without any configuration. Absent everywhere -> feature off.
+DEFAULT_GNOMAD_PARQUET = DATA_DIR / "gnomad" / "gnomad_parquet"
+
+
+def _resolve_gnomad_parquet():
+    env = os.environ.get("VCF2REPORT_GNOMAD_PARQUET")
+    if env:
+        return env
+    return str(DEFAULT_GNOMAD_PARQUET) if DEFAULT_GNOMAD_PARQUET.exists() else None
+
+
+GNOMAD_PARQUET = _resolve_gnomad_parquet()
 ABRAOM_LOCAL = DATA_DIR / "abraom" / "abraom_sabe.tsv"
 HPO_GENES_LOCAL = DATA_DIR / "hpo" / "genes_to_phenotype.tsv.gz"
 HPO_GRAPH_LOCAL = DATA_DIR / "hpo" / "hpo_graph.tsv.gz"  # ontology + IC (build_hpo_graph.py)

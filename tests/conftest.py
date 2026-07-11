@@ -15,6 +15,9 @@ def hermetic_env(tmp_path, monkeypatch):
     # Default to the pure Python reader for deterministic, header-tolerant parsing;
     # the cyvcf2 path has its own dedicated tests (test_cyvcf2.py).
     monkeypatch.setenv("VCF2REPORT_NO_CYVCF2", "1")
+    # Keep tests off any real gnomAD Parquet the dev/user may have built locally
+    # (config now auto-detects data/gnomad/gnomad_parquet/); parquet tests opt back in.
+    monkeypatch.setattr(config, "GNOMAD_PARQUET", None)
     monkeypatch.setattr(config, "CACHE_DIR", tmp_path / "cache")
     # Never touch a developer's local ~1 GB AlphaMissense file: keep tests hermetic
     # and fast (the client degrades to "no score", as on a fresh checkout). Tests

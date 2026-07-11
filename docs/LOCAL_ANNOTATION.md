@@ -35,18 +35,27 @@ the one a genomic-lakehouse uses — is a **columnar Parquet** of gnomAD frequen
 joined with **DuckDB**. Building it is a *sequential scan* of gnomAD (bandwidth-bound,
 one-time), and then every query is a single vectorised join.
 
-### Build it from scratch (download → Parquet)
+### Get the local store — two ways, same result
+
+The store lives **locally in the repo** at `data/gnomad/gnomad_parquet/` (git-ignored,
+~1 GB) and is **auto-detected** there — no env var, no external drive. Get it either way:
 
 ```bash
-# one chromosome, end-to-end, to prove it (streams from the internet, ~minutes)
+# A) DOWNLOAD the published, checksummed store (fast — no 150 GB build). Verifies SHA256.
+scripts/fetch_gnomad_parquet.sh
+
+# B) BUILD it from scratch, straight from the public gnomAD bucket:
+#    one chromosome, end-to-end, to PROVE reproducibility in ~minutes:
 VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_gnomad_parquet.py --chroms 21
-
-# the whole thing (v4.1 joint = exomes+genomes), one-time, ~1–2 h, ~1 GB out
+#    the whole thing (v4.1 joint = exomes+genomes), one-time, ~1–2 h, ~1 GB out:
 VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_gnomad_parquet.py --chroms 1-22,X,Y
-
-# from local per-chrom gnomAD VCFs instead of the network:
+#    or from local per-chrom gnomAD VCFs instead of the network:
 python3 scripts/build_gnomad_parquet.py --src /Volumes/DISK/gnomad_joint
 ```
+
+Either lands `data/gnomad/gnomad_parquet/`, which vcf2report picks up automatically.
+`scripts/publish_gnomad_parquet.sh` packages a built store into a GitHub Release (what
+`fetch` downloads). Data provenance + ODbL-1.0 license: [`data/gnomad/NOTICE.md`](../data/gnomad/NOTICE.md).
 
 For each chromosome it **streams** the gnomAD sites VCF with `bcftools` (never storing
 the ~150–200 GB raw — a sequential scan, not per-variant seeks), extracts

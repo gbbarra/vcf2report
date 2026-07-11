@@ -95,6 +95,25 @@ def test_off_when_unconfigured(tmp_path, monkeypatch):
     gnomad_parquet._reset_for_tests()
 
 
+def test_auto_detects_local_store(tmp_path, monkeypatch):
+    # With no env var, the LOCAL default store is picked up automatically once it exists
+    # (so a built/fetched data/gnomad/gnomad_parquet/ is "always used" without config).
+    monkeypatch.delenv("VCF2REPORT_GNOMAD_PARQUET", raising=False)
+    d = tmp_path / "gnomad_parquet"
+    monkeypatch.setattr(config, "DEFAULT_GNOMAD_PARQUET", d)
+    assert config._resolve_gnomad_parquet() is None      # not built yet -> feature off
+    d.mkdir()
+    assert config._resolve_gnomad_parquet() == str(d)    # present -> auto-detected
+
+
+def test_env_var_overrides_local_store(tmp_path, monkeypatch):
+    d = tmp_path / "gnomad_parquet"
+    d.mkdir()
+    monkeypatch.setattr(config, "DEFAULT_GNOMAD_PARQUET", d)
+    monkeypatch.setenv("VCF2REPORT_GNOMAD_PARQUET", "/somewhere/else.parquet")
+    assert config._resolve_gnomad_parquet() == "/somewhere/else.parquet"
+
+
 def test_lookup_prefers_primed_parquet(parquet, monkeypatch):
     from vcf2report.annotate import cache
     parquet()
