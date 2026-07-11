@@ -139,6 +139,14 @@ def lookup(variant: Variant) -> dict:
     if cached is not None:
         return {**cached, "_source": f"gnomAD {config.GNOMAD_DATASET} (cache)"}
 
+    # DuckDB/Parquet store, batch-primed for the whole post-QC set — the fastest
+    # offline path (one join answered them all). None => not primed / uncovered contig
+    # => fall through (never a fabricated absence).
+    from . import gnomad_parquet
+    pq = gnomad_parquet.get(variant.key)
+    if pq is not None:
+        return {**pq, "_source": "gnomAD v4.1 joint (parquet)"}
+
     # Reduced local tabix (built by scripts/build_gnomad_local.py) is preferred when
     # present: offline, instant, and the same grpmax/faf95 reduction as remote. None
     # means "no local answer" (no table, or a partial table that can't assert absence)

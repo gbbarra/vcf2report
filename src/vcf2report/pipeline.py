@@ -78,6 +78,12 @@ def run_pipeline(
     qc.after_qc = len(kept)
     _mark("qc_s")
 
+    # gnomAD frequency is needed for the rarity filter across the WHOLE post-QC set, so
+    # if a DuckDB/Parquet store is configured, resolve them all in one vectorised join
+    # up front — annotate_variant's per-variant gnomad.lookup then reads that cache
+    # instead of ~11k tabix/remote round-trips. No-op when the parquet isn't configured.
+    from .annotate import gnomad_parquet
+    gnomad_parquet.prime(kept)
     # AlphaMissense is deferred: it only feeds PP3/BP4 at classification, never the
     # filter, so we skip the (per-variant, ~1 GB tabix) lookup across the whole
     # post-QC set and query just the surviving candidates below.

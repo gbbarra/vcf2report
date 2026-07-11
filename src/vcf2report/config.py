@@ -29,6 +29,11 @@ GNOMAD_LOCAL = DATA_DIR / "gnomad" / "gnomad_cache.json"
 #   #chrom  pos  ref  alt  af  ac  an  hom  faf95  pop
 GNOMAD_LOCAL_TABIX = Path(os.environ.get(
     "VCF2REPORT_GNOMAD_TABIX", str(DATA_DIR / "gnomad" / "gnomad_freq.local.tsv.gz")))
+# gnomAD frequencies as a DuckDB/Parquet store (built by scripts/build_gnomad_parquet.py,
+# or an existing lakehouse gnomad_freq.parquet). A single .parquet file or a Hive-
+# partitioned dir (chrom=chrN/). Whole-exome frequencies come from one vectorised join
+# in ~seconds, offline. Absent -> feature off. Overridable env.
+GNOMAD_PARQUET = os.environ.get("VCF2REPORT_GNOMAD_PARQUET") or None
 ABRAOM_LOCAL = DATA_DIR / "abraom" / "abraom_sabe.tsv"
 HPO_GENES_LOCAL = DATA_DIR / "hpo" / "genes_to_phenotype.tsv.gz"
 HPO_GRAPH_LOCAL = DATA_DIR / "hpo" / "hpo_graph.tsv.gz"  # ontology + IC (build_hpo_graph.py)
