@@ -39,4 +39,8 @@ def lookup(variant: Variant) -> dict:
     if row is not None:
         return {"af": float(row.get("af", 0.0)), "ac": int(row.get("ac", 0) or 0),
                 "an": int(row.get("an", 0) or 0), "_source": "ABraOM SABE (local)"}
-    return {"af": 0.0, "ac": 0, "an": 0, "_source": "ABraOM SABE (not observed)"}
+    # No row -> UNKNOWN, not a checked absence: the bundled table is a small slice, so a
+    # miss usually means "not in this table", not "confirmed absent in Brazilians". af
+    # None keeps this out of PM2's reasoning as a fabricated 0.0 (it stays conservative:
+    # never asserts Brazilian absence it didn't verify).
+    return {"af": None, "ac": None, "an": None, "_source": "ABraOM SABE (not in local table)"}

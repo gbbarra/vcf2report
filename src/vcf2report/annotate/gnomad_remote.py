@@ -131,7 +131,7 @@ def query(variant: Variant) -> Optional[dict]:
         return None
     chrom = _chrom(variant)
     pos = variant.pos
-    ran = False
+    opened = 0
     best: Optional[dict] = None
     for kind in ("exomes", "genomes"):
         vf = _open(kind, chrom)
@@ -154,9 +154,10 @@ def query(variant: Variant) -> Optional[dict]:
                     best = cand
         except Exception:
             continue
-        ran = True
-    if not ran:
-        return None            # nothing queryable → let caller fall back
+        opened += 1
     if best is not None:
-        return best
-    return {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}  # covered but absent
+        return best            # a match from either callset is authoritative
+    if opened == 2:
+        # both callsets opened and neither carries the allele -> genuine absence.
+        return {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
+    return None                # <2 callsets queryable -> can't assert absence, fall back

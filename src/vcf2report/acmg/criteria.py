@@ -209,12 +209,14 @@ def pm2(v: Variant, a: Annotation) -> CriterionResult:
     rare_global = gaf <= ceiling
     rare_local = baf <= ceiling
     met = rare_global and rare_local
+    # Don't quote an ABraOM AF we never checked: None means "not in the local table",
+    # not a verified 0.0 (it still doesn't block PM2 — baf defaults to 0.0 above).
+    abraom_txt = f"ABraOM AF={a.abraom_af:.6f}" if a.abraom_af is not None else "ABraOM not checked"
     reason = (
-        f"gnomAD popmax AF={gaf:.6f}, ABraOM AF={baf:.6f} — both at/under {ceiling:g} "
-        f"({moi_note})"
+        f"gnomAD popmax AF={gaf:.6f}, {abraom_txt} — gnomAD at/under {ceiling:g} ({moi_note})"
         if met else
         f"present above the {ceiling:g} PM2 ceiling ({moi_note}): "
-        f"gnomAD AF={gaf:.6f}, ABraOM AF={baf:.6f}"
+        f"gnomAD AF={gaf:.6f}, {abraom_txt}"
     )
     return CriterionResult(
         "PM2", name, "moderate", applies=True, met=met,
@@ -382,22 +384,28 @@ def _benign_af(a: Annotation) -> tuple[float, str]:
     """
     if a.gnomad_faf95 is not None:
         return a.gnomad_faf95, "gnomAD filtering AF (faf95, grpmax)"
-    return (max(a.gnomad_af or 0.0, a.abraom_af or 0.0),
-            "gnomAD/ABraOM popmax AF (no faf95 available)")
+    # None (not 0.0) when NOTHING was looked up -> BA1/BS1 report 'unavailable' rather
+    # than a fabricated 0.0 that reads as a checked value (matches PM2's honesty).
+    vals = [x for x in (a.gnomad_af, a.abraom_af) if x is not None]
+    if not vals:
+        return None, "no gnomAD/ABraOM frequency available"
+    return max(vals), "gnomAD/ABraOM popmax AF (no faf95 available)"
 
 
 @criterion("BA1")
 def ba1(v: Variant, a: Annotation) -> CriterionResult:
     name = "Allele frequency > 5% in a population database (stand-alone benign)"
     af, basis = _benign_af(a)
-    met = af >= AF_BA1
+    met = af is not None and af >= AF_BA1
+    reasoning = (f"{basis} — cannot assess" if af is None
+                 else f"{basis} = {af:.4f} exceeds {AF_BA1:g}" if met
+                 else f"{basis} = {af:.4f} below {AF_BA1:g}")
     return CriterionResult(
         "BA1", name, "stand_alone", applies=True, met=met,
         applied_strength="stand_alone" if met else None,
         evidence={"af": af, "cutoff": AF_BA1, "basis": basis},
         citation=[c for c in (a.source.get("gnomad"), a.source.get("abraom")) if c],
-        reasoning=(f"{basis} = {af:.4f} exceeds {AF_BA1:g}"
-                   if met else f"{basis} = {af:.4f} below {AF_BA1:g}"),
+        reasoning=reasoning,
     )
 
 
@@ -408,15 +416,16 @@ def bs1(v: Variant, a: Annotation) -> CriterionResult:
     cutoff, moi = config.bs1_af_cutoff(v.gene)
     moi_note = f"{v.gene} is {moi}" if moi else "inheritance unknown → default cutoff"
     # BS1 is the "too common for the disorder" band below BA1's stand-alone 5%.
-    met = cutoff <= af < AF_BA1
+    met = af is not None and cutoff <= af < AF_BA1
+    reasoning = (f"{basis} — cannot assess ({moi_note})" if af is None
+                 else f"{basis} = {af:.4f} ≥ {cutoff:g} ({moi_note}), below BA1's {AF_BA1:g}" if met
+                 else f"{basis} = {af:.4f} under the {cutoff:g} BS1 cutoff ({moi_note})")
     return CriterionResult(
         "BS1", name, "strong", applies=True, met=met,
         applied_strength="strong" if met else None,
         evidence={"af": af, "cutoff": cutoff, "moi": moi, "basis": basis},
         citation=[c for c in (a.source.get("gnomad"), a.source.get("abraom")) if c],
-        reasoning=(f"{basis} = {af:.4f} ≥ {cutoff:g} ({moi_note}), below BA1's {AF_BA1:g}"
-                   if met else
-                   f"{basis} = {af:.4f} under the {cutoff:g} BS1 cutoff ({moi_note})"),
+        reasoning=reasoning,
     )
 
 

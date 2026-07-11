@@ -39,15 +39,21 @@ class Variant:
 
     @property
     def key(self) -> str:
-        """Canonical CHROM-POS-REF-ALT key used across annotators and caches."""
+        """Canonical CHROM-POS-REF-ALT key used across annotators and caches.
+        REF/ALT are upper-cased: VCF alleles are case-insensitive, and lowercase
+        (soft-masked / lifted / hand-edited) input must still match the uppercase
+        ClinVar/ABraOM/gnomAD snapshots keyed off this string."""
         chrom = self.chrom[3:] if self.chrom.lower().startswith("chr") else self.chrom
-        return f"{chrom}-{self.pos}-{self.ref}-{self.alt}"
+        return f"{chrom}-{self.pos}-{self.ref.upper()}-{self.alt.upper()}"
 
     @property
     def is_lof(self) -> bool:
+        # PVS1's null set (Richards 2015 / ClinGen SVI). stop_lost is deliberately
+        # excluded — a stop-loss is a C-terminal extension, not a null; it earns PM4
+        # (protein length change), never PVS1 (which would double-count with PM4).
         lof = {
             "stop_gained", "frameshift_variant", "splice_donor_variant",
-            "splice_acceptor_variant", "start_lost", "stop_lost",
+            "splice_acceptor_variant", "start_lost",
         }
         return (self.consequence or "") in lof
 

@@ -135,27 +135,27 @@ def _unknown(reason: str) -> dict:
 
 def lookup(variant: Variant) -> dict:
     """Return {'af','ac','an','hom','pop','_source'} for a variant."""
-    cached = cache.get(_SOURCE, variant.key)
-    if cached is not None:
-        return {**cached, "_source": f"gnomAD {config.GNOMAD_DATASET} (cache)"}
+    # Authoritative LOCAL sources first, BEFORE the persisted disk cache: the cache is
+    # a flat unversioned JSON that could carry a stale/wrong entry (e.g. a dataset-skew
+    # or a superseded value), and it must never shadow a fresh parquet/tabix answer.
+    from . import gnomad_local, gnomad_parquet, gnomad_remote
 
-    # DuckDB/Parquet store, batch-primed for the whole post-QC set — the fastest
-    # offline path (one join answered them all). None => not primed / uncovered contig
-    # => fall through (never a fabricated absence).
-    from . import gnomad_parquet
+    # DuckDB/Parquet store, batch-primed for the whole post-QC set — the fastest offline
+    # path (one join answered them all). None => not primed / uncovered contig => fall
+    # through (never a fabricated absence).
     pq = gnomad_parquet.get(variant.key)
     if pq is not None:
         return {**pq, "_source": "gnomAD v4.1 joint (parquet)"}
 
-    # Reduced local tabix (built by scripts/build_gnomad_local.py) is preferred when
-    # present: offline, instant, and the same grpmax/faf95 reduction as remote. None
-    # means "no local answer" (no table, or a partial table that can't assert absence)
-    # -> fall through to remote/live/bundled unchanged.
-    from . import gnomad_local, gnomad_remote
+    # Reduced local tabix (scripts/build_gnomad_local.py): offline, instant, same
+    # grpmax/faf95 reduction as remote. None => no local answer -> fall through.
     loc = gnomad_local.query(variant)
     if loc is not None:
-        cache.put(_SOURCE, variant.key, loc)
         return {**loc, "_source": f"gnomAD v{gnomad_remote.RELEASE} (local tabix)"}
+
+    cached = cache.get(_SOURCE, variant.key)
+    if cached is not None:
+        return {**cached, "_source": f"gnomAD {config.GNOMAD_DATASET} (cache)"}
 
     live_failed = False
     if not config.offline():

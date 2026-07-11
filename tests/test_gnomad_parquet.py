@@ -73,10 +73,12 @@ def test_full_uncovered_contig_left_unprimed(parquet):
 
 def test_case_insensitive_alleles(parquet):
     # Lowercase input alleles must still match (VCF alleles are case-insensitive) —
-    # a byte-exact join would fabricate an absence.
+    # a byte-exact join would fabricate an absence. Variant.key upper-cases, so the
+    # lowercase input resolves to the uppercase gnomAD row.
     parquet(mode="full", contigs=("chr1",))
-    gnomad_parquet.prime([_v("1", 100, "a", "t")])
-    assert gnomad_parquet.get("1-100-a-t")["af"] == 0.50
+    v = _v("1", 100, "a", "t")
+    gnomad_parquet.prime([v])
+    assert gnomad_parquet.get(v.key)["af"] == 0.50
 
 
 def test_chrom_prefix_tolerated(parquet):
@@ -98,5 +100,17 @@ def test_lookup_prefers_primed_parquet(parquet, monkeypatch):
     parquet()
     monkeypatch.setattr(cache, "get", lambda *a, **k: None)
     gnomad_parquet.prime([_v("1", 100, "A", "T")])
+    r = gnomad.lookup(_v("1", 100, "A", "T"))
+    assert r["af"] == 0.50 and "parquet" in r["_source"]
+
+
+def test_parquet_wins_over_stale_cache(parquet, monkeypatch):
+    # M1: a stale/wrong disk-cache entry must NOT shadow the fresh parquet answer —
+    # the fresh authoritative source is checked before the persisted cache.
+    from vcf2report.annotate import cache
+    parquet()
+    gnomad_parquet.prime([_v("1", 100, "A", "T")])
+    monkeypatch.setattr(cache, "get",
+                        lambda *a, **k: {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "pop": None})
     r = gnomad.lookup(_v("1", 100, "A", "T"))
     assert r["af"] == 0.50 and "parquet" in r["_source"]
