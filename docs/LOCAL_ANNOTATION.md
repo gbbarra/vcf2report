@@ -1,3 +1,62 @@
+# Native offline gnomAD + GRCh37→38 liftover (built in)
+
+The pipeline's population-frequency step needs GRCh38 gnomAD. The **full** gnomAD v4.1
+exomes+genomes sites set is **~150–200 GB** — usually too big for a laptop. So instead
+of downloading all of it, vcf2report builds a **reduced tabix table** carrying only the
+fields the ACMG engine cites (grpmax AF, AC/AN, homozygotes, the ClinGen filtering AF
+`faf95`), one row per gnomAD variant. This is the piece that turns a real exome from
+"11k VUS" into a short candidate list — the rarity filter can finally drop the common
+variants and BA1/BS1/BS2 can fire. Only `pysam` is needed (already a dep).
+
+## End-to-end on a real exome
+
+```bash
+# 0. (only if your VCF is GRCh37/hg19) lift it to GRCh38 first
+VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/liftover_to_grch38.py exome.hg19.vcf exome.hg38.vcf
+
+# 1. build a per-VCF local gnomAD table (tiny — one lookup per site, reuses the
+#    same grpmax/faf95 reduction the live remote path uses, so local == remote)
+VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_gnomad_local.py --from-vcf exome.hg38.vcf
+#    -> data/gnomad/gnomad_freq.local.tsv.gz (+ .tbi + .meta)
+
+# 2. run fully offline — the report now narrows and calls Benign/VUS/Pathogenic
+python3 scripts/run_headless.py exome.hg38.vcf --hpo hpo.txt --out out/
+```
+
+`gnomad.lookup` prefers the local table automatically when it exists; with no table
+present, behaviour is unchanged (remote-if-network, else the bundled demo slice).
+Point the table elsewhere (e.g. an external disk) with `VCF2REPORT_GNOMAD_TABIX=/path`.
+
+## Build modes
+
+| Mode | Command | Size / cost | Reusable for |
+|---|---|---|---|
+| **per-VCF** (default) | `--from-vcf V.vcf` | tiny; one lookup per site | that VCF's sites |
+| **panel** | `--bed panel.bed` | small; the region's variants | any sample, those regions |
+| **full** | `--full [--src DIR]` | **~150–200 GB streamed** (or local per-chrom sites files); genome-wide table | everything |
+
+`--from-vcf` and `--bed` are the disk-friendly common cases. `--full` is for a machine
+with room (use `--src` to read pre-downloaded per-chromosome sites files, no network).
+
+## Safety model — never a false absence
+
+A wrong "absent from gnomAD" (af 0.0) would make **PM2 fire** and **BA1/BS1 not fire**,
+inflating pathogenicity. The table is built to make that impossible, and this was
+verified by a 23-agent adversarial review:
+
+- A **partial** table (per-VCF / panel) returns a value only on an **exact** variant
+  match; any miss returns *unknown* and the caller falls back — it never asserts an
+  absence. Genuinely-absent input sites still resolve via their explicit `af 0.0` row.
+- A **full** table asserts absence only for a contig it **actually finished streaming**
+  (recorded in the `.meta` sidecar's `contigs`). A chromosome whose stream failed, or a
+  contig it structurally never covers (chrM/MT, alt/decoy), returns *unknown* → fallback,
+  not a fabricated 0.0. An incomplete `--full` build warns loudly.
+- The liftover drops ambiguous multi-target lifts and flags that it does not
+  re-validate REF against the GRCh38 reference (normalize with `bcftools norm -f` if you
+  have the FASTA).
+
+---
+
 # Local annotation with SnpEff (run on your machine)
 
 Consequence/HGVS + population/clinical annotation is a **local** step (no per-variant

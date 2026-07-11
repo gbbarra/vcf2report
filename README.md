@@ -62,9 +62,16 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
   and adding more (explained) phenotypes no longer dilutes the score, the failure
   mode of plain term overlap on phenotype-rich cases. Falls back to exact overlap
   when the graph isn't built.
+- **Offline gnomAD, no 150 GB download.** Instead of the full gnomAD (~150–200 GB),
+  build a **reduced local tabix** of just the frequencies the engine cites
+  (`scripts/build_gnomad_local.py`, per-VCF / panel / full modes) so a real exome runs
+  fully offline with genuine population frequency — the rarity filter narrows and
+  BA1/BS1 fire. A safety model (partial tables never assert absence; full tables vouch
+  only for streamed contigs) makes a false-absence impossible. GRCh37 VCFs lift with
+  `scripts/liftover_to_grch38.py`. See [docs/LOCAL_ANNOTATION.md](docs/LOCAL_ANNOTATION.md).
 - **Private by default.** Runs fully offline on bundled data; the VCF never leaves
   the machine, and outbound lookups are opt-in (`VCF2REPORT_ALLOW_NETWORK=1`).
-- **Auditable & tested.** 173 automated tests; the classification logic is validated
+- **Auditable & tested.** 194 automated tests; the classification logic is validated
   against real ClinVar ground truth (below) and was hardened by multi-agent
   adversarial review.
 
