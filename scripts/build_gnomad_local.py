@@ -40,6 +40,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -197,6 +198,92 @@ def _callset_incomplete(chrom_pref: str) -> bool:
 
 def _looks_absent(r: dict) -> bool:
     return not (r.get("af") or 0) and not (r.get("an") or 0)
+
+
+# --- Parallel --from-vcf: thread-LOCAL gnomAD handles (a shared pysam handle is not
+#     safe for concurrent fetch). Replicates gnomad_remote.query's exomes-vs-genomes
+#     merge exactly, so local == remote, but scales an exome-size build from hours to
+#     minutes. ------------------------------------------------------------------------
+_tls = threading.local()
+
+
+def _tls_handle(kind: str, chrom_pref: str):
+    import pysam
+    if not hasattr(_tls, "h"):
+        _tls.h = {}
+    key = (kind, chrom_pref)
+    if key not in _tls.h:
+        try:
+            _tls.h[key] = pysam.VariantFile(gnomad_remote._BASE.format(kind=kind, chrom=chrom_pref))
+        except Exception:
+            _tls.h[key] = None
+    return _tls.h[key]
+
+
+def _query_tls(v: Variant) -> tuple[Optional[dict], bool]:
+    """Thread-safe replica of gnomad_remote.query via per-thread handles.
+    Returns (result, both_callsets_open). result is None if nothing was queryable."""
+    chrom = gnomad_remote._chrom(v)
+    ran = opened = 0
+    best: Optional[dict] = None
+    for kind in ("exomes", "genomes"):
+        h = _tls_handle(kind, chrom)
+        if h is None:
+            continue
+        opened += 1
+        try:
+            for rec in h.fetch(chrom, v.pos - 1, v.pos):
+                if rec.pos != v.pos or rec.ref != v.ref:
+                    continue
+                if v.alt not in (rec.alts or ()):
+                    continue
+                cand = gnomad_remote._best_from_record(rec)
+                if cand and (best is None or (cand["af"] or 0) > (best["af"] or 0)):
+                    best = cand
+        except Exception:
+            continue
+        ran += 1
+    if ran == 0:
+        return None, False
+    if best is not None:
+        return best, opened == 2
+    return {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}, opened == 2
+
+
+def _gen_from_vcf_parallel(vcf_path: Path, raw_fh, jobs: int, progress_every: int) -> tuple[int, int]:
+    from concurrent.futures import ThreadPoolExecutor
+    variants, build, _hdr = parse_vcf(vcf_path)
+    if build and build != config.GENOME_BUILD:
+        _warn(f"VCF build {build!r} != {config.GENOME_BUILD}; LIFT it first "
+              f"(scripts/liftover_to_grch38.py) or every site will look absent.")
+    seen: set[str] = set()
+    uniq = [v for v in variants if not (v.key in seen or seen.add(v.key))]
+    print(f"Querying gnomAD for {len(uniq)} unique sites with {jobs} workers...",
+          file=sys.stderr)
+
+    def work(v: Variant):
+        for attempt in range(3):
+            res, both = _query_tls(v)
+            if res is not None:
+                return v, res, both
+            time.sleep(0.4 * (attempt + 1))
+        return v, None, False
+
+    written = skipped = done = 0
+    with ThreadPoolExecutor(max_workers=jobs) as ex:
+        for v, res, both in ex.map(work, uniq):     # ordered; writer stays single-threaded
+            done += 1
+            if res is None:
+                skipped += 1
+            elif _looks_absent(res) and not both:   # single-callset absence is unreliable
+                skipped += 1
+            else:
+                raw_fh.write(_row(v.chrom, v.pos, v.ref, v.alt, res) + "\n")
+                written += 1
+            if done % progress_every == 0:
+                print(f"  ...{done}/{len(uniq)} ({written} rows, {skipped} skipped)",
+                      file=sys.stderr)
+    return written, skipped
 
 
 def _gen_from_vcf(vcf_path: Path, raw_fh, progress_every: int) -> tuple[int, int]:
@@ -368,6 +455,9 @@ def _build_parser() -> argparse.ArgumentParser:
                         "files (gnomad.<kind>.v%s.sites.chrN.vcf.bgz); no network." % RELEASE)
     p.add_argument("--out", metavar="PATH", default=str(config.GNOMAD_LOCAL_TABIX),
                    help="output .tsv.gz path (default: %(default)s).")
+    p.add_argument("--jobs", type=int, default=1, metavar="N",
+                   help="[--from-vcf] parallel gnomAD workers (thread-local handles). "
+                        "An exome-size build is hours at N=1; N=8-16 brings it to minutes.")
     p.add_argument("--progress-every", type=int, default=None,
                    help="progress interval (default: adaptive per mode).")
     return p
@@ -435,7 +525,11 @@ def main(argv: list[str] | None = None) -> int:
                 if not vcf.exists():
                     print(f"ERROR: VCF not found: {vcf}", file=sys.stderr)
                     return 2
-                written, skipped = _gen_from_vcf(vcf, raw_fh, progress_every)
+                jobs = max(1, min(args.jobs, 32))
+                if jobs > 1:
+                    written, skipped = _gen_from_vcf_parallel(vcf, raw_fh, jobs, progress_every)
+                else:
+                    written, skipped = _gen_from_vcf(vcf, raw_fh, progress_every)
             elif mode == "bed":
                 bed = Path(args.bed)
                 if not bed.exists():
