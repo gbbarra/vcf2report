@@ -6,7 +6,7 @@ from vcf2report.report.assemble import ReportModel, summarize
 def _cls(gene, tier, hpo=0.0):
     return Classification(
         variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene=gene),
-        annotation=Annotation(hpo_match_score=hpo),
+        annotation=Annotation(hpo_match_score=hpo, hpo_best_match=hpo),
         criteria=[], tier=tier, rule_path="")
 
 

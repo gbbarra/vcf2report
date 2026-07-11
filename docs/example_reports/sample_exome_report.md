@@ -5,7 +5,7 @@
 
 - **Genome build:** GRCh38
 - **Pipeline:** vcf2report v0.1.0
-- **Generated:** 2026-07-11T10:47:01+00:00
+- **Generated:** 2026-07-11T11:20:49+00:00
 - **Patient HPO terms:** HP:0001250, HP:0002133, HP:0011097
 
 ## Conclusion (draft interpretation)
@@ -216,7 +216,7 @@ _Incidental P/LP not on the ACMG SF list, plus phenotype-unrelated uncertain/ben
 - **standards:** ['ACMG/AMP variant classification (Richards et al., Genet Med 2015)', 'ClinGen SVI criteria refinements', 'ACMG secondary-findings list (SF v3.2, Miller et al. 2023)', 'HGVS nomenclature', 'GA4GH Phenopackets (phenotype exchange)']
 
 ## Performance (this run)
-- **parse:** 0.0006 s- **qc:** 0.0 s- **annotate:** 0.5078 s- **filter:** 0.0 s- **alphamissense:** 0.0048 s- **classify:** 0.0004 s- **total:** 0.5136 s- **variants per:** 21.4
+- **parse:** 0.0006 s- **qc:** 0.0 s- **annotate:** 0.4687 s- **filter:** 0.0 s- **alphamissense:** 0.0045 s- **classify:** 0.0005 s- **total:** 0.4743 s- **variants per:** 23.2
 ## Limitations & disclaimers
 
 - Single-proband analysis: criteria requiring parental/segregation/phasing data (PS2, PM3, PM6, PP1, BS4) are reported as N/A.

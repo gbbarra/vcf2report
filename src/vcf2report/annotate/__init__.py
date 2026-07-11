@@ -93,6 +93,7 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         am_pathogenicity=am.get("am_pathogenicity"),
         am_class=am.get("am_class"),
         hpo_match_score=ph.get("score"),
+        hpo_best_match=ph.get("best"),
         hpo_matched_terms=ph.get("matched_terms", []),
         source={
             "gnomad": g.get("_source", ""),

@@ -65,7 +65,8 @@ def test_split_keeps_phenotype_matched_benign_out_of_primary():
     def mkc(gene, tier, hpo):
         return Classification(
             variant=Variant(chrom="1", pos=1, ref="A", alt="G", gene=gene),
-            annotation=Annotation(hpo_match_score=hpo), criteria=[], tier=tier, rule_path="")
+            annotation=Annotation(hpo_match_score=hpo, hpo_best_match=hpo),
+            criteria=[], tier=tier, rule_path="")
     primary, secondary, other = split_findings([
         mkc("A", "Benign", 0.8),                 # phenotype-matched but benign -> other
         mkc("MSH2", "Likely Pathogenic", 0.0),   # unrelated P/LP, ACMG SF gene -> secondary

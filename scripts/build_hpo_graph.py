@@ -66,16 +66,20 @@ def parse_obo(text: str) -> tuple[dict[str, list[str]], dict[str, str]]:
 
 
 def ancestors(term: str, parents: dict[str, list[str]], cache: dict[str, set]) -> set[str]:
+    """Transitive is_a closure incl. self. Iterative + visited-set so a corrupted
+    graph with a cycle degrades instead of blowing the stack; DAG multi-parents ok."""
     if term in cache:
         return cache[term]
-    anc = {term}
-    for p in parents.get(term, ()):  # tolerate dangling parents
-        if p in parents:
-            anc |= ancestors(p, parents, cache)
-        else:
-            anc.add(p)
-    cache[term] = anc
-    return anc
+    seen: set = set()
+    stack = [term]
+    while stack:
+        t = stack.pop()
+        if t in seen:
+            continue
+        seen.add(t)
+        stack.extend(p for p in parents.get(t, ()) if p not in seen)
+    cache[term] = seen
+    return seen
 
 
 def compute_ic(parents: dict[str, list[str]], gene_terms: list[str]) -> dict[str, float]:
@@ -94,8 +98,12 @@ def compute_ic(parents: dict[str, list[str]], gene_terms: list[str]) -> dict[str
             ann[t].add(gene)
     ic: dict[str, float] = {}
     for t in parents:
+        # An unannotated term is maximally *specific* (no gene reaches it), so it
+        # gets the max IC of a singleton, not 0 — 0 would make a specific term look
+        # as uninformative as the root and inflate Lin (2·IC(MICA)/(IC(a)+IC(b))) for
+        # unannotated query terms. max(n,1) keeps IC monotonic non-decreasing downward.
         n = len(ann.get(t, ()))
-        ic[t] = round(-math.log(n / total), 4) if n > 0 else 0.0
+        ic[t] = round(-math.log(max(n, 1) / total), 4)
     return ic
 
 

@@ -89,13 +89,20 @@ def _load_graph() -> tuple[dict, dict, dict]:
 
 
 def _ancestors(term: str, parents: dict, cache: dict) -> set:
+    """Transitive is_a closure incl. self. Iterative + visited-set: a DAG's multiple
+    parents are fine and a corrupted cyclic graph degrades instead of overflowing."""
     if term in cache:
         return cache[term]
-    anc = {term}
-    for p in parents.get(term, ()):
-        anc |= _ancestors(p, parents, cache) if p in parents else {p}
-    cache[term] = anc
-    return anc
+    seen: set = set()
+    stack = [term]
+    while stack:
+        t = stack.pop()
+        if t in seen:
+            continue
+        seen.add(t)
+        stack.extend(p for p in parents.get(t, ()) if p not in seen)
+    cache[term] = seen
+    return seen
 
 
 def _lin(a: str, b: str, parents: dict, ic: dict, cache: dict) -> float:
@@ -126,10 +133,14 @@ def _semantic_match(gene_terms: set, patient_hpo: list[str]) -> Optional[dict]:
             if s > best_s:
                 best_s, best_g = s, g
         per_term.append((p, best_g, best_s))
+    # score = best-match-average (overall phenotype coverage, drives PP4); best =
+    # the single strongest patient<->gene match (drives primary-vs-secondary routing,
+    # so a gene that strongly explains ONE key phenotype isn't diluted out of primary).
     score = round(sum(t[2] for t in per_term) / len(patient_hpo), 3) if patient_hpo else 0.0
+    best = round(max((t[2] for t in per_term), default=0.0), 3)
     matched = [f"{p}→{g} ({names.get(g, '?')}, {s:.2f})"
                for (p, g, s) in per_term if g and s >= 0.3]
-    return {"score": score, "matched_terms": matched,
+    return {"score": score, "best": best, "matched_terms": matched,
             "_source": "HPO ontology-aware (Lin/IC, local)"}
 
 
@@ -141,17 +152,19 @@ def match(gene: Optional[str], patient_hpo: list[str]) -> dict:
     fraction of the patient's terms the gene is directly annotated with.
     """
     if not gene or not patient_hpo:
-        return {"score": 0.0, "matched_terms": [], "_source": "HPO (no gene/terms)"}
+        return {"score": 0.0, "best": 0.0, "matched_terms": [], "_source": "HPO (no gene/terms)"}
     gene_terms = _load().get(gene, set())
     if not gene_terms:
-        return {"score": 0.0, "matched_terms": [], "_source": "HPO genes_to_phenotype (local)"}
+        return {"score": 0.0, "best": 0.0, "matched_terms": [],
+                "_source": "HPO genes_to_phenotype (local)"}
     sem = _semantic_match(gene_terms, patient_hpo)
     if sem is not None:
         return sem
-    # Fallback: exact overlap (dependency-free, unchanged).
+    # Fallback: exact overlap (dependency-free). 'best' is 1.0 on any exact hit so a
+    # single overlapping term still routes to primary (the pre-graph ">0" behaviour).
     patient = set(patient_hpo)
     matched = sorted(patient & gene_terms)
     score = round(len(matched) / len(patient), 3) if patient else 0.0
     labelled = [f"{t} ({_term_names.get(t, '?')})" for t in matched]
-    return {"score": score, "matched_terms": labelled,
+    return {"score": score, "best": 1.0 if matched else 0.0, "matched_terms": labelled,
             "_source": "HPO genes_to_phenotype (local)"}

@@ -26,11 +26,13 @@ GNOMAD_LOCAL = DATA_DIR / "gnomad" / "gnomad_cache.json"
 ABRAOM_LOCAL = DATA_DIR / "abraom" / "abraom_sabe.tsv"
 HPO_GENES_LOCAL = DATA_DIR / "hpo" / "genes_to_phenotype.tsv.gz"
 HPO_GRAPH_LOCAL = DATA_DIR / "hpo" / "hpo_graph.tsv.gz"  # ontology + IC (build_hpo_graph.py)
-# Report routing: a gene is "phenotype-related" (-> primary findings) at/above this
-# similarity. Deliberately below the PP4 evidence bar (0.6): related-enough-to-surface
-# is a weaker notion than a supporting PP4 line. Above the incidental ontology noise
-# floor (~0.25) the Lin/IC scorer assigns unrelated genes.
-HPO_RELATED_MIN = 0.4
+# Report routing: a gene is "phenotype-related" (-> primary findings) when its
+# SINGLE strongest patient<->gene term similarity (hpo_best_match) is at/above this.
+# Routing on the best match, not the average, keeps a gene that strongly explains one
+# key phenotype in primary instead of diluting it out on a phenotype-rich case. Set
+# above the incidental ontology noise floor (unrelated genes peak ~0.4) and below a
+# real moderate match; distinct from the PP4 evidence bar (0.6), which uses the average.
+HPO_RELATED_MIN = 0.5
 CONSTRAINT_LOCAL = DATA_DIR / "constraint" / "gene_constraint.tsv.gz"
 INSILICO_LOCAL = DATA_DIR / "insilico" / "insilico.tsv"
 # AlphaMissense hg38 predictions (CC BY 4.0) — tabix-indexed, fetched once via
