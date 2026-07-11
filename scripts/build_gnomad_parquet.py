@@ -8,16 +8,17 @@ cites, and writes a Hive-partitioned Parquet (``chrom=chrN/data.parquet``). Duck
 then answers a whole exome's frequencies in one vectorised join in ~seconds, offline.
 
 Schema (per row): chrom, pos, ref, alt, filter, af, af_grpmax, ac, an, nhomalt,
-faf95, grpmax_pop. ``faf95`` is gnomAD's grpmax filtering AF (ClinGen BS1/BA1) — the
-joint release carries it (``fafmax_faf95_max_joint``), an improvement over an
-af_grpmax-only table.
+faf95, grpmax_pop, and per-ancestry AFs af_afr/af_amr/af_asj/af_eas/af_fin/af_mid/
+af_nfe/af_sas/af_ami/af_remaining. ``faf95`` is gnomAD's grpmax filtering AF (ClinGen
+BS1/BA1) — the joint release carries it (``fafmax_faf95_max_joint``), an improvement
+over an af_grpmax-only table; the per-population AFs reach parity with a lakehouse store.
 
     VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_gnomad_parquet.py --chroms 21
     VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_gnomad_parquet.py           # all
     python3 scripts/build_gnomad_parquet.py --src /Volumes/DISK/gnomad_joint     # local VCFs
 
-Needs ``bcftools`` (stream/extract) and ``duckdb`` (write Parquet). ~786 MB output for
-the full v4.1 joint (29.6M variants); the raw VCFs are never kept.
+Needs ``bcftools`` (stream/extract) and ``duckdb`` (write Parquet). ~1 GB output for
+the full v4.1 joint (29.6M variants, incl. per-population AFs); the raw VCFs are never kept.
 """
 from __future__ import annotations
 
@@ -34,22 +35,38 @@ from vcf2report import config  # noqa: E402
 # preset -> (per-chrom URL template, ordered [(out_col, INFO field)]).
 # Fixed leading columns are always CHROM,POS,REF,ALT,FILTER.
 _GCS = "https://storage.googleapis.com/gcp-public-data--gnomad/release/4.1/vcf"
+# gnomAD v4 genetic-ancestry groups -> per-population AF columns (af_afr, af_amr, ...),
+# for ancestry-aware interpretation (a variant common in one group but not the grpmax).
+# 'raw' is the unfiltered AF, not an ancestry group, so it is excluded. The exomes-only
+# release has no 'ami' (Amish) group; the joint release carries it (via genomes).
+_POPS = ["afr", "ami", "amr", "asj", "eas", "fin", "mid", "nfe", "remaining", "sas"]
+_POPS_EXOMES = [p for p in _POPS if p != "ami"]
+
+
+def _pops(info_prefix: str, pops):
+    """[(af_afr, <prefix>_afr), ...] — joint fields are AF_joint_<pop>, exomes AF_<pop>."""
+    return [(f"af_{p}", f"{info_prefix}_{p}") for p in pops]
+
+
 _PRESETS = {
     "joint": (
         f"{_GCS}/joint/gnomad.joint.v4.1.sites.{{chrom}}.vcf.bgz",
         [("af", "AF_joint"), ("af_grpmax", "AF_grpmax_joint"), ("ac", "AC_joint"),
          ("an", "AN_joint"), ("nhomalt", "nhomalt_joint"),
-         ("faf95", "fafmax_faf95_max_joint"), ("grpmax_pop", "grpmax_joint")],
+         ("faf95", "fafmax_faf95_max_joint"), ("grpmax_pop", "grpmax_joint")]
+        + _pops("AF_joint", _POPS),
     ),
     "exomes": (
         f"{_GCS}/exomes/gnomad.exomes.v4.1.sites.{{chrom}}.vcf.bgz",
         [("af", "AF"), ("af_grpmax", "AF_grpmax"), ("ac", "AC"), ("an", "AN"),
-         ("nhomalt", "nhomalt"), ("faf95", "fafmax_faf95_max"), ("grpmax_pop", "grpmax")],
+         ("nhomalt", "nhomalt"), ("faf95", "fafmax_faf95_max"), ("grpmax_pop", "grpmax")]
+        + _pops("AF", _POPS_EXOMES),
     ),
 }
 _LEAD = ["chrom", "pos", "ref", "alt", "filter"]
 _NUMERIC = {"pos": "INTEGER", "af": "DOUBLE", "af_grpmax": "DOUBLE", "ac": "BIGINT",
-            "an": "BIGINT", "nhomalt": "BIGINT", "faf95": "DOUBLE"}
+            "an": "BIGINT", "nhomalt": "BIGINT", "faf95": "DOUBLE",
+            **{f"af_{p}": "DOUBLE" for p in _POPS}}
 
 
 def _which(tool: str) -> bool:

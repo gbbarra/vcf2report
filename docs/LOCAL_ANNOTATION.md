@@ -41,7 +41,7 @@ one-time), and then every query is a single vectorised join.
 # one chromosome, end-to-end, to prove it (streams from the internet, ~minutes)
 VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_gnomad_parquet.py --chroms 21
 
-# the whole thing (v4.1 joint = exomes+genomes), one-time, ~1–2 h, ~786 MB out
+# the whole thing (v4.1 joint = exomes+genomes), one-time, ~1–2 h, ~1 GB out
 VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_gnomad_parquet.py --chroms 1-22,X,Y
 
 # from local per-chrom gnomAD VCFs instead of the network:
@@ -49,12 +49,15 @@ python3 scripts/build_gnomad_parquet.py --src /Volumes/DISK/gnomad_joint
 ```
 
 For each chromosome it **streams** the gnomAD sites VCF with `bcftools` (never storing
-the ~150–200 GB raw — a sequential scan, not per-variant seeks), extracts only
-`af, af_grpmax, ac, an, nhomalt, faf95, grpmax_pop`, and writes
-`<out>/chrom=chrN/data.parquet` (Hive-partitioned). Peak disk ≈ the ~786 MB output plus
-one chromosome's temp extract; the raw VCFs are discarded. `faf95` is gnomAD's grpmax
-filtering AF (`fafmax_faf95_max_joint`, the ClinGen value for BA1/BS1). Needs
-`bcftools` + `duckdb` (`pip install duckdb`).
+the ~150–200 GB raw — a sequential scan, not per-variant seeks), extracts
+`af, af_grpmax, ac, an, nhomalt, faf95, grpmax_pop` plus per-ancestry AFs
+`af_afr/af_amr/af_asj/af_eas/af_fin/af_mid/af_nfe/af_sas/af_remaining` (+`af_ami` in the
+joint release), and writes `<out>/chrom=chrN/data.parquet` (Hive-partitioned). Peak disk
+≈ the output (~786 MB core columns, ~1 GB with the per-population AFs) plus one
+chromosome's temp extract; the raw VCFs are discarded.
+`faf95` is gnomAD's grpmax filtering AF (`fafmax_faf95_max_joint`, the ClinGen value for
+BA1/BS1); the per-population AFs give full column parity with a lakehouse store, for
+ancestry-aware interpretation. Needs `bcftools` + `duckdb` (`pip install duckdb`).
 
 ### Why it's fast
 
