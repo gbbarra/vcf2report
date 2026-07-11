@@ -56,9 +56,15 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
   NMD-triggering, **downgraded to Strong** for last-exon (NMD-escaping) nonsense/
   frameshift and **Moderate** for start-loss (Abou Tayoun 2018). Un-annotated VCFs
   stay Very Strong, so nothing is silently over-called.
+- **Ontology-aware phenotype matching (HPO).** PP4 and the primary-vs-secondary
+  routing use a Lin/Information-Content similarity over the HPO `is_a` graph, so a
+  patient term matches a *related* gene term (parent/child) weighted by specificity —
+  and adding more (explained) phenotypes no longer dilutes the score, the failure
+  mode of plain term overlap on phenotype-rich cases. Falls back to exact overlap
+  when the graph isn't built.
 - **Private by default.** Runs fully offline on bundled data; the VCF never leaves
   the machine, and outbound lookups are opt-in (`VCF2REPORT_ALLOW_NETWORK=1`).
-- **Auditable & tested.** 167 automated tests; the classification logic is validated
+- **Auditable & tested.** 173 automated tests; the classification logic is validated
   against real ClinVar ground truth (below) and was hardened by multi-agent
   adversarial review.
 

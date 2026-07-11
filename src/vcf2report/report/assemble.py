@@ -80,10 +80,10 @@ def split_findings(classifications):
       incidental finding that is not on the actionable SF list), phenotype-matched
       benign, and unrelated VUS/benign.
     """
-    from ..config import ACMG_SF_GENES
+    from ..config import ACMG_SF_GENES, HPO_RELATED_MIN
     primary, secondary, other = [], [], []
     for c in classifications:
-        related = (c.annotation.hpo_match_score or 0) > 0
+        related = (c.annotation.hpo_match_score or 0) >= HPO_RELATED_MIN
         is_sf = c.variant.gene in ACMG_SF_GENES
         if related and c.tier not in _BENIGN:
             primary.append(c)

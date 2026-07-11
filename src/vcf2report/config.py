@@ -25,6 +25,12 @@ CLINVAR_LOCAL = DATA_DIR / "clinvar" / "clinvar_grch38_slice.tsv"
 GNOMAD_LOCAL = DATA_DIR / "gnomad" / "gnomad_cache.json"
 ABRAOM_LOCAL = DATA_DIR / "abraom" / "abraom_sabe.tsv"
 HPO_GENES_LOCAL = DATA_DIR / "hpo" / "genes_to_phenotype.tsv.gz"
+HPO_GRAPH_LOCAL = DATA_DIR / "hpo" / "hpo_graph.tsv.gz"  # ontology + IC (build_hpo_graph.py)
+# Report routing: a gene is "phenotype-related" (-> primary findings) at/above this
+# similarity. Deliberately below the PP4 evidence bar (0.6): related-enough-to-surface
+# is a weaker notion than a supporting PP4 line. Above the incidental ontology noise
+# floor (~0.25) the Lin/IC scorer assigns unrelated genes.
+HPO_RELATED_MIN = 0.4
 CONSTRAINT_LOCAL = DATA_DIR / "constraint" / "gene_constraint.tsv.gz"
 INSILICO_LOCAL = DATA_DIR / "insilico" / "insilico.tsv"
 # AlphaMissense hg38 predictions (CC BY 4.0) — tabix-indexed, fetched once via
