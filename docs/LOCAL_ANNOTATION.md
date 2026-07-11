@@ -38,6 +38,23 @@ Point the table elsewhere (e.g. an external disk) with `VCF2REPORT_GNOMAD_TABIX=
 `--from-vcf` and `--bed` are the disk-friendly common cases. `--full` is for a machine
 with room (use `--src` to read pre-downloaded per-chromosome sites files, no network).
 
+### Performance (measured)
+
+Per-VCF/panel builds hit the remote gnomAD over the network, and that is **latency-
+bound**, not CPU-bound: ~1.2 s per site (GCS round-trip), and the public bucket
+throttles concurrency, so `--jobs 24` yields only ~2–3× (~50–70 sites/min), not 24×.
+
+| Sites | Wall time (`--jobs 24`) | Notes |
+|---|---|---|
+| a panel / small VCF (hundreds) | minutes | the sweet spot for `--from-vcf` / `--bed` |
+| a **whole exome** (~28k sites) | **~7–10 h, one-time** | latency-bound; then offline + instant, table reusable |
+
+So for **routine exome** use, prefer building the reusable genome-wide table **once**
+with `--full` on a machine that has disk (or point `VCF2REPORT_GNOMAD_TABIX` at a
+mounted gnomAD), rather than extracting per-VCF from the remote every time. Liftover
+and the analysis itself are seconds; the one-time frequency extraction is the only slow
+part, and it is a setup cost you pay once.
+
 ## Safety model — never a false absence
 
 A wrong "absent from gnomAD" (af 0.0) would make **PM2 fire** and **BA1/BS1 not fire**,
