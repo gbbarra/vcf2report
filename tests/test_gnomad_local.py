@@ -17,20 +17,23 @@ _ROWS = [
 ]
 
 
-def _make_table(tmp_path, mode):
+def _make_table(tmp_path, mode, contigs=("1",)):
     tsv = tmp_path / "g.tsv"
     tsv.write_text("\n".join(_ROWS) + "\n")
     out = tmp_path / "g.tsv.gz"
     pysam.tabix_compress(str(tsv), str(out), force=True)
     pysam.tabix_index(str(out), seq_col=0, start_col=1, end_col=1, meta_char="#", force=True)
-    (tmp_path / "g.tsv.gz.meta").write_text(json.dumps({"mode": mode}))
+    meta = {"mode": mode}
+    if mode == "full":
+        meta["contigs"] = list(contigs)
+    (tmp_path / "g.tsv.gz.meta").write_text(json.dumps(meta))
     return out
 
 
 @pytest.fixture
 def local_table(tmp_path, monkeypatch):
-    def _setup(mode="partial"):
-        out = _make_table(tmp_path, mode)
+    def _setup(mode="partial", contigs=("1",)):
+        out = _make_table(tmp_path, mode, contigs)
         monkeypatch.setattr(config, "GNOMAD_LOCAL_TABIX", out)
         gnomad_local._reset_for_tests()
         return out
@@ -79,6 +82,23 @@ def test_full_miss_asserts_absence(local_table):
 def test_chrom_prefix_tolerated(local_table):
     local_table("partial")
     assert gnomad_local.query(_v(100, "A", "T", chrom="chr1"))["af"] == 0.30
+
+
+def test_case_insensitive_alleles(local_table):
+    # Lowercase input alleles (soft-masked callers) must still match — a byte-exact
+    # compare would fabricate an absence in full mode.
+    local_table("full")
+    assert gnomad_local.query(_v(100, "a", "t"))["af"] == 0.30
+
+
+def test_full_uncovered_contig_returns_none(local_table):
+    # A full table only vouches for absence on contigs it covered. chr2 / chrM are not
+    # in the sidecar's `contigs`, so a miss there is None (fallback), not a fake 0.0.
+    local_table("full", contigs=("1",))
+    assert gnomad_local.query(_v(500, "A", "T", chrom="2")) is None
+    assert gnomad_local.query(_v(1, "A", "G", chrom="MT")) is None
+    # ...but a covered-contig miss is still a genuine absence.
+    assert gnomad_local.query(_v(999, "A", "T", chrom="1"))["af"] == 0.0
 
 
 def test_no_table_returns_none(tmp_path, monkeypatch):

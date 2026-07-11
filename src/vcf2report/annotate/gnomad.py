@@ -143,11 +143,11 @@ def lookup(variant: Variant) -> dict:
     # present: offline, instant, and the same grpmax/faf95 reduction as remote. None
     # means "no local answer" (no table, or a partial table that can't assert absence)
     # -> fall through to remote/live/bundled unchanged.
-    from . import gnomad_local
+    from . import gnomad_local, gnomad_remote
     loc = gnomad_local.query(variant)
     if loc is not None:
         cache.put(_SOURCE, variant.key, loc)
-        return {**loc, "_source": "gnomAD v4.1 (local tabix)"}
+        return {**loc, "_source": f"gnomAD v{gnomad_remote.RELEASE} (local tabix)"}
 
     live_failed = False
     if not config.offline():

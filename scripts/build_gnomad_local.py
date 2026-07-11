@@ -133,20 +133,27 @@ def _open_source(kind: str, chrom_pref: str, src: str | None):
     return gnomad_remote._open(kind, chrom_pref)     # cached, remote GCS URL
 
 
-def _emit_records(chrom_norm, chrom_pref, start, end, src, raw_fh) -> int:
+def _emit_records(chrom_norm, chrom_pref, start, end, src, raw_fh) -> tuple[int, bool]:
     """Reduce every gnomAD variant of both callsets in a chrom (start/end None) or a
     region into raw rows, writing them UNMERGED — the post-sort collapse keeps the
-    higher-grpmax duplicate, matching gnomad_remote.query's exomes-vs-genomes merge."""
+    higher-grpmax duplicate, matching gnomad_remote.query's exomes-vs-genomes merge.
+
+    Returns (rows_written, complete). ``complete`` is True only if BOTH callsets opened
+    and streamed to the end without error — so a --full build can refuse to assert
+    absence on a chromosome whose data was missing or truncated (a false-absence guard)."""
     n = 0
+    complete = True
     for kind in ("exomes", "genomes"):
         vf = _open_source(kind, chrom_pref, src)
         if vf is None:
+            complete = False                         # a callset didn't open -> incomplete
             continue
         try:
             recs = vf.fetch(chrom_pref) if start is None else vf.fetch(chrom_pref, start, end)
         except Exception as e:
             _warn(f"fetch failed for {kind} {chrom_pref}"
                   f"{'' if start is None else f':{start}-{end}'}: {e}")
+            complete = False
             continue
         try:
             for rec in recs:
@@ -160,8 +167,9 @@ def _emit_records(chrom_norm, chrom_pref, start, end, src, raw_fh) -> int:
                 n += 1
         except Exception as e:                       # flaky remote read mid-stream
             _warn(f"stream interrupted for {kind} {chrom_pref}: {e}")
+            complete = False
             continue
-    return n
+    return n, complete
 
 
 # ---------------------------------------------------------------------------
@@ -179,11 +187,24 @@ def _query_with_retry(v: Variant, attempts: int = 3):
     return None
 
 
+def _callset_incomplete(chrom_pref: str) -> bool:
+    """True if EITHER gnomAD callset handle for this chrom failed to open during the
+    run (gnomad_remote._failed is a permanent per-run cache). An 'absent' answer then
+    came from a single callset and cannot be trusted as a real absence."""
+    return (("exomes", chrom_pref) in gnomad_remote._failed
+            or ("genomes", chrom_pref) in gnomad_remote._failed)
+
+
+def _looks_absent(r: dict) -> bool:
+    return not (r.get("af") or 0) and not (r.get("an") or 0)
+
+
 def _gen_from_vcf(vcf_path: Path, raw_fh, progress_every: int) -> tuple[int, int]:
     variants, build, _hdr = parse_vcf(vcf_path)
     if build and build != config.GENOME_BUILD:
         _warn(f"VCF build {build!r} != {config.GENOME_BUILD}; gnomAD v{RELEASE} is "
-              f"{config.GENOME_BUILD} — coordinates may not match.")
+              f"{config.GENOME_BUILD} — LIFT the VCF first (scripts/liftover_to_grch38.py) "
+              f"or the coordinates won't match and every site will look absent.")
     seen: set[str] = set()
     uniq = [v for v in variants if not (v.key in seen or seen.add(v.key))]
     print(f"Querying gnomAD for {len(uniq)} unique sites "
@@ -194,6 +215,12 @@ def _gen_from_vcf(vcf_path: Path, raw_fh, progress_every: int) -> tuple[int, int
         if r is None:                                # transport failure -> skip, no fabrication
             skipped += 1
             _warn(f"skipping {v.key}: gnomAD lookup failed after retries")
+            continue
+        # An 'absent' result while a callset for this chrom failed to open is unreliable
+        # (it may be common in the missing callset) — skip rather than bake a false 0.0.
+        if _looks_absent(r) and _callset_incomplete(_prefixed(v.chrom)):
+            skipped += 1
+            _warn(f"skipping {v.key}: a gnomAD callset failed for this chrom; absence unreliable")
             continue
         raw_fh.write(_row(v.chrom, v.pos, v.ref, v.alt, r) + "\n")
         written += 1
@@ -224,28 +251,39 @@ def _gen_bed(bed_path: Path, src: str | None, raw_fh, progress_every: int) -> tu
     print(f"Reducing gnomAD over {len(regions)} BED region(s)...", file=sys.stderr)
     written = 0
     for j, (chrom, start, end) in enumerate(regions, 1):
-        written += _emit_records(_norm_chrom(chrom), _prefixed(chrom), start, end, src, raw_fh)
+        n, _complete = _emit_records(_norm_chrom(chrom), _prefixed(chrom), start, end, src, raw_fh)
+        written += n                                 # bed is always 'partial' -> no absence
         if j % progress_every == 0:
             print(f"  ...{j}/{len(regions)} regions ({written} rows)", file=sys.stderr)
     return written, 0
 
 
-def _gen_full(src: str | None, raw_fh, progress_every: int) -> tuple[int, int]:
+def _gen_full(src: str | None, raw_fh, progress_every: int) -> tuple[int, list[str]]:
+    """Return (rows, covered_contigs). A contig is 'covered' — eligible to assert a
+    genuine absence — only if BOTH callsets streamed fully AND it yielded variants."""
     written = 0
+    covered: list[str] = []
     for chrom in CHROMS:
-        before = written
-        written += _emit_records(chrom, _prefixed(chrom), None, None, src, raw_fh)
-        print(f"  chr{chrom}: {written - before} variants "
-              f"({written} total)", file=sys.stderr)
-    return written, 0
+        n, complete = _emit_records(chrom, _prefixed(chrom), None, None, src, raw_fh)
+        written += n
+        if complete and n > 0:
+            covered.append(chrom)
+        else:
+            _warn(f"chr{chrom} INCOMPLETE (missing/failed callset or no rows) — EXCLUDED "
+                  f"from absence assertions; a query there will fall back, not return 0.0")
+        print(f"  chr{chrom}: {n} variants ({'complete' if (complete and n > 0) else 'INCOMPLETE'})",
+              file=sys.stderr)
+    return written, covered
 
 
 # ---------------------------------------------------------------------------
 # Sort + collapse + index
 # ---------------------------------------------------------------------------
-def _sort_file(raw_path: Path, sorted_path: Path) -> None:
+def _sort_file(raw_path: Path, sorted_path: Path, require_external: bool = False) -> None:
     """Sort raw rows by (chrom, pos-numeric, ref, alt). Tries the streaming system
-    ``sort`` (handles the huge --full case); falls back to an in-memory Python sort."""
+    ``sort`` (handles the huge --full case); falls back to an in-memory Python sort —
+    UNLESS ``require_external`` (a genome-wide --full build), where an in-RAM sort of
+    tens of GB would OOM, so we fail hard instead."""
     env = dict(os.environ, LC_ALL="C")
     try:
         subprocess.run(
@@ -254,6 +292,10 @@ def _sort_file(raw_path: Path, sorted_path: Path) -> None:
             check=True, env=env)
         return
     except (FileNotFoundError, subprocess.CalledProcessError) as e:
+        if require_external:
+            raise RuntimeError(
+                f"system `sort` is required for a --full build (the table is too large "
+                f"to sort in memory) but failed: {e}") from e
         _warn(f"system sort unavailable ({e}); sorting in Python (needs RAM).")
     rows = [ln for ln in raw_path.read_text().splitlines() if ln]
 
@@ -386,6 +428,7 @@ def main(argv: list[str] | None = None) -> int:
     fin = out.parent / (out.name + ".build.final.tmp")
 
     written = skipped = 0
+    covered: list[str] = []
     try:
         with open(raw, "w") as raw_fh:
             if mode == "from-vcf":
@@ -400,14 +443,24 @@ def main(argv: list[str] | None = None) -> int:
                     return 2
                 written, skipped = _gen_bed(bed, None, raw_fh, progress_every)
             else:
-                written, skipped = _gen_full(args.src, raw_fh, progress_every)
+                written, covered = _gen_full(args.src, raw_fh, progress_every)
 
         print(f"Reduced {written} raw rows; sorting + indexing...", file=sys.stderr)
-        _sort_file(raw, srt)
+        _sort_file(raw, srt, require_external=(mode == "full"))
         rows = _collapse(srt, fin)
         _index(fin, out)
 
         meta = {"mode": table_mode, "source": SOURCE, "built_from": built_from, "rows": rows}
+        if mode == "full":
+            # Only these contigs may assert a genuine absence; a chromosome that failed
+            # to stream (or MT / alt-decoy, never covered) is excluded so the client
+            # falls back instead of fabricating af 0.0 (the false-absence guard).
+            meta["contigs"] = covered
+            incomplete = [c for c in CHROMS if c not in covered]
+            if incomplete:
+                _warn(f"{len(incomplete)}/{len(CHROMS)} chromosomes INCOMPLETE and excluded "
+                      f"from absence assertions: {','.join(incomplete)}. Re-run to complete; "
+                      f"queries on them fall back to remote/unknown (never a fake 0.0).")
         meta_path = out.with_name(out.name + ".meta")
         meta_path.write_text(json.dumps(meta, indent=2) + "\n")
     finally:

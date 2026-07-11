@@ -127,6 +127,10 @@ def _lift_record(fields: list[str], lo) -> list[str] | str | None:
     hits = lo.convert_coordinate(query_chrom, pos - 1)
     if not hits:
         return "unmapped"
+    if len(hits) > 1:
+        # Ambiguous — the position maps to several GRCh38 loci; emitting hits[0] would
+        # risk a wrong coordinate that silently misses gnomAD (a false absence). Drop.
+        return "ambiguous"
 
     tchrom, tpos0, strand, _ = hits[0]
     ref, alt = fields[3], fields[4]
@@ -165,7 +169,8 @@ def _write_header_line(line: str, fout, state: dict) -> None:
 
 
 def liftover(in_path: Path, out_path: Path, lo) -> dict:
-    counts = {"total": 0, "lifted": 0, "unmapped": 0, "strand": 0, "malformed": 0}
+    counts = {"total": 0, "lifted": 0, "unmapped": 0, "ambiguous": 0,
+              "strand": 0, "malformed": 0}
     state = {"first": True, "injected": False}
 
     with _open_text(in_path) as fin, open(out_path, "wt") as fout:
@@ -194,6 +199,8 @@ def liftover(in_path: Path, out_path: Path, lo) -> dict:
                 counts["malformed"] += 1
             elif result == "unmapped":
                 counts["unmapped"] += 1
+            elif result == "ambiguous":
+                counts["ambiguous"] += 1
             elif result == "strand":
                 counts["strand"] += 1
             else:
@@ -242,15 +249,18 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"[liftover] records={counts['total']} lifted={counts['lifted']} "
-        f"skipped_unmapped={counts['unmapped']} skipped_strand={counts['strand']} "
-        f"malformed={counts['malformed']}",
+        f"skipped_unmapped={counts['unmapped']} skipped_ambiguous={counts['ambiguous']} "
+        f"skipped_strand={counts['strand']} malformed={counts['malformed']}",
         file=sys.stderr,
     )
     print(
-        "[liftover] WARNING: output is UNSORTED (liftOver can reorder positions). "
-        "If you need a sorted/tabix'd file, run e.g. "
-        "`bcftools sort -o sorted.vcf OUT.vcf`. vcf2report's own reader does not "
-        "require sorting.",
+        "[liftover] NOTE: coordinates are lifted but the REF base is NOT re-validated "
+        "against the GRCh38 reference (pyliftover carries no FASTA). At the rare "
+        "reference-mismatch loci a lifted REF can differ from GRCh38; such a site then "
+        "misses gnomAD and reads as absent. Normalize with `bcftools norm -f GRCh38.fa "
+        "--check-ref x` if you have the FASTA. Output is also UNSORTED (liftOver "
+        "reorders) — `bcftools sort` if you need a sorted/tabix'd file; vcf2report's "
+        "reader does not require sorting.",
         file=sys.stderr,
     )
     return 0
