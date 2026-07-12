@@ -78,7 +78,7 @@ not available in this environment, skip it silently and continue with plain text
    if `spawn_task` isn't available.
 3. **Command panel (center panel).** Render the interactive control panel: read
    `references/command_panel.html`, substitute `{{SAMPLE}}` with the sample name and
-   the status tokens for the build state — GRCh38 ready → `{{STATUS}}`=`GRCh38 · pronto`,
+   the status tokens for the build state — GRCh38 ready → `{{STATUS}}`=`GRCh38 · ready`,
    `{{STATUS_BG}}`=`bg-success`, `{{STATUS_FG}}`=`text-success`; GRCh37 → `GRCh37 ·
    liftover`, `bg-warning`, `text-warning` — then publish it with the `visualize`
    `show_widget` tool. Its buttons drive each step via `sendPrompt`. If `show_widget`
