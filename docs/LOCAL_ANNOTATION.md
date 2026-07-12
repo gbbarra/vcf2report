@@ -30,43 +30,46 @@ Point the table elsewhere (e.g. an external disk) with `VCF2REPORT_GNOMAD_TABIX=
 ## Fast path — gnomAD as a DuckDB/Parquet store (recommended for exomes)
 
 The per-variant tabix build above is fine for a panel, but a whole exome is
-latency-bound (~7–10 h of remote round-trips). The reproducible, offline-fast answer —
-the one a genomic-lakehouse uses — is a **columnar Parquet** of gnomAD frequencies,
-joined with **DuckDB**. Building it is a *sequential scan* of gnomAD (bandwidth-bound,
-one-time), and then every query is a single vectorised join.
+latency-bound. The reproducible, offline-fast answer — the one a genomic-lakehouse uses —
+is a **columnar Parquet** of gnomAD frequencies joined with **DuckDB**: every query is
+then a single vectorised join, in ~seconds, fully offline.
 
 ### Get the local store — two ways, same result
 
-The store lives **locally in the repo** at `data/gnomad/gnomad_parquet/` (git-ignored,
-~1 GB) and is **auto-detected** there — no env var, no external drive. Get it either way:
+The store lives **locally in the repo** at `data/gnomad/gnomad_parquet/` (git-ignored)
+and is **auto-detected** there — no env var, no external drive. Get it either way:
 
 ```bash
-# A) DOWNLOAD the published, checksummed store (fast — no 150 GB build). Verifies SHA256.
+# A) DOWNLOAD the published, checksummed store (fast — no big build). Verifies SHA256.
 scripts/fetch_gnomad_parquet.sh
 
-# B) BUILD it from scratch, straight from the public gnomAD bucket:
-#    one chromosome, end-to-end, to PROVE reproducibility in ~minutes:
-VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_gnomad_parquet.py --chroms 21
-#    the whole thing (v4.1 joint = exomes+genomes), one-time, ~1–2 h, ~1 GB out:
-VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_gnomad_parquet.py --chroms 1-22,X,Y
-#    or from local per-chrom gnomAD VCFs instead of the network:
-python3 scripts/build_gnomad_parquet.py --src /Volumes/DISK/gnomad_joint
+# B) BUILD it from scratch. The raw gnomAD sites VCFs are large (exomes ~120 GB, joint
+#    ~500 GB) and streaming them live STALLS (htslib has no read timeout), so the
+#    practical build is EXOME-SCOPED: slice gnomAD to a kit-agnostic exome BED (MANE
+#    exons — what an exome actually covers, ±50 bp), downloading each chromosome ONCE to
+#    a scratch disk and processing it locally (robust, resumable, ~one chrom of scratch
+#    at a time):
+VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_exome_bed.py         # -> data/gnomad/exome_hg38.bed (MANE)
+VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_gnomad_parquet.py --preset exomes \
+    --bed data/gnomad/exome_hg38.bed --download-dir /Volumes/DISK/scratch --chroms 1-22,X,Y
+#    PROVE it in minutes on one chromosome (small download):
+VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_gnomad_parquet.py --preset exomes \
+    --bed data/gnomad/exome_hg38.bed --download-dir /Volumes/DISK/scratch --chroms 21
 ```
 
-Either lands `data/gnomad/gnomad_parquet/`, which vcf2report picks up automatically.
-`scripts/publish_gnomad_parquet.sh` packages a built store into a GitHub Release (what
-`fetch` downloads). Data provenance + ODbL-1.0 license: [`data/gnomad/NOTICE.md`](../data/gnomad/NOTICE.md).
+`--download-dir` downloads each chrom's VCF (resumable `curl -C -`), extracts locally,
+then deletes it — never the >100 GB whole-genome download. (A small vendor panel can
+instead be fetched region-only over the network with `--bed panel.bed` and no
+`--download-dir`, but that is latency-bound and only worth it for few thousand regions.)
+Either way it lands `data/gnomad/gnomad_parquet/`, which vcf2report picks up
+automatically. `scripts/publish_gnomad_parquet.sh` packages a built store into a GitHub
+Release (what `fetch` downloads). Provenance + ODbL-1.0: [`data/gnomad/NOTICE.md`](../data/gnomad/NOTICE.md).
 
-For each chromosome it **streams** the gnomAD sites VCF with `bcftools` (never storing
-the ~150–200 GB raw — a sequential scan, not per-variant seeks), extracts
-`af, af_grpmax, ac, an, nhomalt, faf95, grpmax_pop` plus per-ancestry AFs
-`af_afr/af_amr/af_asj/af_eas/af_fin/af_mid/af_nfe/af_sas/af_remaining` (+`af_ami` in the
-joint release), and writes `<out>/chrom=chrN/data.parquet` (Hive-partitioned). Peak disk
-≈ the output (~786 MB core columns, ~1 GB with the per-population AFs) plus one
-chromosome's temp extract; the raw VCFs are discarded.
-`faf95` is gnomAD's grpmax filtering AF (`fafmax_faf95_max_joint`, the ClinGen value for
-BA1/BS1); the per-population AFs give full column parity with a lakehouse store, for
-ancestry-aware interpretation. Needs `bcftools` + `duckdb` (`pip install duckdb`).
+Each chromosome's extract keeps `af, af_grpmax, ac, an, nhomalt, faf95, grpmax_pop` plus
+per-ancestry AFs (`af_afr/af_amr/af_asj/af_eas/af_fin/af_mid/af_nfe/af_sas/af_remaining`,
++`af_ami` in the joint preset) → `<out>/chrom=chrN/data.parquet` (Hive-partitioned).
+`faf95` is gnomAD's grpmax filtering AF (the ClinGen value for BA1/BS1) — an improvement
+over the af_grpmax-only lakehouse table. Needs `bcftools` + `duckdb` (`pip install duckdb`).
 
 ### Why it's fast
 

@@ -60,4 +60,4 @@ data/gnomad/gnomad_freq.local.tsv.gz.meta
 data/liftover/
 # User-built gnomAD DuckDB/Parquet store (scripts/build_gnomad_parquet.py, default
 # --out) — ~1 GB, machine-specific; never committed (too big for GitHub anyway).
-data/gnomad/gnomad_parquet/
+data/gnomad/gnomad_parquet*/
