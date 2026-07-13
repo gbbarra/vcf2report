@@ -26,6 +26,30 @@ def test_no_finding_reports_vus_count():
     assert "No Pathogenic / Likely Pathogenic finding" in txt and "1 variant" in txt
 
 
+def test_clinvar_pathogenic_surfaced_despite_vus():
+    # A known ClinVar Pathogenic (>=2-star) the engine calls VUS MUST be flagged — never
+    # presented as 'no finding' (clinical-safety; independent of the ACMG math).
+    c = Classification(
+        variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene="MECP2"),
+        annotation=Annotation(hpo_match_score=1.0, hpo_best_match=1.0,
+                              clinvar_significance="Pathogenic",
+                              clinvar_review_status="criteria_provided,_multiple_submitters,_no_conflicts"),
+        criteria=[], tier="Uncertain Significance (VUS)", rule_path="")
+    txt = " ".join(summarize(_report([c])))
+    assert "Classified Pathogenic/Likely Pathogenic in ClinVar" in txt and "MECP2" in txt
+
+
+def test_single_submitter_clinvar_not_surfaced():
+    # 1-star ClinVar P must NOT trip the >=2-star safety flag.
+    c = Classification(
+        variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene="G"),
+        annotation=Annotation(hpo_match_score=0.0, hpo_best_match=0.0,
+                              clinvar_significance="Pathogenic",
+                              clinvar_review_status="criteria_provided,_single_submitter"),
+        criteria=[], tier="Uncertain Significance (VUS)", rule_path="")
+    assert "Classified Pathogenic" not in " ".join(summarize(_report([c])))
+
+
 def test_secondary_sf_finding():
     # RB1 is an ACMG SF v3.2 gene; unrelated (hpo=0) P/LP -> reportable secondary.
     txt = " ".join(summarize(_report([_cls("RB1", "Pathogenic", hpo=0.0)])))

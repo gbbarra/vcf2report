@@ -96,6 +96,34 @@ def split_findings(classifications):
     return primary, secondary, other
 
 
+def clinvar_stars(review_status) -> int:
+    """ClinVar review status -> star count (0-4)."""
+    r = (review_status or "").lower()
+    if "practice_guideline" in r:
+        return 4
+    if "reviewed_by_expert_panel" in r:
+        return 3
+    if "multiple_submitters" in r and "no_conflict" in r:
+        return 2
+    if "criteria_provided" in r or "single_submitter" in r or "conflicting" in r:
+        return 1
+    return 0
+
+
+def clinvar_pathogenic_flags(classifications):
+    """Candidates ClinVar classifies P/LP with >=2-star review whose independent engine ACMG
+    tier is NOT P/LP. These MUST be surfaced: never present a well-reviewed known-pathogenic
+    variant as 'no finding'. This does not touch the ACMG criteria math (avoids PP5
+    circularity) — it is a report-level safety flag."""
+    out = []
+    for c in classifications:
+        sig = (c.annotation.clinvar_significance or "").lower()
+        is_plp = sig.startswith("pathogenic") or sig.startswith("likely pathogenic")
+        if is_plp and clinvar_stars(c.annotation.clinvar_review_status) >= 2 and c.tier not in _PLP:
+            out.append(c)
+    return out
+
+
 def summarize(report: "ReportModel") -> list[str]:
     """A deterministic, QC-aware interpretive conclusion for the report.
 
@@ -114,11 +142,21 @@ def summarize(report: "ReportModel") -> list[str]:
                      "(in a gene overlapping the patient's phenotype) — confirm and review.")
     else:
         vus = [c for c in primary if c.tier == "Uncertain Significance (VUS)"]
-        msg = ("**No Pathogenic / Likely Pathogenic finding** was identified in "
-               "phenotype-matched genes")
+        msg = ("**No Pathogenic / Likely Pathogenic finding** by the engine's independent "
+               "ACMG classification in phenotype-matched genes")
         if vus:
             msg += f"; {len(vus)} variant(s) of uncertain significance need further evaluation"
         lines.append(msg + ".")
+
+    # Safety flag: a known, well-reviewed ClinVar-Pathogenic variant must never be hidden
+    # behind a lower engine tier (surfaced independently of the ACMG math).
+    flagged = clinvar_pathogenic_flags(report.classifications)
+    if flagged:
+        g = "; ".join(f"{c.variant.gene} ({clinvar_stars(c.annotation.clinvar_review_status)}★; "
+                      f"engine: {c.tier})" for c in flagged)
+        lines.append(f"⚠️ **Classified Pathogenic/Likely Pathogenic in ClinVar** (≥2-star review) — "
+                     f"the engine's independent tier is lower, but DO NOT dismiss: **{g}**. Review the "
+                     "ClinVar assertion and its underlying evidence.")
 
     sec = [c for c in secondary if c.tier in _PLP]
     if sec:
