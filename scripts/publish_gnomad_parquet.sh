@@ -19,7 +19,9 @@ command -v gh   >/dev/null || { echo "ERROR: gh (GitHub CLI) not found — https
 command -v zstd >/dev/null || { echo "ERROR: zstd not found (brew install zstd / apt install zstd)." >&2; exit 1; }
 
 echo "Packaging $STORE -> $ASSET ..." >&2
-tar -C "$(dirname "$STORE")" -cf - "$(basename "$STORE")" | zstd -19 -T0 -o "$WORK/$ASSET" -q
+# Parquet is already ZSTD-compressed columnar, so a high level buys ~nothing and is slow;
+# -3 is fast and the archive stays ~store size.
+tar -C "$(dirname "$STORE")" -cf - "$(basename "$STORE")" | zstd -3 -T0 -o "$WORK/$ASSET" -q
 ( cd "$WORK" && shasum -a 256 "$ASSET" > SHA256SUMS )
 echo "  size: $(du -h "$WORK/$ASSET" | cut -f1)" >&2
 cat "$WORK/SHA256SUMS" >&2

@@ -8,7 +8,7 @@ python3 -m vcf2report.cli NA12878_exome.hg38.vcf \
 ```
 
 **Sample:** GIAB NA12878 / HG001 (NIST, public domain) · TruSeq exome · lifted to GRCh38.  
-**Frequencies:** local gnomAD v4.1 DuckDB/Parquet store (29.6M variants), no network.
+**Frequencies:** local gnomAD v4.1 exomes DuckDB/Parquet store (69.9M variants, MANE-sliced, with faf95), fully offline — reproducible with `scripts/build_exome_bed.py` + `build_gnomad_parquet.py`.
 
 ## Narrowing funnel
 
@@ -16,33 +16,33 @@ python3 -m vcf2report.cli NA12878_exome.hg38.vcf \
 |---|---|
 | total called | 28,565 |
 | pass QC (DP/GQ/AB) | 23,773 |
-| rare (gnomAD/ABraOM) | 4,656 |
-| impactful / ClinVar P-LP | 1,564 |
-| **candidates classified** | **1,564** |
+| rare (gnomAD/ABraOM) | 4,537 |
+| impactful / ClinVar P-LP | 1,808 |
+| **candidates classified** | **1,808** |
 
-Tiers: Benign 1, Likely Benign 60, Likely Pathogenic 3, Uncertain Significance (VUS) 1500
+Tiers: Likely Benign 60, Likely Pathogenic 3, Uncertain Significance (VUS) 1745
 
 ## Performance (this run)
 
 | stage | seconds |
 |---|---|
-| parse | 0.812 |
-| qc | 0.0351 |
-| gnomad prime | 3.1119 |
-| annotate | 3.6232 |
+| parse | 0.8292 |
+| qc | 0.0338 |
+| gnomad prime | 3.9816 |
+| annotate | 3.7427 |
 | filter | 0.0269 |
-| alphamissense | 0.6848 |
-| classify | 0.2255 |
-| total | 8.5194 |
-| **wall (incl. import)** | **8.6** |
+| alphamissense | 0.8678 |
+| classify | 0.2604 |
+| total | 9.7424 |
+| **wall (incl. import)** | **9.9** |
 
-~3352.9 variants/s, fully offline.
+~2932.0 variants/s, fully offline.
 
 ## Sequencing quality (proxy at variant sites)
 
 Mean depth 64.0× (median 47.0×) · Ti/Tv 2.83 · het:hom 1.74 · assay exome / large-panel-scale
 
-## Non-VUS calls (64)
+## Non-VUS calls (63)
 
 | variant | gene | consequence | tier | criteria |
 |---|---|---|---|---|
@@ -91,7 +91,6 @@ Mean depth 64.0× (median 47.0×) · Ti/Tv 2.83 · het:hom 1.74 · assay exome /
 | p.Ser293Arg | PPAPDC2 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Arg113Gln | SAA4 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Ile112Met | SH3D19 | missense_variant | Likely Benign | BS2, BP4 |
-| p.Trp4Arg | ATP6AP1L | missense_variant | Likely Benign | BS2, BP4 |
 | p.Thr361Ala | TXLNB | missense_variant | Likely Benign | BS2, BP4 |
 | p.Met309Val | HLA-C | missense_variant | Likely Benign | BS2, BP4 |
 | p.Leu424Phe | MAGEC1 | missense_variant | Likely Benign | BS2, BP4 |
@@ -106,8 +105,9 @@ Mean depth 64.0× (median 47.0×) · Ti/Tv 2.83 · het:hom 1.74 · assay exome /
 | p.Val210Met | FHAD1 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Arg23Lys | IL1F10 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Ala520Val | MYO3A | missense_variant | Likely Benign | BS2, BP4 |
+| p.Arg123Leu | AASDH | missense_variant | Likely Benign | BS2, BP4 |
 
-_… 4 more not shown._
+_… 3 more not shown._
 
-_The remaining 1,500 candidates are VUS — conservative by design when population frequency alone can't resolve them (no over-calling)._
+_The remaining 1,745 candidates are VUS — conservative by design when population frequency alone can't resolve them (no over-calling)._
 
