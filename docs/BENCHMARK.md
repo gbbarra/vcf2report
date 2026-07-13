@@ -42,35 +42,47 @@ clinical-safety gap and a set of tunable defaults:
   engine tiered VUS was being reported as "no Pathogenic finding". The conclusion now flags
   it explicitly ("⚠️ Classified Pathogenic in ClinVar … DO NOT dismiss") without touching the
   ACMG math (no circularity). This alone lifted *surfaced* from **0/12 → 9/12**.
-- **Recommended (lab's call, not auto-applied):**
-  - *Region-aware PM2 / a joint store.* The exomes+MANE store is `mode=partial`, so PM2 can
-    never fire on genuine absence — the tool's primary use case. Building the **joint**
-    (exomes+genomes) preset over the MANE panel and asserting absence per covered BED
-    interval would let PM2 fire soundly (empirically 0 false positives on the benchmark).
-    Flipping the exomes-only store to `mode=full` is **not** safe (off-panel false absence).
-  - *ClinGen points model as default.* `VCF2REPORT_ACMG_MODEL=clingen` recovers ~4/12 (PVS1
-    + phenotype/ClinVar reaches LP), but makes bare PVS1-alone → LP — a real over-call
-    tradeoff, so it should ship with an SVI-style "needs corroboration" guard. Kept as an
-    opt-in for now; Richards remains the conservative default.
+- **APPLIED — region-aware PM2 (`mode=bed`).** The exomes+MANE store was `mode=partial`, so
+  PM2 could never fire on genuine absence — the tool's primary use case. It now asserts
+  absence (→ PM2) only for a variant **inside a covered panel-BED interval** (where the store
+  is complete for gnomAD exomes); off-panel it stays unprimed. On the benchmark this lifted
+  engine **P/LP 0 → 6/12** and **surfaced 9 → 11/12** — the LoF cases now reach LP via
+  PVS1 + PM2. The concordance panel is unchanged (it uses the frozen gnomAD, not the store):
+  still 0 gross discordances / 100% precision / 60% sensitivity. Residual risk (a variant in
+  gnomAD genomes but not exomes) was 0/12 empirically; a joint (exomes+genomes) MANE build
+  closes it fully.
+- **MEASURED, kept opt-in — ClinGen points model.** With region-aware PM2 in place,
+  `VCF2REPORT_ACMG_MODEL=clingen` gives the *same* benchmark result (6/12 P/LP, 11/12
+  surfaced) but **regresses the concordance panel to 37%** (a no-phenotype artifact: strict
+  ClinGen points call a rare missense-without-phenotype VUS). So Richards stays the default;
+  clingen remains available via the env var for labs that prefer the SVI points scheme.
 
 ## Results
 
-**12-case set (mixed with/without ClinVar):** found 12/12 · engine P/LP 0/12 · **surfaced
-9/12**. The 3 residual: 2 LoF with no phenotype match (would need region-aware PM2) + 1
-non-coding-RNA gene (out of the protein-coding ACMG scope).
+**12-case set (mixed with/without ClinVar):** found 12/12 · engine P/LP **6/12** · **surfaced
+11/12** (after the ClinVar surface + region-aware PM2). The 1 residual is a non-coding-RNA
+gene (out of the protein-coding ACMG scope). Progression as the fixes landed:
+0/12 surfaced → 9/12 (ClinVar surface) → 11/12 (region-aware PM2).
 
-**284-case set** (150 with ClinVar, 134 without; balanced missense / frameshift / stop-gained):
-found **284/284** · engine P/LP 49/284 (17%) · **surfaced 248/284 (87%)**.
+**1000-case set** (677 unique genes; every consequence class incl. start-loss and in-frame
+indels — the rare classes where bugs hide; 677 with ClinVar, 323 without). Because a spiked
+variant's ACMG call is independent of the background, the harness batch-primes gnomAD +
+AlphaMissense once and classifies each variant in isolation — **1000 cases in ~7 s**.
+
+found **1000/1000** · engine P/LP 398 · **surfaced 939/1000 (94%)**.
 
 | group | surfaced | how |
 |---|---|---|
-| with ClinVar (150) | **150/150 (100%)** | every known ClinVar-Pathogenic is flagged — the safety fix holds at scale |
-| without ClinVar (134) | 98/134 (73%) | via phenotype match / PVS1 (mechanism-only) |
-| by consequence | frameshift 70/77 · missense 141/160 · stop-gained 37/47 | |
+| with ClinVar (677) | **677/677 (100%)** | every known ClinVar-Pathogenic is flagged — 0 missed |
+| without ClinVar (323) | 262/323 (81%) | via phenotype match / PVS1 (mechanism-only) |
+| by consequence | stop-gain 498/521 · frameshift 68/71 · missense 247/268 · in-frame 99/110 · start-loss 27/30 | all 90–96% — no class fails systematically |
 
-The 36 not surfaced (all VUS) are novel variants with no ClinVar and no phenotype overlap —
-exactly the cohort that region-aware PM2 (a joint store) would rescue. Net: the tool brings
-**87%** of real pathogenic variants to attention, and **100%** of the ClinVar-known ones.
+The 61 not surfaced are all *without*-ClinVar VUS (novel + no phenotype overlap) — plus **one
+Benign**, which is a *correct* call, not a miss: ZIC2 `p.His239dup` (a poly-histidine
+tract-length variant) is at **10.9% gnomAD frequency**, so BA1 fires and the tool overrides a
+questionable "pathogenic" phenopacket label — the benign-frequency guard working as intended.
+Net: **94%** of real pathogenic variants brought to attention, **100%** of the ClinVar-known,
+and 0 with-ClinVar missed across 1000 cases.
 
 ## Honest limitations
 
