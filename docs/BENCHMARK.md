@@ -59,7 +59,18 @@ clinical-safety gap and a set of tunable defaults:
 9/12**. The 3 residual: 2 LoF with no phenotype match (would need region-aware PM2) + 1
 non-coding-RNA gene (out of the protein-coding ACMG scope).
 
-**284-case set:** _(running — numbers filled on completion)_
+**284-case set** (150 with ClinVar, 134 without; balanced missense / frameshift / stop-gained):
+found **284/284** · engine P/LP 49/284 (17%) · **surfaced 248/284 (87%)**.
+
+| group | surfaced | how |
+|---|---|---|
+| with ClinVar (150) | **150/150 (100%)** | every known ClinVar-Pathogenic is flagged — the safety fix holds at scale |
+| without ClinVar (134) | 98/134 (73%) | via phenotype match / PVS1 (mechanism-only) |
+| by consequence | frameshift 70/77 · missense 141/160 · stop-gained 37/47 | |
+
+The 36 not surfaced (all VUS) are novel variants with no ClinVar and no phenotype overlap —
+exactly the cohort that region-aware PM2 (a joint store) would rescue. Net: the tool brings
+**87%** of real pathogenic variants to attention, and **100%** of the ClinVar-known ones.
 
 ## Honest limitations
 
