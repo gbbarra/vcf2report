@@ -107,16 +107,6 @@ def test_auto_detects_local_store(tmp_path, monkeypatch):
     assert config._resolve_gnomad_parquet() == str(d)    # present -> auto-detected
 
 
-def test_prefers_generic_build_over_imported(tmp_path, monkeypatch):
-    # The vcf2report exome build wins over an imported store; neither is deleted.
-    monkeypatch.delenv("VCF2REPORT_GNOMAD_PARQUET", raising=False)
-    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
-    monkeypatch.setattr(config, "DEFAULT_GNOMAD_PARQUET", tmp_path / "gnomad" / "gnomad_parquet")
-    (tmp_path / "gnomad" / "gnomad_parquet").mkdir(parents=True)
-    (tmp_path / "gnomad" / "gnomad_parquet_generic").mkdir(parents=True)
-    assert config._resolve_gnomad_parquet() == str(tmp_path / "gnomad" / "gnomad_parquet_generic")
-
-
 def test_env_var_overrides_local_store(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
     monkeypatch.setattr(config, "DEFAULT_GNOMAD_PARQUET", tmp_path / "gnomad" / "gnomad_parquet")

@@ -42,13 +42,7 @@ def _resolve_gnomad_parquet():
     env = os.environ.get("VCF2REPORT_GNOMAD_PARQUET")
     if env:
         return env
-    # Prefer the vcf2report exome build (gnomad_parquet_generic) if present, else any other
-    # local store (e.g. an imported lakehouse copy at gnomad_parquet). The two coexist —
-    # building one never replaces or deletes the other.
-    for p in (DATA_DIR / "gnomad" / "gnomad_parquet_generic", DEFAULT_GNOMAD_PARQUET):
-        if p.exists():
-            return str(p)
-    return None
+    return str(DEFAULT_GNOMAD_PARQUET) if DEFAULT_GNOMAD_PARQUET.exists() else None
 
 
 GNOMAD_PARQUET = _resolve_gnomad_parquet()
