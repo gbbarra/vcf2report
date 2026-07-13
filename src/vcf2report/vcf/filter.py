@@ -10,12 +10,24 @@ from dataclasses import dataclass
 from ..config import AF_RECESSIVE_MAX
 from ..models import Annotation, Variant
 
-# Consequences we keep as clinically relevant (coding / canonical splice).
+# Consequences we keep as clinically relevant (coding / canonical splice). In-frame indels
+# are spelled differently across annotators (VEP: inframe_insertion/deletion; SnpEff:
+# disruptive_/conservative_inframe_*), so recognise any term containing "inframe" rather than
+# an exact allowlist — otherwise a real in-frame indel is silently dropped before classification.
 IMPACTFUL = {
     "stop_gained", "frameshift_variant", "splice_donor_variant",
     "splice_acceptor_variant", "start_lost", "stop_lost",
     "missense_variant", "inframe_insertion", "inframe_deletion",
 }
+
+
+def is_inframe_indel(consequence) -> bool:
+    """True for any protein-length-changing in-frame indel term (VEP, SnpEff, or generic)."""
+    return "inframe" in (consequence or "").lower()
+
+
+def is_impactful(consequence) -> bool:
+    return consequence in IMPACTFUL or is_inframe_indel(consequence)
 
 
 @dataclass
@@ -72,7 +84,7 @@ def filter_variants(
     # Step 2 — impact (coding/splice; ClinVar P/LP retained regardless).
     impactful = [
         (v, a) for v, a in rare
-        if (v.consequence in IMPACTFUL) or _is_clinvar_plp(a)
+        if is_impactful(v.consequence) or _is_clinvar_plp(a)
     ]
     funnel.after_impact = len(impactful)
 

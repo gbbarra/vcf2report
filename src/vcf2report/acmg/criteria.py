@@ -236,7 +236,10 @@ def pm3(v: Variant, a: Annotation) -> CriterionResult:
 @criterion("PM4")
 def pm4(v: Variant, a: Annotation) -> CriterionResult:
     name = "Protein length change (in-frame indel / stop-loss) in a non-repeat region"
-    met = (v.consequence or "") in {"inframe_insertion", "inframe_deletion", "stop_lost"}
+    # Recognise any in-frame indel term (VEP inframe_insertion/deletion, SnpEff
+    # disruptive_/conservative_inframe_*, or a generic inframe_indel) + stop-loss.
+    c = (v.consequence or "").lower()
+    met = "inframe" in c or c == "stop_lost"
     return CriterionResult(
         "PM4", name, "moderate", applies=True, met=met,
         applied_strength="moderate" if met else None,
