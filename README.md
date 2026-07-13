@@ -48,6 +48,12 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
   ABraOM (SABE) admixed-Brazilian cohort, so a variant *absent from gnomAD but
   common in Brazilians* is correctly dropped — the report names the spurious
   candidates a gnomAD-only pipeline would have kept.
+  > ⚠️ **The full ABraOM dataset is not installed yet.** The repo ships only a
+  > **2-variant demo stub** (`data/abraom/abraom_sabe.tsv`) to demonstrate the
+  > mechanism (it drives the OBSCN/TTN drops in the examples). For real use, obtain
+  > the full ABraOM SABE dataset from IB-USP (<http://abraom.ib.usp.br>) and populate
+  > that file, or annotate the VCF with `ABraOM_AF`. A variant not in the table is
+  > treated as *unknown*, never a fabricated Brazilian absence.
 - **Calibrated AlphaMissense (optional).** Missense pathogenicity uses AlphaMissense
   (CC BY 4.0) at a **ClinGen-calibrated evidence strength** (PP3/BP4), validated to
   recover pathogenic missense **without** ever flipping a benign variant (below).

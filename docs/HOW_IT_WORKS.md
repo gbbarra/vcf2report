@@ -80,7 +80,11 @@ single strongest match routes a variant into the primary/secondary findings (≥
 **ABraOM (Brazilian frequencies).** The SABE admixed-Brazilian cohort is checked alongside
 gnomAD: a variant absent from gnomAD but common in Brazilians must **not** earn PM2 — a real,
 local source of misclassification the tool guards against. A miss returns `None` (unknown), never
-a fabricated Brazilian absence.
+a fabricated Brazilian absence. **Note — the full ABraOM dataset is not installed yet:** the repo
+ships only a 2-variant demo stub (`data/abraom/abraom_sabe.tsv`) that demonstrates the mechanism
+(the OBSCN/TTN drops in the examples). Real use requires the full ABraOM SABE from IB-USP
+(<http://abraom.ib.usp.br>) or `ABraOM_AF` in the VCF INFO; the mechanism is implemented, the
+population coverage is not yet loaded.
 
 **Gene constraint & pre-annotated INFO.** gnomAD LoF constraint (pLI ≥0.9 / LOEUF <0.35) drives
 **PVS1**. When a VCF is already annotated (SnpEff/VEP + vcfanno), the engine reads gnomAD/ClinVar/

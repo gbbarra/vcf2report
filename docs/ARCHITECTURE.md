@@ -56,7 +56,7 @@ the code stays capable of real calls.
 |---|---|---|
 | gnomAD | GraphQL (`gnomad_r4`) | `data/gnomad/gnomad_cache.json` |
 | ClinVar | NCBI E-utilities | `data/clinvar/clinvar_grch38_slice.tsv` |
-| ABraOM | — (static dataset) | `data/abraom/abraom_sabe.tsv` |
+| ABraOM | — (static dataset) | `data/abraom/abraom_sabe.tsv` — **demo stub (2 variants); full ABraOM SABE not installed yet, obtain from IB-USP** |
 | HPO | ontology.jax.org | `data/hpo/genes_to_phenotype.tsv` |
 
 ## Auditability
