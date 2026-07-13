@@ -161,11 +161,13 @@ def prime(variants) -> int:
         # build (build_gnomad_parquet.py) carries them. Select NULL for missing columns.
         schema = {r[0].lower() for r in con.execute(f"DESCRIBE SELECT * FROM {src}").fetchall()}
         col = lambda name: f"g.{name}" if name in schema else "NULL"
-        # PASS-only: a non-PASS gnomAD record (AS_VQSR / InbreedingCoeff / AC0 artifact) is
-        # NOT an authoritative frequency — serving its AF/faf95 could fire BA1/BS1 and mask a
-        # real pathogenic variant (ClinGen/Whiffin filtering-AF is PASS-only). Gate the join
-        # so such a locus doesn't match -> in partial mode it falls through (unprimed).
-        pass_gate = "AND g.filter = 'PASS'" if "filter" in schema else ""
+        # PASS-awareness is applied AFTER the join, not as a join gate: a non-PASS gnomAD record
+        # (AS_VQSR / InbreedingCoeff / AC0) is not an authoritative frequency (ClinGen/Whiffin
+        # filtering-AF is PASS-only), so we don't serve its AF for BA1/BS1 — but the variant IS
+        # present, so we must NOT assert absence for it either. Gating the join instead would turn
+        # a present-but-filtered common variant (e.g. a 99.98% AS_VQSR record) into a fake absence
+        # -> spurious PM2 -> over-call. So: match on locus regardless of filter, then decide.
+        has_filter = "filter" in schema
         # Bulk-load the query variants via a temp TSV — executemany is per-row and would
         # take minutes on a whole exome; read_csv loads ~24k rows in ~1 s. Alleles are
         # upper-cased (VCF alleles are case-insensitive) so a lowercase input never
@@ -180,13 +182,14 @@ def prime(variants) -> int:
             "column2 AS ref, column3 AS alt, column4 AS key "
             "FROM read_csv(?, header=false, delim='\t', all_varchar=true)", [tmp])
         rows = con.execute(f"""
-            SELECT q.chrom, q.pos AS q_pos, q.key, g.pos AS g_pos, {col('af')}, {col('af_grpmax')},
+            SELECT q.chrom, q.pos AS q_pos, q.key, g.pos AS g_pos,
+                   {('g.filter' if has_filter else 'NULL')} AS g_filter,
+                   {col('af')}, {col('af_grpmax')},
                    {col('ac')}, {col('an')}, {col('nhomalt')},
                    TRY_CAST({col('faf95')} AS DOUBLE), {col('grpmax_pop')}
             FROM q LEFT JOIN {src} g
               ON g.chrom = q.chrom AND g.pos = q.pos
              AND upper(g.ref) = q.ref AND upper(g.alt) = q.alt
-             {pass_gate}
         """).fetchall()
     except Exception:
         con.close()
@@ -198,12 +201,19 @@ def prime(variants) -> int:
         os.remove(tmp)
 
     absent = {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
+    # present but not PASS: the variant EXISTS in gnomAD (so not absent -> no PM2), but its AF is
+    # not filtering-AF-authoritative -> serve None so PM2/BA1/BS1 all read 'frequency unavailable'.
+    filtered = {"af": None, "ac": None, "an": None, "hom": None, "faf95": None, "pop": None}
     n = 0
     with _lock:
-        for chrom, q_pos, key, g_pos, af, af_grpmax, ac, an, nhomalt, faf95, pop in rows:
-            if g_pos is not None:          # a real gnomAD row matched (definitive)
-                _primed[key] = {"af": af_grpmax if af_grpmax is not None else af,
-                                "ac": ac, "an": an, "hom": nhomalt, "faf95": faf95, "pop": pop}
+        for chrom, q_pos, key, g_pos, g_filter, af, af_grpmax, ac, an, nhomalt, faf95, pop in rows:
+            if g_pos is not None:          # a gnomAD row matched at this locus
+                is_pass = (g_filter is None) or (str(g_filter).upper() == "PASS")
+                if is_pass:                # definitive frequency
+                    _primed[key] = {"af": af_grpmax if af_grpmax is not None else af,
+                                    "ac": ac, "an": an, "hom": nhomalt, "faf95": faf95, "pop": pop}
+                else:                      # present but filtered -> not absent, AF untrusted
+                    _primed[key] = dict(filtered)
                 n += 1
             elif mode == "full" and chrom in covered:
                 # a whole-exome/genome build vouches for this contig -> genuine absence.

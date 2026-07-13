@@ -96,6 +96,32 @@ def test_bed_mode_without_bed_file_stays_partial(tmp_path, monkeypatch):
     gnomad_parquet._reset_for_tests()
 
 
+def test_bed_mode_non_pass_variant_is_not_a_false_absence(tmp_path, monkeypatch):
+    # Regression: a non-PASS record INSIDE the covered BED must not be turned into a fake
+    # absence (which would fire a spurious PM2 -> over-call, e.g. a 99.98% AS_VQSR variant on
+    # a healthy exome). It is present -> served af=None; a truly-absent in-BED locus -> af=0.
+    p = tmp_path / "g.parquet"
+    con = duckdb.connect()
+    con.execute(f"""COPY (SELECT * FROM (VALUES
+        ('chr1', 100, 'A', 'T', 'PASS',    0.30, 0.50, 300, 1000, 20, 0.48, 'nfe'),
+        ('chr1', 120, 'G', 'GA', 'AS_VQSR', 0.9998, 0.9998, 999, 1000, 400, 0.99, 'nfe'))
+        AS t(chrom, pos, ref, alt, filter, af, af_grpmax, ac, an, nhomalt, faf95, grpmax_pop))
+        TO '{p}' (FORMAT PARQUET)""")
+    con.close()
+    bed = tmp_path / "panel.bed"
+    bed.write_text("chr1\t50\t250\n")
+    (tmp_path / "g.parquet.meta.json").write_text(json.dumps(
+        {"mode": "bed", "contigs": ["chr1"], "bed_path": str(bed)}))
+    monkeypatch.setattr(config, "GNOMAD_PARQUET", str(p))
+    gnomad_parquet._reset_for_tests()
+    gnomad_parquet.prime([_v("1", 120, "G", "GA"), _v("1", 130, "A", "T")])
+    rec = gnomad_parquet.get("1-120-G-GA")                 # present but non-PASS
+    assert rec is not None and rec["af"] is None           # NOT a fake absence (af != 0.0)
+    assert gnomad_parquet.get("1-130-A-T") == {            # truly absent in-BED -> real absence
+        "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
+    gnomad_parquet._reset_for_tests()
+
+
 def test_full_uncovered_contig_left_unprimed(parquet):
     # chr2 isn't in the full store's contigs -> unprimed -> caller falls back.
     parquet(mode="full", contigs=("chr1",))
@@ -113,10 +139,12 @@ def test_case_insensitive_alleles(parquet):
     assert gnomad_parquet.get(v.key)["af"] == 0.50
 
 
-def test_non_pass_variant_not_served(tmp_path, monkeypatch):
-    # A non-PASS gnomAD record (AS_VQSR/InbreedingCoeff artifact) must NOT be served as an
+def test_non_pass_variant_present_but_af_unavailable(tmp_path, monkeypatch):
+    # A non-PASS gnomAD record (AS_VQSR/InbreedingCoeff/AC0 artifact) must NOT be served as an
     # authoritative frequency — its AF/faf95 would fire BA1/BS1 and mask a real pathogenic
-    # variant. PASS-only gate on the join (ClinGen/Whiffin filtering-AF standard).
+    # variant (ClinGen/Whiffin filtering-AF is PASS-only). But the variant IS present, so it must
+    # NOT be turned into a fake absence either (that would fire a spurious PM2 -> over-call).
+    # Correct behaviour: served with af=None (present, frequency unavailable).
     p = tmp_path / "g.parquet"
     con = duckdb.connect()
     con.execute(f"""COPY (SELECT * FROM (VALUES
@@ -129,7 +157,8 @@ def test_non_pass_variant_not_served(tmp_path, monkeypatch):
     gnomad_parquet._reset_for_tests()
     gnomad_parquet.prime([_v("1", 100, "A", "T"), _v("1", 200, "C", "G")])
     assert gnomad_parquet.get("1-100-A-T")["af"] == 0.50   # PASS -> served
-    assert gnomad_parquet.get("1-200-C-G") is None          # non-PASS artifact -> NOT served
+    rec = gnomad_parquet.get("1-200-C-G")                   # non-PASS artifact
+    assert rec is not None and rec["af"] is None            # present, but AF not served (not absent)
     gnomad_parquet._reset_for_tests()
 
 
