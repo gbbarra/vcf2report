@@ -16,33 +16,33 @@ python3 -m vcf2report.cli NA12878_exome.hg38.vcf \
 |---|---|
 | total called | 28,565 |
 | pass QC (DP/GQ/AB) | 23,773 |
-| rare (gnomAD/ABraOM) | 4,537 |
-| impactful / ClinVar P-LP | 1,808 |
-| **candidates classified** | **1,808** |
+| rare (gnomAD/ABraOM) | 5,505 |
+| impactful / ClinVar P-LP | 2,393 |
+| **candidates classified** | **2,393** |
 
-Tiers: Likely Benign 60, Likely Pathogenic 3, Uncertain Significance (VUS) 1745
+Tiers: Likely Benign 52, Likely Pathogenic 3, Uncertain Significance (VUS) 2338
 
 ## Performance (this run)
 
 | stage | seconds |
 |---|---|
-| parse | 0.8292 |
-| qc | 0.0338 |
-| gnomad prime | 3.9816 |
-| annotate | 3.7427 |
-| filter | 0.0269 |
-| alphamissense | 0.8678 |
-| classify | 0.2604 |
-| total | 9.7424 |
-| **wall (incl. import)** | **9.9** |
+| parse | 0.5182 |
+| qc | 0.0239 |
+| gnomad prime | 2.0082 |
+| annotate | 2.8237 |
+| filter | 0.0188 |
+| alphamissense | 1.0674 |
+| classify | 0.2353 |
+| total | 6.6955 |
+| **wall (incl. import)** | **6.8** |
 
-~2932.0 variants/s, fully offline.
+~4266.3 variants/s, fully offline.
 
 ## Sequencing quality (proxy at variant sites)
 
 Mean depth 64.0× (median 47.0×) · Ti/Tv 2.83 · het:hom 1.74 · assay exome / large-panel-scale
 
-## Non-VUS calls (63)
+## Non-VUS calls (55)
 
 | variant | gene | consequence | tier | criteria |
 |---|---|---|---|---|
@@ -58,7 +58,6 @@ Mean depth 64.0× (median 47.0×) · Ti/Tv 2.83 · het:hom 1.74 · assay exome /
 | p.Pro219Ser | TPRN | missense_variant | Likely Benign | BS2, BP4 |
 | p.Ser300Pro | CEP78 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Arg554Gln | DENND2A | missense_variant | Likely Benign | BS2, BP4 |
-| p.Leu198Ile | OR4N4 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Ile598Val | DGKG | missense_variant | Likely Benign | BS2, BP4 |
 | p.Ala454Thr | DOCK9 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Pro602Ser | VWA5A | missense_variant | Likely Benign | BS2, BP4 |
@@ -69,15 +68,10 @@ Mean depth 64.0× (median 47.0×) · Ti/Tv 2.83 · het:hom 1.74 · assay exome /
 | p.Arg246Cys | TOP1MT | missense_variant | Likely Benign | BS2, BP4 |
 | p.Ile170Thr | CD74 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Ser358Cys | GADL1 | missense_variant | Likely Benign | BS2, BP4 |
-| p.Thr329Ala | HLA-C | missense_variant | Likely Benign | BS2, BP4 |
-| p.Cys124Ser | PRAMEF6 | missense_variant | Likely Benign | BS2, BP4 |
-| p.Ala330Val | HLA-C | missense_variant | Likely Benign | BS2, BP4 |
 | p.Asp250Ala | POLQ | missense_variant | Likely Benign | BS2, BP4 |
 | p.Ala30Thr | PAPL | missense_variant | Likely Benign | BS2, BP4 |
-| p.Met331Val | HLA-C | missense_variant | Likely Benign | BS2, BP4 |
 | p.His62Tyr | DEFB125 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Pro685Leu | SALL3 | missense_variant | Likely Benign | BS2, BP4 |
-| p.Val319Ala | HLA-C | missense_variant | Likely Benign | BS2, BP4 |
 | p.Arg244His | ABTB1 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Leu324Val | PRSS53 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Ile435Thr | GRIK1 | missense_variant | Likely Benign | BS2, BP4 |
@@ -92,8 +86,6 @@ Mean depth 64.0× (median 47.0×) · Ti/Tv 2.83 · het:hom 1.74 · assay exome /
 | p.Arg113Gln | SAA4 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Ile112Met | SH3D19 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Thr361Ala | TXLNB | missense_variant | Likely Benign | BS2, BP4 |
-| p.Met309Val | HLA-C | missense_variant | Likely Benign | BS2, BP4 |
-| p.Leu424Phe | MAGEC1 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Pro194Leu | FPGT | missense_variant | Likely Benign | BS2, BP4 |
 | p.Asn1383Ser | ADAMTS12 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Arg319Cys | ARHGAP8 | missense_variant | Likely Benign | BS2, BP4 |
@@ -106,8 +98,9 @@ Mean depth 64.0× (median 47.0×) · Ti/Tv 2.83 · het:hom 1.74 · assay exome /
 | p.Arg23Lys | IL1F10 | missense_variant | Likely Benign | BS2, BP4 |
 | p.Ala520Val | MYO3A | missense_variant | Likely Benign | BS2, BP4 |
 | p.Arg123Leu | AASDH | missense_variant | Likely Benign | BS2, BP4 |
+| p.Thr1534Ser | ATG2B | missense_variant | Likely Benign | BS2, BP4 |
+| p.Met188Thr | TMED6 | missense_variant | Likely Benign | BS2, BP4 |
+| p.Thr2044Pro | CEP350 | missense_variant | Likely Benign | BS2, BP4 |
 
-_… 3 more not shown._
-
-_The remaining 1,745 candidates are VUS — conservative by design when population frequency alone can't resolve them (no over-calling)._
+_The remaining 2,338 candidates are VUS — conservative by design when population frequency alone can't resolve them (no over-calling)._
 

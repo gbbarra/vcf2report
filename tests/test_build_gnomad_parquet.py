@@ -5,12 +5,33 @@ name would not crash — bcftools emits '.' and the column silently becomes all-
 These tests pin the field mapping so that regression is caught without a network build.
 """
 import importlib.util
+import json
 import pathlib
+
+import pytest
 
 _SCRIPT = pathlib.Path(__file__).resolve().parent.parent / "scripts" / "build_gnomad_parquet.py"
 _spec = importlib.util.spec_from_file_location("build_gnomad_parquet", _SCRIPT)
 bgp = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(bgp)
+
+
+def test_resume_skips_only_on_scope_match(tmp_path):
+    # A partition is reused ONLY if its _scope.json matches; else a later broader build
+    # (dropping --bed / switching preset) must re-extract, never silently reuse a slice.
+    duckdb = pytest.importorskip("duckdb")
+    out = tmp_path / "store"
+    part = out / "chrom=chr21"
+    part.mkdir(parents=True)
+    duckdb.connect().execute(
+        f"COPY (SELECT 1 AS chrom, 100 AS pos) TO '{part/'data.parquet'}' (FORMAT PARQUET)")
+    (part / "_scope.json").write_text(json.dumps({"region": None, "bed": None, "preset": "exomes"}))
+    url, fields = bgp._PRESETS["exomes"]
+
+    # same scope -> resume-skip, returns the existing row count (never touches the source)
+    assert bgp.build_chrom("21", url, fields, "/nonexistent", out, None, None, None, "exomes") == 1
+    # different scope (preset) -> must NOT skip; falls through to a missing source -> 0
+    assert bgp.build_chrom("21", url, fields, "/nonexistent", out, None, None, None, "joint") == 0
 
 
 def _fields(preset):

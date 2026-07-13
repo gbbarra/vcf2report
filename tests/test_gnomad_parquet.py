@@ -81,6 +81,26 @@ def test_case_insensitive_alleles(parquet):
     assert gnomad_parquet.get(v.key)["af"] == 0.50
 
 
+def test_non_pass_variant_not_served(tmp_path, monkeypatch):
+    # A non-PASS gnomAD record (AS_VQSR/InbreedingCoeff artifact) must NOT be served as an
+    # authoritative frequency — its AF/faf95 would fire BA1/BS1 and mask a real pathogenic
+    # variant. PASS-only gate on the join (ClinGen/Whiffin filtering-AF standard).
+    p = tmp_path / "g.parquet"
+    con = duckdb.connect()
+    con.execute(f"""COPY (SELECT * FROM (VALUES
+        ('chr1', 100, 'A', 'T', 'PASS',    0.30, 0.50, 300, 1000, 20, 0.48, 'nfe'),
+        ('chr1', 200, 'C', 'G', 'AS_VQSR', 0.40, 0.45, 400, 1000,  0, 0.44, 'afr'))
+        AS t(chrom, pos, ref, alt, filter, af, af_grpmax, ac, an, nhomalt, faf95, grpmax_pop))
+        TO '{p}' (FORMAT PARQUET)""")
+    con.close()
+    monkeypatch.setattr(config, "GNOMAD_PARQUET", str(p))
+    gnomad_parquet._reset_for_tests()
+    gnomad_parquet.prime([_v("1", 100, "A", "T"), _v("1", 200, "C", "G")])
+    assert gnomad_parquet.get("1-100-A-T")["af"] == 0.50   # PASS -> served
+    assert gnomad_parquet.get("1-200-C-G") is None          # non-PASS artifact -> NOT served
+    gnomad_parquet._reset_for_tests()
+
+
 def test_chrom_prefix_tolerated(parquet):
     parquet()
     gnomad_parquet.prime([_v("chr1", 100, "A", "T")])

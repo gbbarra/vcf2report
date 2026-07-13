@@ -113,6 +113,11 @@ def prime(variants) -> int:
         # build (build_gnomad_parquet.py) carries them. Select NULL for missing columns.
         schema = {r[0].lower() for r in con.execute(f"DESCRIBE SELECT * FROM {src}").fetchall()}
         col = lambda name: f"g.{name}" if name in schema else "NULL"
+        # PASS-only: a non-PASS gnomAD record (AS_VQSR / InbreedingCoeff / AC0 artifact) is
+        # NOT an authoritative frequency — serving its AF/faf95 could fire BA1/BS1 and mask a
+        # real pathogenic variant (ClinGen/Whiffin filtering-AF is PASS-only). Gate the join
+        # so such a locus doesn't match -> in partial mode it falls through (unprimed).
+        pass_gate = "AND g.filter = 'PASS'" if "filter" in schema else ""
         # Bulk-load the query variants via a temp TSV — executemany is per-row and would
         # take minutes on a whole exome; read_csv loads ~24k rows in ~1 s. Alleles are
         # upper-cased (VCF alleles are case-insensitive) so a lowercase input never
@@ -133,6 +138,7 @@ def prime(variants) -> int:
             FROM q LEFT JOIN {src} g
               ON g.chrom = q.chrom AND g.pos = q.pos
              AND upper(g.ref) = q.ref AND upper(g.alt) = q.alt
+             {pass_gate}
         """).fetchall()
     except Exception:
         con.close()

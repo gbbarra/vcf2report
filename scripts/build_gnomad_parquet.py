@@ -133,7 +133,7 @@ def _download(url_tmpl: str, chrom: str, dl_dir: str) -> tuple[str, list[Path]]:
 
 def build_chrom(chrom: str, url_tmpl: str, fields, src: str | None,
                 out_dir: Path, region: str | None, bed: str | None = None,
-                download_dir: str | None = None) -> int:
+                download_dir: str | None = None, preset: str | None = None) -> int:
     import duckdb
     label = chrom if chrom.lower().startswith("chr") else f"chr{chrom}"
     cols = _LEAD + [out for out, _info in fields]
@@ -141,13 +141,27 @@ def build_chrom(chrom: str, url_tmpl: str, fields, src: str | None,
     part_dir.mkdir(parents=True, exist_ok=True)
     tsv = part_dir / "_extract.tsv"
     parquet = part_dir / "data.parquet"
+    scope_file = part_dir / "_scope.json"
+    # A partition is only reusable if it was built under the SAME scope; otherwise a later
+    # broader build (dropping --bed, or switching preset) would silently reuse a narrow
+    # slice and then declare mode=full over incomplete contigs -> fabricated absence.
+    scope = {"region": region, "bed": (str(Path(bed).resolve()) if bed else None),
+             "preset": preset}
 
-    if parquet.exists() and parquet.stat().st_size > 0:   # resume: this chrom is done
-        con = duckdb.connect()
-        n = con.execute(f"SELECT count(*) FROM read_parquet('{parquet}')").fetchone()[0]
-        con.close()
-        print(f"[{label}] {n:,} variants (already built — skipped)", file=sys.stderr)
-        return n
+    if parquet.exists() and parquet.stat().st_size > 0:   # resume — only on a scope match
+        prev = None
+        if scope_file.exists():
+            try:
+                prev = json.loads(scope_file.read_text())
+            except Exception:
+                prev = None
+        if prev == scope:
+            con = duckdb.connect()
+            n = con.execute(f"SELECT count(*) FROM read_parquet('{parquet}')").fetchone()[0]
+            con.close()
+            print(f"[{label}] {n:,} variants (already built, same scope — skipped)", file=sys.stderr)
+            return n
+        print(f"[{label}] scope changed — rebuilding", file=sys.stderr)
 
     cleanup: list[Path] = []
     if download_dir and not src:
@@ -156,6 +170,7 @@ def build_chrom(chrom: str, url_tmpl: str, fields, src: str | None,
         source = _source(url_tmpl, chrom, src)
 
     cmd = ["bcftools", "query", "-f", _bcftools_fmt(fields).replace("\\t", "\t").replace("\\n", "\n")]
+    cmd += ["-i", 'FILTER="PASS"']   # PASS-only frequencies (ClinGen filtering-AF standard)
     if region:
         cmd += ["-r", region]
     if bed:
@@ -192,6 +207,7 @@ def build_chrom(chrom: str, url_tmpl: str, fields, src: str | None,
     tsv.unlink(missing_ok=True)           # never keep the raw extract
     for f in cleanup:                     # free the ~one-chrom scratch before the next
         f.unlink(missing_ok=True)
+    scope_file.write_text(json.dumps(scope))   # record scope so resume only reuses a match
     print(f"[{label}] {n:,} variants -> {parquet}", file=sys.stderr)
     return n
 
@@ -239,7 +255,7 @@ def main(argv: list[str] | None = None) -> int:
     total = 0
     for c in chroms:
         n = build_chrom(c, url_tmpl, fields, args.src, out_dir, args.region, args.bed,
-                        args.download_dir)
+                        args.download_dir, args.preset)
         built[c] = n
         total += n
 
