@@ -64,6 +64,38 @@ def test_full_covered_absence_is_zero(parquet):
         "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
 
 
+def test_bed_mode_asserts_absence_only_inside_intervals(tmp_path, monkeypatch):
+    # A panel (mode='bed') store asserts absence ONLY inside a covered BED interval —
+    # sound because the store is complete there; off-panel it stays unprimed (no fake 0.0).
+    p = _make_parquet(tmp_path)
+    bed = tmp_path / "panel.bed"
+    bed.write_text("chr1\t50\t250\n")     # 0-based half-open -> covers 1-based 51..250
+    (tmp_path / "g.parquet.meta.json").write_text(json.dumps(
+        {"mode": "bed", "contigs": ["chr1"], "bed_path": str(bed)}))
+    monkeypatch.setattr(config, "GNOMAD_PARQUET", str(p))
+    gnomad_parquet._reset_for_tests()
+    gnomad_parquet.prime([_v("1", 100, "A", "T"),    # matches parquet -> served
+                          _v("1", 150, "A", "T"),    # in BED, absent -> genuine 0.0
+                          _v("1", 5000, "A", "T")])   # off BED, absent -> unprimed
+    assert gnomad_parquet.get("1-100-A-T")["af"] == 0.50
+    assert gnomad_parquet.get("1-150-A-T") == {
+        "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
+    assert gnomad_parquet.get("1-5000-A-T") is None
+    gnomad_parquet._reset_for_tests()
+
+
+def test_bed_mode_without_bed_file_stays_partial(tmp_path, monkeypatch):
+    # mode='bed' but the BED can't be loaded -> fall back to partial (never assert absence).
+    p = _make_parquet(tmp_path)
+    (tmp_path / "g.parquet.meta.json").write_text(json.dumps(
+        {"mode": "bed", "contigs": ["chr1"], "bed_path": str(tmp_path / "missing.bed")}))
+    monkeypatch.setattr(config, "GNOMAD_PARQUET", str(p))
+    gnomad_parquet._reset_for_tests()
+    gnomad_parquet.prime([_v("1", 150, "A", "T")])
+    assert gnomad_parquet.get("1-150-A-T") is None      # no BED -> safe, unprimed
+    gnomad_parquet._reset_for_tests()
+
+
 def test_full_uncovered_contig_left_unprimed(parquet):
     # chr2 isn't in the full store's contigs -> unprimed -> caller falls back.
     parquet(mode="full", contigs=("chr1",))

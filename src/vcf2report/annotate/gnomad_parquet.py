@@ -71,28 +71,76 @@ def _source_expr() -> str:
     return f"read_parquet('{_q(str(p))}')"
 
 
-def _read_meta() -> tuple[str, set]:
-    """(mode, covered-contigs) from a ``_meta.json`` sidecar written by the builder.
-    SAFE default — ``partial`` and an empty contig set — so a store WITHOUT provenance
-    (e.g. a reused lakehouse parquet, a panel/region build, or a truncated build) NEVER
-    asserts an absence. Only a build that declares ``mode=full`` + the contigs it fully
-    covered may report a variant absent."""
+_bed_cache: dict = {}
+
+
+def _load_bed(path: str) -> dict:
+    """{contig: (sorted starts, ends)} from a BED (0-based half-open). Cached by path."""
+    if path in _bed_cache:
+        return _bed_cache[path]
+    ivs: dict = {}
+    try:
+        with open(path) as fh:
+            for line in fh:
+                if not line.strip() or line.startswith(("#", "track", "browser")):
+                    continue
+                f = line.split("\t")
+                ivs.setdefault(_norm_chrom(f[0]), []).append((int(f[1]), int(f[2])))
+    except Exception:
+        ivs = {}
+    out = {}
+    for c, lst in ivs.items():
+        lst.sort()
+        out[c] = ([s for s, _e in lst], [e for _s, e in lst])   # merged BED -> non-overlapping
+    _bed_cache[path] = out
+    return out
+
+
+def _in_bed(chrom: str, pos1: int, bed: dict) -> bool:
+    """Is a 1-based VCF pos inside a covered BED interval (0-based half-open)?"""
+    d = bed.get(_norm_chrom(chrom))
+    if not d:
+        return False
+    import bisect
+    starts, ends = d
+    p = pos1 - 1
+    i = bisect.bisect_right(starts, p) - 1   # rightmost interval whose start <= p
+    return 0 <= i < len(starts) and p < ends[i]
+
+
+def _read_meta() -> tuple[str, set, dict]:
+    """(mode, covered-contigs, bed-intervals) from the ``_meta.json`` sidecar.
+
+    SAFE default — ``partial``, empty — so a store WITHOUT provenance NEVER asserts absence.
+    ``full`` asserts absence on any covered contig (a whole-exome/genome build). ``bed``
+    (a panel-sliced build) asserts absence ONLY for a variant inside a covered BED interval
+    on a covered contig — sound because within the panel the store is complete; off-panel
+    it stays unprimed (honest 'unknown')."""
     import json
     p = Path(config.GNOMAD_PARQUET)
     meta = (p / "_meta.json") if p.is_dir() else p.with_name(p.name + ".meta.json")
-    mode, contigs = "partial", set()
+    mode, contigs, bed = "partial", set(), {}
     try:
         if meta.exists():
             d = json.loads(meta.read_text())
             m = (d.get("mode") or "").lower()
-            if m in ("full", "partial"):
+            if m in ("full", "partial", "bed"):
                 mode = m
             cs = d.get("contigs")
             if isinstance(cs, list):
                 contigs = {_norm_chrom(str(c)) for c in cs}
+            if mode == "bed":
+                bp = d.get("bed_path")
+                if bp:
+                    bpp = Path(bp)
+                    if not bpp.is_absolute():       # relative -> resolve against the store dir
+                        bpp = (p if p.is_dir() else p.parent) / bp
+                    bed = _load_bed(str(bpp)) if bpp.exists() else {}
+                if not bed:            # BED unavailable -> cannot verify coverage -> stay safe
+                    mode = "partial"
     except Exception:
         pass
-    return mode, contigs
+    return mode, contigs, bed
 
 
 def prime(variants) -> int:
@@ -108,7 +156,7 @@ def prime(variants) -> int:
     tmp = None
     try:
         src = _source_expr()
-        mode, covered = _read_meta()   # partial (default) -> NEVER assert absence
+        mode, covered, bed = _read_meta()   # partial (default) -> NEVER assert absence
         # Schema-aware: a lakehouse parquet may lack faf95/grpmax_pop; a from-scratch
         # build (build_gnomad_parquet.py) carries them. Select NULL for missing columns.
         schema = {r[0].lower() for r in con.execute(f"DESCRIBE SELECT * FROM {src}").fetchall()}
@@ -132,7 +180,7 @@ def prime(variants) -> int:
             "column2 AS ref, column3 AS alt, column4 AS key "
             "FROM read_csv(?, header=false, delim='\t', all_varchar=true)", [tmp])
         rows = con.execute(f"""
-            SELECT q.chrom, q.key, g.pos AS g_pos, {col('af')}, {col('af_grpmax')},
+            SELECT q.chrom, q.pos AS q_pos, q.key, g.pos AS g_pos, {col('af')}, {col('af_grpmax')},
                    {col('ac')}, {col('an')}, {col('nhomalt')},
                    TRY_CAST({col('faf95')} AS DOUBLE), {col('grpmax_pop')}
             FROM q LEFT JOIN {src} g
@@ -149,16 +197,21 @@ def prime(variants) -> int:
     if tmp and os.path.exists(tmp):
         os.remove(tmp)
 
+    absent = {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
     n = 0
     with _lock:
-        for chrom, key, g_pos, af, af_grpmax, ac, an, nhomalt, faf95, pop in rows:
+        for chrom, q_pos, key, g_pos, af, af_grpmax, ac, an, nhomalt, faf95, pop in rows:
             if g_pos is not None:          # a real gnomAD row matched (definitive)
                 _primed[key] = {"af": af_grpmax if af_grpmax is not None else af,
                                 "ac": ac, "an": an, "hom": nhomalt, "faf95": faf95, "pop": pop}
                 n += 1
             elif mode == "full" and chrom in covered:
-                # a build that vouches for this contig, no match -> genuine absence.
-                _primed[key] = {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
+                # a whole-exome/genome build vouches for this contig -> genuine absence.
+                _primed[key] = dict(absent)
+                n += 1
+            elif mode == "bed" and chrom in covered and _in_bed(chrom, q_pos, bed):
+                # panel build: the store is complete INSIDE the BED, so absence there is real.
+                _primed[key] = dict(absent)
                 n += 1
             # else -> leave unprimed so gnomad.lookup falls through (never a fake 0.0).
     return n
@@ -173,4 +226,5 @@ def _reset_for_tests() -> None:
     global _duckdb, _duckdb_tried
     with _lock:
         _primed.clear()
+        _bed_cache.clear()
         _duckdb, _duckdb_tried = None, False

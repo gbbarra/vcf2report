@@ -260,24 +260,33 @@ def main(argv: list[str] | None = None) -> int:
         total += n
 
     ok = {c for c, n in built.items() if n > 0}
-    # Declare 'full' ONLY for a whole-genome build where every requested chromosome
-    # streamed successfully and there was no --region/--bed slice — so the client may
-    # assert a variant absent from these contigs. Anything else is 'partial': the client
-    # then never fabricates an absence off it (a region test, a panel, or a truncated
-    # build). A --bed store is panel-scoped -> always partial (absence off-panel is unknown).
-    is_full = (not args.region) and (not args.bed) and (set(chroms) >= full_set) and (ok >= set(chroms))
+    # Absence-assertion mode. 'full' = a whole-genome/exome build with no slice (assert
+    # absence on any covered contig). 'bed' = a whole-genome PANEL build (assert absence
+    # only INSIDE the BED intervals, where the store is complete). Anything else = 'partial'
+    # (a region test / truncated build): NEVER assert absence. Requires every requested
+    # chromosome to have built, so a missing contig can't be silently called complete.
+    complete = (not args.region) and (set(chroms) >= full_set) and (ok >= set(chroms))
     _pref = lambda c: c if str(c).lower().startswith("chr") else f"chr{c}"
-    meta = {"mode": "full" if is_full else "partial",
-            "contigs": sorted(_pref(c) for c in ok),
+    if complete and not args.bed:
+        mode = "full"
+    elif complete and args.bed:
+        mode = "bed"
+    else:
+        mode = "partial"
+    meta = {"mode": mode, "contigs": sorted(_pref(c) for c in ok),
             "preset": args.preset, "rows": total,
-            "source": f"gnomAD v4.1 {args.preset}"}
+            "source": f"gnomAD v4.1 {args.preset}" + (" (BED-sliced)" if args.bed else "")}
+    if args.bed:
+        import shutil
+        shutil.copy(args.bed, out_dir / "panel.bed")   # bundle so the store is self-contained
+        meta["bed_path"] = "panel.bed"                  # resolved relative to the store dir
     (out_dir / "_meta.json").write_text(json.dumps(meta, indent=2) + "\n")
 
     print(f"\nDone ({meta['mode']}): {total:,} variants across {len(ok)} chrom(s) -> {out_dir}",
           file=sys.stderr)
-    if not is_full and not args.region and not args.bed:
+    if mode == "partial" and not args.region:
         _warn("mode=partial: some chromosomes did not build — the client will NOT assert "
-              "absence off this store (falls back instead). Re-run to complete for full mode.")
+              "absence off this store (falls back instead). Re-run to complete.")
     print(f"Point vcf2report at it: VCF2REPORT_GNOMAD_PARQUET={out_dir}", file=sys.stderr)
     return 0
 
