@@ -75,6 +75,13 @@ def test_single_submitter_clinvar_not_surfaced():
     assert "Classified Pathogenic" not in " ".join(summarize(_report([c])))
 
 
+def test_incidental_plp_surfaced_in_conclusion():
+    # An unrelated (hpo=0) P/LP in a NON-SF gene must still be named in the conclusion,
+    # not left to the ranked table alone.
+    txt = " ".join(summarize(_report([_cls("GENEX", "Pathogenic", hpo=0.0)])))
+    assert "Additional" in txt and "GENEX" in txt and "Pathogenic" in txt
+
+
 def test_secondary_sf_finding():
     # RB1 is an ACMG SF v3.2 gene; unrelated (hpo=0) P/LP -> reportable secondary.
     txt = " ".join(summarize(_report([_cls("RB1", "Pathogenic", hpo=0.0)])))

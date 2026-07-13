@@ -110,7 +110,7 @@ By consequence (surfaced incl. phenotype): stop-gain 760/821 (92%) · frameshift
 (91%) · missense 2605/3003 (86%) · in-frame 129/162 (79%) · start-loss 36/43 (83%) — no class
 fails systematically.
 
-**Over-calls (false positives).** Across all 2349 PM2-driven P/LP calls, **none** rests on a
+**Over-calls (false positives).** Across all 2258 PM2-driven P/LP calls, **none** rests on a
 population frequency above the PM2 ceiling (store check, 0 violations); an earlier independent
 gnomAD-API spot-check corroborated genuine absence (bulk API re-verification is rate-limited).
 The 610 not-surfaced cases are engine-VUS without a ≥2-star ClinVar assertion or phenotype

@@ -137,7 +137,7 @@ def summarize(report: "ReportModel") -> list[str]:
     limitation, and recommended next steps. Derived only from the classifications
     and the sequencing-quality estimate — no model judgment.
     """
-    primary, secondary, _other = split_findings(report.classifications)
+    primary, secondary, other = split_findings(report.classifications)
     lines: list[str] = []
 
     diag = [c for c in primary if c.tier in _PLP]
@@ -168,6 +168,15 @@ def summarize(report: "ReportModel") -> list[str]:
         g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in sec)
         lines.append(f"Reportable **secondary finding** (ACMG SF v3.2 — actionable, subject to "
                      f"the patient's opt-in policy): {g}.")
+
+    # An engine-P/LP variant that is neither phenotype-matched nor on the SF list still
+    # belongs in the conclusion — it is in the ranked table but must not be silent here.
+    inc = [c for c in other if c.tier in _PLP]
+    if inc:
+        g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in inc)
+        lines.append(f"Additional **Pathogenic / Likely Pathogenic** variant(s) not matching the "
+                     f"stated phenotype and not on the ACMG SF actionable list: {g}. Clinical "
+                     "relevance to the indication is uncertain — review in context.")
 
     sq = report.seq_quality
     if sq and sq.dp_median is not None and sq.dp_median < 20:
