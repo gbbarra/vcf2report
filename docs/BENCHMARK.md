@@ -153,9 +153,41 @@ ClinVar surface are the specific signals, which is why they are reported separat
 specificity-calibrated phenotype score (surface only when the gene beats the decoy distribution)
 and rank-based reporting.
 
+## Whole-exome scale test — 100 planted variants on NA12878
+
+The isolated harness above measures classification; this measures **real-world surfacing at scale**.
+100 different real pathogenic variants (100 unique genes, GA4GH Phenopacket Store) were each planted
+one-at-a-time into the real GIAB NA12878 exome (~28,600 variants) with that case's phenotype, and run
+through the full offline pipeline (~6 s each). The honest question: is the planted variant brought to
+the clinician's attention — by ACMG tier (Likely Pathogenic / Pathogenic), or as a phenotype-matched
+primary candidate ranked for curation against the ~2,400 real background candidates?
+
+**69/100 surfaced** — 40 as P/LP by tier, 29 as phenotype-matched primary candidates; 31 not surfaced.
+
+| consequence | surfaced | why |
+|---|---|---|
+| stop-gain | 23/25 (92%) | LoF → PVS1 + PM2 reaches P/LP |
+| start-loss | 4/5 (80%) | |
+| missense | 26/35 (74%) | AlphaMissense PP3 + phenotype |
+| frameshift | 16/25 (64%) | LoF, but PVS1 needs the gene flagged LoF-intolerant in the constraint table |
+| **in-frame indel** | **0/10 (0%)** | no strong criterion — only PM4 (Moderate); a real, specific gap |
+
+The 31 misses are disclosed, not hidden:
+- **In-frame indels (0/10)** are the clearest gap: PVS1 does not apply and only PM4 (Moderate) fires,
+  so without a phenotype match they stay deep VUS. A dedicated in-frame path (repeat/hotspot awareness,
+  PM4 strength) is the fix.
+- **LoF that doesn't reach P/LP**: a nonsense/frameshift in a gene not flagged LoF-intolerant gets PM2
+  only → VUS; phenotype misses track gene↔HPO annotation coverage. Both are data-coverage gaps, not
+  classification errors, and a specialist curates the ranked list regardless.
+
+This whole-exome, real-background figure (69%, rank against real candidates) is the honest, non-circular
+counterpart to the isolated harness's phenotype tier — the metric that matters is that the true variant
+is *brought forward*, with a clear, measured breakdown of where it is not.
+
 ## Honest limitations
 
 - Single-proband: PS2/PM3/PM6/PP1/BS4 (de novo, in-trans, segregation) are N/A.
+- In-frame indels are a measured weak spot (0/10 above) — no strong ACMG criterion beyond PM4.
 - Specificity on a healthy exome is limited (above) — disclosed and quantified, not hidden.
 - The exomes+MANE store keeps PM2 conservative (see above) — a deliberate no-false-absence
   choice, quantified here rather than hidden.
