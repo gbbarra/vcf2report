@@ -86,14 +86,17 @@ not available in this environment, skip it silently and continue with plain text
 
 ## Step 4 — Run the analysis (visible phases, right panel)
 Run the pipeline so the user watches it work in the **Background Tasks** pane. Two ways:
-- **Rich (named phases)** — when there's real background work (a liftover or a gnomAD
-  build): invoke the `Workflow` tool with `scriptPath:
+- **Rich (named phases)** — invoke the `Workflow` tool with `scriptPath:
   <repo>/.claude/skills/analyze-vcf/references/analyze.workflow.js` and `args: { repo,
-  vcf, sample, hpo, out, lift, buildGnomad, jobs }`. The phases **Setup → Frequencies →
-  Classify → Report** show live in the right panel. Set `lift: true` if Step 3 detected
-  GRCh37; `buildGnomad: true` for offline population frequency when no local table
-  exists (`build_gnomad_local.py --from-vcf --jobs 24` — an exome build is ~45–60 min,
-  so confirm first and mention the ETA).
+  vcf, sample, hpo, phenotypeText, out, lift, chain }`. The phases render as the step boxes
+  in Background Tasks, each **labeled with who does the work** so the user can tell local
+  from Claude at a glance: **🖥️ Local · Setup → 🤖 Claude · Phenotype→HPO → 🖥️ Local ·
+  Frequencies → 🖥️ Local · Classify (ACMG) → 🤖 Claude · Laudo**. 🖥️ steps are the
+  deterministic, offline vcf2report engine on the machine; 🤖 steps are Claude reasoning
+  (mapping free-text phenotype to HPO, synthesizing the narrative). Set `lift: true` if
+  Step 3 detected GRCh37; pass `phenotypeText` (free-text phenotype) to have the 🤖 phase
+  map it to HPO, or `hpo` (a file) to skip that. The gnomAD Parquet store is auto-detected
+  locally — no build step needed.
 - **Lean** — just run it yourself:
   ```bash
   python3 scripts/run_headless.py <VCF> --hpo <HPO_FILE> --out <OUT_DIR> --timing
