@@ -116,9 +116,37 @@ gnomAD-API spot-check corroborated genuine absence (bulk API re-verification is 
 The 610 not-surfaced cases are engine-VUS without a ≥2-star ClinVar assertion or phenotype
 overlap — the conservative tail, not misses.
 
+## Specificity & phenotype circularity — measured on a real exome
+
+The isolated-classification harness measures sensitivity (does a real pathogenic variant surface)
+but not specificity. Two negative controls quantify what it can't:
+
+**Whole real exome (GIAB NA12878 + one planted variant).** We spiked a known pathogenic
+POGZ variant (White-Sutton syndrome) into the real GIAB NA12878 exome (28,566 variants) with the
+case's phenotype, and ran the full pipeline (~10.5 s). The engine **ranked POGZ #1 of 2,394
+candidates** (Pathogenic, phenotype 1.00) — the honest, non-circular sensitivity signal is this
+**rank against real background**, not a match rate. But it also called **28 other P/LP on this
+healthy individual** (29 P/LP total; only POGZ is real). Most are rare loss-of-function indels
+(CYFIP2, BCR, SON, LTBP4, PRKDC…) the **exome-only** frequency store reports as absent — a variant
+present in gnomAD *genomes* but not exomes becomes a false absence → spurious PVS1 + PM2. This
+specificity limitation is real; the fixes are a joint exomes+genomes store (removes the false
+absences), stricter PVS1 gating (LoF mechanism + NMD/exon), and requiring corroboration for
+PVS1+PM2-only Likely Pathogenic (ClinGen SVI).
+
+**Phenotype decoy control.** For all 5,335 cases we re-scored each with a *random, unrelated*
+phenotype. The decoy still matches the causative gene **62%** of the time (vs 83% for the true
+phenotype) at the routing threshold — so only **~20 points** of the phenotype signal is truly
+specific, and even an exact-match threshold leaves a ~45% decoy false-match rate (HPO annotations
+for neuro/developmental terms are broadly promiscuous). The "+phenotype 88%" tier is therefore
+mostly non-specific prioritization; the engine's own P/LP rate (42%) and the genuine ≥2-star
+ClinVar surface are the specific signals, which is why they are reported separately. The fix is a
+specificity-calibrated phenotype score (surface only when the gene beats the decoy distribution)
+and rank-based reporting.
+
 ## Honest limitations
 
 - Single-proband: PS2/PM3/PM6/PP1/BS4 (de novo, in-trans, segregation) are N/A.
+- Specificity on a healthy exome is limited (above) — disclosed and quantified, not hidden.
 - The exomes+MANE store keeps PM2 conservative (see above) — a deliberate no-false-absence
   choice, quantified here rather than hidden.
 - The spike-in uses a constructed `ANN`; a real SnpEff/VEP annotation may add exon rank

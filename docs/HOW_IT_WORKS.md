@@ -159,8 +159,10 @@ Reported as three honest tiers, not one number: **engine P/LP 42%**, **+ genuine
 **+ phenotype 88%** (the phenotype tier is partly circular in a spike-in benchmark). Of the 1,067
 genuinely ≥2★ ClinVar-known variants, **1,067/1,067 surface, 0 missed**, and the 554 the engine
 tiers below P/LP are all caught by the ClinVar safety flag. Across the 2,258 PM2-driven P/LP calls,
-**0** rest on a frequency above the PM2 ceiling — no false-absence over-calls. Full method,
-per-consequence breakdown, and the adversarial-audit findings are in [`BENCHMARK.md`](BENCHMARK.md).
+**0** rest on a frequency above the PM2 ceiling *by the store's own reckoning* — but a whole-exome
+specificity test (NA12878) reveals the store itself has false absences (see Discussion), so this
+sensitivity result must be read alongside the specificity limitation. Full method, per-consequence
+breakdown, and the adversarial-audit findings are in [`BENCHMARK.md`](BENCHMARK.md).
 
 An adversarial audit of this run additionally found and **fixed** a real safety bug (a ClinVar
 review-status parser that scored every real assertion 0, silently disabling the safety flag on
@@ -178,10 +180,14 @@ is why they are reported separately.
 
 **Honest limitations.** (1) Single-proband: no de-novo/segregation/phasing evidence. (2) The
 AlphaMissense/REVEL/CADD strength thresholds are documented *seed* values pending empirical
-calibration. (3) In the benchmark, phenotype terms come from the same publication that names the
-causative gene, so the phenotype signal is partly circular — disclosed, not hidden. (4) A variant
-present only in gnomAD *genomes* but absent from the exome+MANE store is a residual PM2 edge case
-(0 observed; a joint exomes+genomes MANE build closes it).
+calibration. (3) The phenotype signal is only ~20 points specific: a decoy (random) phenotype
+still matches the causative gene 62% of the time, so "+phenotype 88%" is mostly non-specific
+prioritization — the honest measure is rank against real background (POGZ ranked #1 of 2,394 on a
+whole NA12878 exome). (4) **Specificity is limited by the exome-only store:** on a healthy NA12878
+exome the engine calls 29 P/LP (28 false positives), mostly rare LoF indels present in gnomAD
+*genomes* but absent from the exome+MANE store → a false absence → spurious PVS1+PM2. A joint
+exomes+genomes store, stricter PVS1 gating, and PVS1+PM2 corroboration are the fixes. See
+[`BENCHMARK.md`](BENCHMARK.md#specificity--phenotype-circularity--measured-on-a-real-exome).
 
 **Reproducibility & privacy.** Every input is openly licensed and every store is rebuildable from
 public sources (`scripts/build_*`), or downloadable as a checksummed Release. Because the default
