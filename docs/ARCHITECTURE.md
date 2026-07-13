@@ -55,7 +55,7 @@ the code stays capable of real calls.
 | Source | Live | Local fallback |
 |---|---|---|
 | gnomAD | GraphQL (`gnomad_r4`) | `data/gnomad/gnomad_cache.json` |
-| ClinVar | NCBI E-utilities | `data/clinvar/clinvar_grch38_slice.tsv` |
+| ClinVar | NCBI (full local store) | `data/clinvar/clinvar_grch38.tsv.gz` (tabix, ~4.2M variants, offline; built by `scripts/build_clinvar_local.py`) + optional live E-utilities |
 | ABraOM | — (static dataset) | `data/abraom/abraom_sabe.tsv` — **demo stub (2 variants); full ABraOM SABE not installed yet, obtain from IB-USP** |
 | HPO | ontology.jax.org | `data/hpo/genes_to_phenotype.tsv` |
 

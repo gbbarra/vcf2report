@@ -127,8 +127,10 @@ python3 -m pip install -e .            # core engine (only dependency: jinja2)
 ```
 
 That is enough to run the offline demo below — **all databases for it are already
-bundled** in `data/` (ClinVar slice, gnomAD snapshot, ABraOM, HPO, gene constraint,
-in-silico; ~2 MB total, no download).
+bundled** in `data/` (a tiny ClinVar fallback slice, gnomAD snapshot, ABraOM, HPO,
+gene constraint, in-silico; ~2 MB total, no download). For real use, build the **full
+local ClinVar** (all ~4.2M GRCh38 variants, tabix-indexed, offline) with
+`scripts/build_clinvar_local.py` — once present it is the authoritative offline source.
 
 Optional extras:
 

@@ -22,6 +22,9 @@ CACHE_DIR = Path(os.environ.get("VCF2REPORT_CACHE", DATA_DIR / "cache"))
 SAMPLE_VCF = DATA_DIR / "sample" / "sample_exome.vcf"
 SAMPLE_HPO = DATA_DIR / "sample" / "patient_hpo_terms.txt"
 CLINVAR_LOCAL = DATA_DIR / "clinvar" / "clinvar_grch38_slice.tsv"
+# Full local ClinVar (tabix, random-access) — built by scripts/build_clinvar_local.py.
+# When present it is the authoritative offline source; the slice above is only a fallback.
+CLINVAR_TABIX = DATA_DIR / "clinvar" / "clinvar_grch38.tsv.gz"
 GNOMAD_LOCAL = DATA_DIR / "gnomad" / "gnomad_cache.json"
 # Reduced local gnomAD frequency table (bgzipped TSV + .tbi), built by
 # scripts/build_gnomad_local.py. Offline, authoritative when present. Overridable so

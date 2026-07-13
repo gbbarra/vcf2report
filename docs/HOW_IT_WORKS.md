@@ -67,10 +67,13 @@ matching transcripts feeds **PP3** (strong ≥0.99 / moderate ≥0.90 / supporti
 REVEL/CADD fallback (REVEL ≥0.70 / CADD ≥20 pathogenic; ≤0.15 / ≤10 benign). A non-missense
 site returns `None`, never 0.
 
-**ClinVar — local slice + live E-utilities.** Clinical assertions resolve cache → live NCBI
-E-utilities (only if online) → a bundled local slice TSV. A live "not found" never overrides the
-local slice, and only a positive chr+pos+ref+alt match is accepted. Feeds the deprecated-gated
-**PP5** (+1 supporting) and, independently of the ACMG math, the **ClinVar safety flag** (below).
+**ClinVar — full local store (offline) + optional live E-utilities.** Clinical assertions resolve
+cache → **the full local ClinVar** (all ~4.2M GRCh38 variants, tabix-indexed for random access,
+built by `scripts/build_clinvar_local.py`, ~47 MB) → live NCBI E-utilities (only if online, for a
+variant newer than the snapshot) → a tiny fallback slice. The local store is complete and offline —
+no network call is needed for a real ClinVar lookup — and only a positive chr+pos+ref+alt match is
+accepted. Feeds the deprecated-gated **PP5** (+1 supporting) and, independently of the ACMG math,
+the **ClinVar safety flag** (below).
 
 **HPO phenotype matching — PP4 & routing.** Gene↔phenotype similarity uses the HPO `is_a` graph
 with **Lin/Information-Content semantic similarity** (best-match-average) when the ontology graph

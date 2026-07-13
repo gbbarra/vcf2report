@@ -61,3 +61,7 @@ data/liftover/
 # User-built gnomAD DuckDB/Parquet store (scripts/build_gnomad_parquet.py, default
 # --out) — ~1 GB, machine-specific; never committed (too big for GitHub anyway).
 data/gnomad/gnomad_parquet*/
+
+# Full local ClinVar tabix store — built by scripts/build_clinvar_local.py (~47 MB, not committed)
+data/clinvar/clinvar_grch38.tsv.gz
+data/clinvar/clinvar_grch38.tsv.gz.tbi

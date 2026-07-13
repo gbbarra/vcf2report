@@ -37,6 +37,43 @@ def _load_local() -> dict:
     return _local
 
 
+_tabix = None
+
+
+def _get_tabix():
+    """Lazy pysam handle for the full local ClinVar store (None if pysam/file unavailable)."""
+    global _tabix
+    if _tabix is None:
+        _tabix = False
+        fp = getattr(config, "CLINVAR_TABIX", None)
+        if fp is not None and Path(fp).exists():
+            try:
+                import pysam
+                _tabix = pysam.TabixFile(str(fp))
+            except Exception:
+                _tabix = False
+    return _tabix or None
+
+
+def _tabix_lookup(variant: Variant) -> Optional[dict]:
+    """Random-access lookup in the full local ClinVar (offline, complete). None on miss."""
+    tb = _get_tabix()
+    if tb is None:
+        return None
+    chrom = str(variant.chrom).replace("chr", "").replace("CHR", "")
+    ref, alt = variant.ref.upper(), variant.alt.upper()
+    try:
+        for line in tb.fetch(chrom, variant.pos - 1, variant.pos):
+            f = line.rstrip("\n").split("\t")
+            if len(f) >= 6 and int(f[1]) == variant.pos and f[2].upper() == ref and f[3].upper() == alt:
+                return {"significance": f[4] or None, "review_status": f[5] or None,
+                        "accession": f[6] if len(f) > 6 else None,
+                        "condition": f[7] if len(f) > 7 else None, "date": "local snapshot"}
+    except (ValueError, OSError):
+        return None
+    return None
+
+
 def _chrpos_field() -> str:
     return "chrpos37" if config.GENOME_BUILD == "GRCh37" else "chrpos38"
 
@@ -144,6 +181,12 @@ def lookup(variant: Variant) -> dict:
     cached = cache.get(_SOURCE, variant.key)
     if cached is not None:
         return {**cached, "_source": "ClinVar (cache)"}
+
+    # Full local ClinVar (complete, offline, versioned snapshot) — authoritative before the
+    # network. A miss falls through to live enrichment (a variant newer than the snapshot).
+    tb = _tabix_lookup(variant)
+    if tb is not None and tb.get("significance"):
+        return {**tb, "_source": "ClinVar (local)"}
 
     if not config.offline():
         live = _live(variant)
