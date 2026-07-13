@@ -183,10 +183,13 @@ AlphaMissense/REVEL/CADD strength thresholds are documented *seed* values pendin
 calibration. (3) The phenotype signal is only ~20 points specific: a decoy (random) phenotype
 still matches the causative gene 62% of the time, so "+phenotype 88%" is mostly non-specific
 prioritization — the honest measure is rank against real background (POGZ ranked #1 of 2,394 on a
-whole NA12878 exome). (4) **Specificity is limited by the exome-only store:** on a healthy NA12878
-exome the engine calls 29 P/LP (28 false positives), mostly rare LoF indels present in gnomAD
-*genomes* but absent from the exome+MANE store → a false absence → spurious PVS1+PM2. A joint
-exomes+genomes store, stricter PVS1 gating, and PVS1+PM2 corroboration are the fixes. See
+whole NA12878 exome). (4) **Specificity on a healthy exome:** on NA12878 the engine calls 29 P/LP
+(only the planted one is real). A fixed store bug (a present-but-filtered variant read as absent →
+spurious PM2) removed several (29→23); the residual are homozygous novel LoF indels in constrained
+genes that are absent from *all* of gnomAD — exome-calling artifacts, addressed by upstream
+variant/region-callability QC and cautious PVS1 for uncorroborated novel LoF, not by the frequency
+store. A joint exomes+genomes store (`--preset joint`) still helps a separate genome-present /
+exome-absent class. See
 [`BENCHMARK.md`](BENCHMARK.md#specificity--phenotype-circularity--measured-on-a-real-exome).
 
 **Reproducibility & privacy.** Every input is openly licensed and every store is rebuildable from

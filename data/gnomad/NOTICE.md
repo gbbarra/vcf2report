@@ -1,13 +1,18 @@
 # gnomAD frequency store — data provenance & license
 
 The DuckDB/Parquet store used by vcf2report for population allele frequencies is
-**derived from gnomAD v4.1** (the joint exomes+genomes release).
+**derived from gnomAD v4.1**. The store shipped/auto-detected today is built from the
+**exomes** release, MANE-sliced. Building from the **joint** (exomes+genomes) release
+— `build_gnomad_parquet.py --preset joint` (the script default) — is recommended and
+removes the exome-only false-absence limitation documented in `docs/BENCHMARK.md`
+(a variant present in genomes but not exomes would otherwise be treated as absent).
 
 ## Source
 
-- **Dataset:** Genome Aggregation Database (gnomAD) v4.1, joint release.
+- **Dataset:** Genome Aggregation Database (gnomAD) v4.1 (exomes for the current store;
+  joint exomes+genomes for a `--preset joint` rebuild).
 - **Publisher:** Broad Institute — <https://gnomad.broadinstitute.org>
-- **Retrieved from:** `gs://gcp-public-data--gnomad/release/4.1/vcf/joint/`
+- **Retrieved from:** `gs://gcp-public-data--gnomad/release/4.1/vcf/{exomes,joint}/`
 
 ## What is included
 

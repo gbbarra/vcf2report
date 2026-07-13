@@ -123,15 +123,25 @@ but not specificity. Two negative controls quantify what it can't:
 
 **Whole real exome (GIAB NA12878 + one planted variant).** We spiked a known pathogenic
 POGZ variant (White-Sutton syndrome) into the real GIAB NA12878 exome (28,566 variants) with the
-case's phenotype, and ran the full pipeline (~10.5 s). The engine **ranked POGZ #1 of 2,394
+case's phenotype, and ran the full pipeline (~10 s). The engine **ranked POGZ #1 of 2,394
 candidates** (Pathogenic, phenotype 1.00) — the honest, non-circular sensitivity signal is this
-**rank against real background**, not a match rate. But it also called **28 other P/LP on this
-healthy individual** (29 P/LP total; only POGZ is real). Most are rare loss-of-function indels
-(CYFIP2, BCR, SON, LTBP4, PRKDC…) the **exome-only** frequency store reports as absent — a variant
-present in gnomAD *genomes* but not exomes becomes a false absence → spurious PVS1 + PM2. This
-specificity limitation is real; the fixes are a joint exomes+genomes store (removes the false
-absences), stricter PVS1 gating (LoF mechanism + NMD/exon), and requiring corroboration for
-PVS1+PM2-only Likely Pathogenic (ClinGen SVI).
+**rank against real background**, not a match rate. But it also called **29 P/LP on this healthy
+individual** (only POGZ is real). We traced every one:
+
+- **A real store bug — FIXED.** The PASS-gate turned a *present-but-filtered* variant into a false
+  absence: e.g. SON was called Pathogenic on a 99.98%-frequency AS_VQSR record the store read as
+  absent → spurious PM2. The join now matches regardless of filter and only asserts absence when
+  *no* record exists (PASS records still definitive; non-PASS → AF unavailable, not absent). This
+  removed those over-calls (**29 → 23 P/LP**) with no benchmark regression (genuine ≥2★ ClinVar-known
+  held at 1067/1067). See `annotate/gnomad_parquet.py`.
+- **Residual — calling artifacts, not the store.** The rest are homozygous LoF indels in constrained
+  genes (CYFIP2, LTBP4, PRKDC…) that a wide remote-tabix scan confirms are **absent from all of gnomAD**
+  (76k genomes) — the classic signature of exome-calling artifacts in hard regions, faithfully scored
+  as LoF + novel → Pathogenic. A joint store does *not* fix these (they are genome-absent too); the
+  fixes are upstream variant/region-callability QC and cautious PVS1 for uncorroborated novel LoF.
+- **A joint (exomes+genomes) store** (`build_gnomad_parquet.py --preset joint`, the script default)
+  is still recommended: it removes the *other* false-absence class — a variant genuinely present in
+  gnomAD genomes but not exomes. The shipped store is exomes-only today (`data/gnomad/NOTICE.md`).
 
 **Phenotype decoy control.** For all 5,335 cases we re-scored each with a *random, unrelated*
 phenotype. The decoy still matches the causative gene **62%** of the time (vs 83% for the true
