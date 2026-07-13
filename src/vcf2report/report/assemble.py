@@ -97,15 +97,20 @@ def split_findings(classifications):
 
 
 def clinvar_stars(review_status) -> int:
-    """ClinVar review status -> star count (0-4)."""
-    r = (review_status or "").lower()
-    if "practice_guideline" in r:
+    """ClinVar review status -> star count (0-4).
+
+    Normalize underscores to spaces first: the VCF-INFO path (from_vcf) and the live
+    E-utilities path both deliver a space-delimited status, so matching only underscore
+    tokens would silently score every real assertion 0 and disable the safety flag.
+    """
+    r = (review_status or "").lower().replace("_", " ").strip()
+    if "practice guideline" in r:
         return 4
-    if "reviewed_by_expert_panel" in r:
+    if "reviewed by expert panel" in r:
         return 3
-    if "multiple_submitters" in r and "no_conflict" in r:
+    if "multiple submitters" in r and "no conflict" in r:
         return 2
-    if "criteria_provided" in r or "single_submitter" in r or "conflicting" in r:
+    if r.startswith("criteria provided") or "single submitter" in r or "conflicting" in r:
         return 1
     return 0
 

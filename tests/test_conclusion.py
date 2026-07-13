@@ -39,6 +39,31 @@ def test_clinvar_pathogenic_surfaced_despite_vus():
     assert "Classified Pathogenic/Likely Pathogenic in ClinVar" in txt and "MECP2" in txt
 
 
+def test_clinvar_stars_space_and_underscore_forms():
+    # The real production forms are space-delimited (from_vcf .replace + E-utilities);
+    # both delimiters must score identically or the >=2-star safety flag silently dies.
+    from vcf2report.report.assemble import clinvar_stars
+    assert clinvar_stars("criteria_provided,_multiple_submitters,_no_conflicts") == 2
+    assert clinvar_stars("criteria provided, multiple submitters, no conflicts") == 2
+    assert clinvar_stars("reviewed by expert panel") == 3
+    assert clinvar_stars("practice guideline") == 4
+    assert clinvar_stars("criteria provided, single submitter") == 1
+    assert clinvar_stars("no assertion criteria provided") == 0
+
+
+def test_clinvar_pathogenic_surfaced_space_form_review_status():
+    # Regression: a >=2-star ClinVar-P the engine calls VUS must surface even when the
+    # review status arrives SPACE-delimited (the real VCF-INFO / live-ClinVar form).
+    c = Classification(
+        variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene="MECP2"),
+        annotation=Annotation(hpo_match_score=0.0, hpo_best_match=0.0,
+                              clinvar_significance="Pathogenic",
+                              clinvar_review_status="criteria provided, multiple submitters, no conflicts"),
+        criteria=[], tier="Uncertain Significance (VUS)", rule_path="")
+    txt = " ".join(summarize(_report([c])))
+    assert "Classified Pathogenic/Likely Pathogenic in ClinVar" in txt and "MECP2" in txt
+
+
 def test_single_submitter_clinvar_not_surfaced():
     # 1-star ClinVar P must NOT trip the >=2-star safety flag.
     c = Classification(

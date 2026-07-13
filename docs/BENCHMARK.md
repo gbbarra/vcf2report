@@ -22,22 +22,43 @@ gnomAD and 0/12 are genomes-only.
 
 ## The metric: *surfaced to the clinician*, not the raw ACMG tier
 
-vcf2report classifies **independently** and conservatively: it does not echo ClinVar into the
-ACMG tier (ClinGen SVI deprecated PP5/BP6 for circularity), and with an exomes+MANE gnomAD
-store it will not assert a false absence, so **PM2 does not fire for a variant merely absent
-from the store**. So the raw tier is deliberately strict. The clinically-meaningful metric is
-whether the variant is **brought to attention** by *any* of:
+vcf2report classifies **independently** and conservatively. Region-aware PM2 fires only for a
+variant genuinely absent inside a covered exome-BED interval (never a false absence off-panel),
+so the raw tier stays deliberately strict. The clinically-meaningful metric is whether the
+variant is **brought to attention** by *any* of:
 
 - the engine's ACMG tier is Pathogenic / Likely Pathogenic, **or**
 - it is flagged as a ≥2-star **ClinVar Pathogenic** (surfaced in the conclusion), **or**
 - it is a **phenotype-matched** primary candidate (HPO overlap ≥ threshold, not benign).
 
-## Adversarial review (23 agents, 4 lenses)
+**Honesty caveat on the three signals.** They measure different things and must be reported
+separately. Engine P/LP is the pure ACMG call — fully engine-independent. The ClinVar flag is
+credited **only for genuinely ≥2-star assertions** (star count read from the real review
+status; see the fix below). The phenotype signal is the softest: in this spike-in benchmark the
+HPO terms come from the same publication that names the causative gene, so an HPO overlap is
+near-guaranteed by construction — phenotype-surfacing here demonstrates prioritization, not
+classification. The headline therefore reports all three tiers, not a single conflated number.
 
-An adversarial review of the 12-case run found **0 code bugs** and confirmed the 0/12
-"auto-Pathogenic" rate is **correct-conservative behavior**, not a defect, plus one
-clinical-safety gap and a set of tunable defaults:
+## Adversarial review
 
+Two adversarial passes: a 23-agent review of the 12-case run, then a 12-agent audit of the full
+5335-case run (8 tail auditors + code auditors for harness integrity, over-calls, and the ClinVar
+surface). The tail audit found **0 real misses**. The code audit found — and this pass **fixed** —
+a real production bug plus two harness-fidelity issues that had inflated an earlier headline:
+
+- **FIXED — `clinvar_stars` scored every real assertion 0 (clinical-safety bug).** The star
+  function matched only underscore tokens, but both production paths deliver a *space*-delimited
+  review status (the VCF-INFO path normalizes with `.replace("_"," ")`; live E-utilities returns
+  spaces natively). So on real input the ≥2-star ClinVar safety flag **never fired**. Fixed to
+  normalize first (as PP5 already did); regression-tested against both delimiter forms. Impact on
+  the benchmark: of the 1067 genuinely ≥2-star ClinVar-P variants, the 554 the engine tiers below
+  P/LP are now flagged **554/554** (previously 0).
+- **CORRECTED — harness no longer fabricates a uniform 2-star assertion.** The earlier harness
+  injected "2-star Pathogenic" for every ClinVar-matched locus; the real review status is 0-star
+  for 1020, 1-star for 978, ≥2-star for only 1067 of 3065. The benchmark now feeds the **real**
+  per-locus significance + review status, so the ClinVar credit is honest.
+- **DISCLOSED — phenotype signal is partly circular** (see the honesty caveat above): reported as
+  a separate tier, not folded into an engine-independent number.
 - **FIXED — ClinVar surface (clinical-safety).** A ≥2-star ClinVar Pathogenic variant the
   engine tiered VUS was being reported as "no Pathogenic finding". The conclusion now flags
   it explicitly ("⚠️ Classified Pathogenic in ClinVar … DO NOT dismiss") without touching the
@@ -64,25 +85,36 @@ clinical-safety gap and a set of tunable defaults:
 gene (out of the protein-coding ACMG scope). Progression as the fixes landed:
 0/12 surfaced → 9/12 (ClinVar surface) → 11/12 (region-aware PM2).
 
-**1000-case set** (677 unique genes; every consequence class incl. start-loss and in-frame
-indels — the rare classes where bugs hide; 677 with ClinVar, 323 without). Because a spiked
-variant's ACMG call is independent of the background, the harness batch-primes gnomAD +
-AlphaMissense once and classifies each variant in isolation — **1000 cases in ~7 s**.
+**Full set — 5335 unique loci** (from 9595 hg38 P/LP-or-causative records with ≥3 HPO terms;
+42 SV/CNV/symbolic/>50 bp records were explicitly dropped and counted, never reclassified;
+4260 duplicate loci collapsed). 677 genes; every consequence class incl. start-loss and
+in-frame indels. Because a spiked variant's ACMG call is independent of the background, the
+harness batch-primes gnomAD + AlphaMissense once and classifies each variant in isolation —
+**5335 cases in ~18 s**. ClinVar significance + review status are fed **as they really are**,
+per-locus, in the space-delimited production form.
 
-found **1000/1000** · engine P/LP 398 · **surfaced 939/1000 (94%)**.
+Reported as three honest tiers, not one conflated number:
 
-| group | surfaced | how |
+| signal | surfaced | note |
 |---|---|---|
-| with ClinVar (677) | **677/677 (100%)** | every known ClinVar-Pathogenic is flagged — 0 missed |
-| without ClinVar (323) | 262/323 (81%) | via phenotype match / PVS1 (mechanism-only) |
-| by consequence | stop-gain 498/521 · frameshift 68/71 · missense 247/268 · in-frame 99/110 · start-loss 27/30 | all 90–96% — no class fails systematically |
+| **engine P/LP** (pure ACMG) | **2266 / 5335 (42%)** | fully engine-independent |
+| **+ genuine ≥2-star ClinVar** | **2820 / 5335 (52%)** | ClinVar credited only for real ≥2-star assertions |
+| **+ phenotype match** | **4725 / 5335 (88%)** | phenotype tier is partly circular here (see caveat) |
 
-The 61 not surfaced are all *without*-ClinVar VUS (novel + no phenotype overlap) — plus **one
-Benign**, which is a *correct* call, not a miss: ZIC2 `p.His239dup` (a poly-histidine
-tract-length variant) is at **10.9% gnomAD frequency**, so BA1 fires and the tool overrides a
-questionable "pathogenic" phenopacket label — the benign-frequency guard working as intended.
-Net: **94%** of real pathogenic variants brought to attention, **100%** of the ClinVar-known,
-and 0 with-ClinVar missed across 1000 cases.
+**The clinical-safety property, honest and demonstrated.** Of the 1067 genuinely ≥2-star
+ClinVar-Pathogenic variants, **1067/1067 surface — 0 missed**. The 554 of them the engine
+tiers below P/LP are caught by the ClinVar safety flag **554/554** (before the `clinvar_stars`
+fix: 0/554). This is a real property on real review-status data, no longer a harness artifact.
+
+By consequence (surfaced incl. phenotype): stop-gain 760/821 (92%) · frameshift 1195/1306
+(91%) · missense 2605/3003 (86%) · in-frame 129/162 (79%) · start-loss 36/43 (83%) — no class
+fails systematically.
+
+**Over-calls (false positives).** Across all 2349 PM2-driven P/LP calls, **none** rests on a
+population frequency above the PM2 ceiling (store check, 0 violations); an earlier independent
+gnomAD-API spot-check corroborated genuine absence (bulk API re-verification is rate-limited).
+The 610 not-surfaced cases are engine-VUS without a ≥2-star ClinVar assertion or phenotype
+overlap — the conservative tail, not misses.
 
 ## Honest limitations
 
