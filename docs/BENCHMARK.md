@@ -162,32 +162,36 @@ through the full offline pipeline (~6 s each). The honest question: is the plant
 the clinician's attention — by ACMG tier (Likely Pathogenic / Pathogenic), or as a phenotype-matched
 primary candidate ranked for curation against the ~2,400 real background candidates?
 
-**69/100 surfaced** — 40 as P/LP by tier, 29 as phenotype-matched primary candidates; 31 not surfaced.
+**77/100 surfaced** — 46 as P/LP by tier, 8 flagged as a ≥2-star ClinVar-Pathogenic the engine tiered
+lower (from the full local ClinVar), and 23 as phenotype-matched primary candidates; 23 not surfaced.
 
 | consequence | surfaced | why |
 |---|---|---|
 | stop-gain | 23/25 (92%) | LoF → PVS1 + PM2 reaches P/LP |
 | start-loss | 4/5 (80%) | |
+| in-frame indel | 8/10 (80%) | PM4 + PM2 / phenotype (see the fix below) |
 | missense | 26/35 (74%) | AlphaMissense PP3 + phenotype |
 | frameshift | 16/25 (64%) | LoF, but PVS1 needs the gene flagged LoF-intolerant in the constraint table |
-| **in-frame indel** | **0/10 (0%)** | no strong criterion — only PM4 (Moderate); a real, specific gap |
 
-The 31 misses are disclosed, not hidden:
-- **In-frame indels (0/10)** are the clearest gap: PVS1 does not apply and only PM4 (Moderate) fires,
-  so without a phenotype match they stay deep VUS. A dedicated in-frame path (repeat/hotspot awareness,
-  PM4 strength) is the fix.
+The misses are disclosed, not hidden:
+- **In-frame indels — fixed.** An earlier run scored 0/10 here; the cause was a consequence-term
+  mismatch, not an ACMG gap. The impact filter and PM4 recognised only the VEP terms
+  `inframe_insertion`/`inframe_deletion`, so an in-frame indel spelled `inframe_indel` (or SnpEff's
+  `disruptive_/conservative_inframe_*`) was dropped before classification. Both now match any term
+  containing "inframe" → **8/10**.
 - **LoF that doesn't reach P/LP**: a nonsense/frameshift in a gene not flagged LoF-intolerant gets PM2
   only → VUS; phenotype misses track gene↔HPO annotation coverage. Both are data-coverage gaps, not
   classification errors, and a specialist curates the ranked list regardless.
 
-This whole-exome, real-background figure (69%, rank against real candidates) is the honest, non-circular
+This whole-exome, real-background figure (77%, rank against real candidates) is the honest, non-circular
 counterpart to the isolated harness's phenotype tier — the metric that matters is that the true variant
 is *brought forward*, with a clear, measured breakdown of where it is not.
 
 ## Honest limitations
 
 - Single-proband: PS2/PM3/PM6/PP1/BS4 (de novo, in-trans, segregation) are N/A.
-- In-frame indels are a measured weak spot (0/10 above) — no strong ACMG criterion beyond PM4.
+- In-frame indels rely on PM4 (Moderate) — no PVS1 — so without a phenotype match or ClinVar they can
+  stay VUS; a repeat/hotspot-aware PM4 refinement would help further (now 8/10 after the term fix above).
 - Specificity on a healthy exome is limited (above) — disclosed and quantified, not hidden.
 - The exomes+MANE store keeps PM2 conservative (see above) — a deliberate no-false-absence
   choice, quantified here rather than hidden.
