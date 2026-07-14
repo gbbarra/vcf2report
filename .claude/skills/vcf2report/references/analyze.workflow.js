@@ -1,19 +1,22 @@
 export const meta = {
   name: 'vcf2report-analyze',
-  description: 'Analyze one exome as visible phases — each labeled LOCAL (your machine) or CLAUDE',
+  description: 'Analyze one exome as 8 visible stages — each labeled LOCAL (your machine) or CLAUDE',
   // Phase titles carry who does the work: 🖥️ = local (vcf2report on the machine, deterministic,
   // offline) · 🤖 = Claude (reasoning). They render as the step boxes in Background Tasks.
   phases: [
-    { title: '🖥️ Local · Setup', detail: 'liftover GRCh37→38 if needed (bcftools/pyliftover)' },
+    { title: '🖥️ Local · Dependency check', detail: 'probe python + tools + local stores, explain what each enables' },
+    { title: '🖥️ Local · Inspect VCF', detail: 'build, sample, counts, is it annotated (VEP/SnpEff/consequence)' },
+    { title: '🖥️ Local · Annotate', detail: 'annotate a raw VCF (bcftools+SnpEff+vcfanno) or explain coordinate-only limits' },
+    { title: '🤖 Claude · Analysis triage', detail: 'which ACMG criteria are computable from this VCF + stores' },
     { title: '🤖 Claude · Phenotype → HPO', detail: 'map free-text phenotype to HPO terms' },
-    { title: '🖥️ Local · Frequencies', detail: 'local gnomAD DuckDB/Parquet store' },
-    { title: '🖥️ Local · Classify (ACMG)', detail: 'parse → QC → annotate → ACMG engine' },
+    { title: '🖥️ Local · Prioritize (gnomAD+AM+ClinVar+HPO)', detail: 'run the engine, rank candidates against the population background' },
+    { title: '🖥️ Local · QC', detail: 'funnel, sequencing quality, gnomAD-store safety net' },
     { title: '🤖 Claude · Laudo', detail: 'synthesize the auditable report from the facts' },
   ],
 }
 
 // args (from the vcf2report skill): { repo, vcf, sample, hpo?, phenotypeText?, out?, lift?,
-// chain? }. The skill fills these after locating the repo and the VCF.
+// chain?, reference? }. The skill fills these after locating the repo and the VCF.
 const a = (typeof args === 'string' ? JSON.parse(args) : args) || {}
 const REPO = a.repo || '.'
 const SAMPLE = a.sample || 'sample'
@@ -25,9 +28,19 @@ if (!a.vcf) {
 }
 let vcf = a.vcf
 let hpoFile = a.hpo || ''
+const REF = a.reference || ''
 
-// 🖥️ LOCAL — build conversion on the machine
-phase('🖥️ Local · Setup')
+// 1 — 🖥️ DEPENDENCY CHECK — opens Background Tasks; explains the environment before we touch the VCF
+phase('🖥️ Local · Dependency check')
+const deps = await agent(
+  `cd ${REPO} && python3 scripts/preflight.py. Return, in plain language: the python version; which of ` +
+  `bcftools/snpEff/vcfanno are on PATH; and for EACH store (gnomAD parquet, AlphaMissense, ClinVar, HPO) ` +
+  `whether it is present AND what it enables/disables (use the store's 'enables' text). Flag LOUDLY if the ` +
+  `gnomAD store is missing (PM2/BA1/BS1 disabled → over-call risk). This is the environment check; nothing patient-specific yet.`,
+  { label: '🖥️ preflight', phase: '🖥️ Local · Dependency check' })
+
+// 2 — 🖥️ INSPECT VCF — liftover first if needed, then detect build + whether it is annotated
+phase('🖥️ Local · Inspect VCF')
 if (a.lift) {
   const chain = a.chain ? `--chain ${a.chain}` : ''
   const lifted = `${OUT}/${SAMPLE}.hg38.vcf`
@@ -35,13 +48,47 @@ if (a.lift) {
     `cd ${REPO} && mkdir -p ${OUT} && VCF2REPORT_ALLOW_NETWORK=1 python3 ` +
     `scripts/liftover_to_grch38.py ${vcf} ${lifted} ${chain} 2>&1 | tail -3. ` +
     `Return the [liftover] summary line (records/lifted/skipped).`,
-    { label: '🖥️ liftover 37→38', phase: '🖥️ Local · Setup' })
+    { label: '🖥️ liftover 37→38', phase: '🖥️ Local · Inspect VCF' })
   vcf = lifted
+}
+const hpoFlag = (hpoFile || a.phenotypeText) ? '--hpo' : ''
+const inspect = await agent(
+  `cd ${REPO} && python3 scripts/inspect_vcf.py ${vcf} ${hpoFlag}. From the JSON, output the VERY FIRST line as ` +
+  `exactly \`ANNOTATED=yes\` or \`ANNOTATED=no\` (from inspect.annotated), then summarize: build, sample id, total + ` +
+  `PASS counts, annotation source (VEP CSQ / SnpEff ANN / consequence / none), and the capabilities.criteria map ` +
+  `(each ACMG criterion → available|limited|na + reason). Do NOT classify yet.`,
+  { label: '🖥️ inspect + capabilities', phase: '🖥️ Local · Inspect VCF' })
+const annotated = /ANNOTATED=yes/i.test(inspect || '')
+
+// 3 — 🖥️ ANNOTATE — only if the VCF isn't annotated; otherwise skip (visibly). No reference → explain the limits.
+phase('🖥️ Local · Annotate')
+if (annotated) {
+  log('🖥️ VCF already annotated — skipping annotation (consequence terms present).')
+} else if (REF) {
+  await agent(
+    `cd ${REPO} && bash scripts/annotate_vcf.sh ${vcf} ${REF} ${OUT}/${SAMPLE}.annotated.vcf.gz 2>&1 | tail -8. ` +
+    `Return whether annotation succeeded and the steps run (bcftools norm + SnpEff + vcfanno).`,
+    { label: '🖥️ annotate (SnpEff+vcfanno)', phase: '🖥️ Local · Annotate' })
+  vcf = `${OUT}/${SAMPLE}.annotated.vcf.gz`
 } else {
-  log('🖥️ GRCh38 input — no liftover needed.')
+  await agent(
+    `The VCF is NOT annotated and no reference FASTA was provided, so local annotation (bcftools+SnpEff+vcfanno) ` +
+    `can't run. In 2-3 lines tell the user: classification will be COORDINATE-ONLY — PVS1/PM4/PP3/BP4 and HGVS ` +
+    `c./p. are unavailable; gnomAD/ClinVar coordinate lookups + the ≥2★ ClinVar safety flag still work. ` +
+    `Recommend annotating first (docs/ANNOTATION.md) for full ACMG.`,
+    { label: '🤖 annotation options', phase: '🖥️ Local · Annotate' })
 }
 
-// 🤖 CLAUDE — turn the clinician's free-text phenotype into HPO ids (only if not given a file)
+// 4 — 🤖 ANALYSIS TRIAGE — the honesty gate: say what this run can and cannot conclude
+phase('🤖 Claude · Analysis triage')
+const triage = await agent(
+  `From the inspection + capabilities already gathered for ${SAMPLE} (annotated=${annotated}, ` +
+  `reference=${REF ? 'provided' : 'none'}), give a short capability list: which ACMG criteria this run CAN ` +
+  `evaluate vs limited/NA, each with a one-line consequence for the laudo (e.g. 'no gnomAD store → PM2 disabled ` +
+  `→ over-call risk', 'single-proband → segregation N/A'). This gate is stated before running, not after.`,
+  { label: '🤖 what can we conclude', phase: '🤖 Claude · Analysis triage' })
+
+// 5 — 🤖 PHENOTYPE → HPO — turn the clinician's free-text phenotype into HPO ids (only if no file given)
 phase('🤖 Claude · Phenotype → HPO')
 if (!hpoFile && a.phenotypeText) {
   const mapped = await agent(
@@ -62,24 +109,24 @@ if (!hpoFile && a.phenotypeText) {
 }
 const HPO = hpoFile ? `--hpo ${hpoFile}` : ''
 
-// 🖥️ LOCAL — the population-frequency store lives on the machine, queried offline
-phase('🖥️ Local · Frequencies')
-await agent(
-  `cd ${REPO} && python3 -c "from vcf2report import config; import os; ` +
-  `p=config._resolve_gnomad_parquet(); print('gnomAD parquet:', p or 'bundled slice only'); ` +
-  `print('exists:', bool(p and os.path.exists(p)))". ` +
-  `Return whether a local gnomAD Parquet store is auto-detected (offline frequencies).`,
-  { label: '🖥️ gnomAD store', phase: '🖥️ Local · Frequencies' })
-
-// 🖥️ LOCAL — the whole deterministic pipeline runs on the machine, no network, no LLM
-phase('🖥️ Local · Classify (ACMG)')
+// 6 — 🖥️ PRIORITIZE — the deterministic engine over gnomAD + AlphaMissense + ClinVar + HPO
+phase('🖥️ Local · Prioritize (gnomAD+AM+ClinVar+HPO)')
 const classify = await agent(
   `cd ${REPO} && python3 scripts/run_headless.py ${vcf} ${HPO} --sample-id ${SAMPLE} ` +
-  `--out ${OUT} --timing 2>&1 | tail -40. Return: the candidate list (gene → tier), ` +
-  `the QC funnel counts, and the per-stage timings. This is all local + deterministic.`,
-  { label: '🖥️ parse→QC→annotate→ACMG', phase: '🖥️ Local · Classify (ACMG)' })
+  `--out ${OUT} --timing 2>&1 | tail -40. Return: the RANKED candidate list (gene → tier, the phenotype- and ` +
+  `tier-topped rows first), the funnel counts, and the per-stage timings. This runs the engine over gnomAD + ` +
+  `AlphaMissense + ClinVar + HPO — all local + deterministic, no network, no LLM.`,
+  { label: '🖥️ run engine (gnomAD+AM+ClinVar+HPO)', phase: '🖥️ Local · Prioritize (gnomAD+AM+ClinVar+HPO)' })
 
-// 🤖 CLAUDE — read the machine's facts and synthesize the auditable narrative
+// 7 — 🖥️ QC — surface the funnel + sequencing quality + the gnomAD-store safety net as its own gate
+phase('🖥️ Local · QC')
+const qc = await agent(
+  `Read ${REPO}/${OUT}/${SAMPLE}_report.md and return the QC section only: the funnel (total → PASS → ` +
+  `QC-passing → candidates), the Sequencing-quality panel numbers (depth/GQ, Ti/Tv, het:hom, indel:SNV, ` +
+  `multiallelic, novelty), and ANY gnomAD-store / coverage warning. This is the QC gate before the laudo.`,
+  { label: '🖥️ QC funnel + safety net', phase: '🖥️ Local · QC' })
+
+// 8 — 🤖 LAUDO — read the machine's facts and synthesize the auditable narrative
 phase('🤖 Claude · Laudo')
 const report = await agent(
   `Read ${REPO}/${OUT}/${SAMPLE}_report.md and return, as compact structured text for ` +
@@ -88,4 +135,4 @@ const report = await agent(
   `and the Performance/timing lines. Do NOT re-classify — report the engine's calls faithfully.`,
   { label: '🤖 synthesize laudo', phase: '🤖 Claude · Laudo' })
 
-return { sample: SAMPLE, out: OUT, hpo: hpoFile, classify, report }
+return { sample: SAMPLE, out: OUT, hpo: hpoFile, annotated, deps, inspect, triage, classify, qc, report }

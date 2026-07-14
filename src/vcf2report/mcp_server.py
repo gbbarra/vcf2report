@@ -19,6 +19,8 @@ from pathlib import Path
 from typing import Optional
 
 from . import config
+from . import inspect as _inspect
+from . import status as _status
 from .acmg.engine import classify as _classify
 from .annotate import annotate_variant
 from .annotate import abraom as _abraom
@@ -136,94 +138,101 @@ def run_report(vcf_path: str, hpo_terms: Optional[list[str]] = None,
 
 @mcp.tool()
 def data_status() -> dict:
-    """Report readiness: annotation tools on PATH + bundled local datasets.
+    """Report readiness: annotation tools on PATH + local stores (Stage 1).
 
-    Call this first on a new machine to see what's ready. The bundled data runs
-    the offline demo immediately; the annotation tools + downloaded databases are
-    needed to annotate a raw real exome (see docs/SETUP.md, docs/ANNOTATION.md).
+    Call this first on a new machine to see what's ready and what each store
+    enables/disables in the ACMG run. The bundled data runs the offline demo
+    immediately; the annotation tools + downloaded databases are needed to
+    annotate a raw real exome (see docs/SETUP.md, docs/ANNOTATION.md).
     """
-    tools = {t: bool(shutil.which(t)) for t in ("bcftools", "snpEff", "vcfanno")}
-    bundled = {
-        "sample_vcf": config.SAMPLE_VCF.exists(),
-        "clinvar_slice": config.CLINVAR_LOCAL.exists(),
-        "gnomad_snapshot": config.GNOMAD_LOCAL.exists(),
-        "abraom": config.ABRAOM_LOCAL.exists(),
-        "hpo": config.HPO_GENES_LOCAL.exists(),
-    }
-    return {
-        "annotation_tools_on_path": tools,
-        "bundled_local_data": bundled,
-        "ready_for_offline_demo": all(bundled.values()),
-        # Tools present ≠ ready to annotate: the databases (gnomAD/ClinVar VCFs,
-        # SnpEff DB, reference FASTA) must also be downloaded — see docs/SETUP.md.
-        "annotation_tools_installed": all(tools.values()),
-        # Network egress is OFF by default; live gnomAD/ClinVar lookups only happen
-        # when VCF2REPORT_ALLOW_NETWORK=1 (and OFFLINE is not set).
-        "network_egress_allowed": config.allow_network(),
-        "note": "Patient data stays local by default: no gnomAD/NCBI calls unless "
-                "VCF2REPORT_ALLOW_NETWORK=1. Tools on PATH do not imply the annotation "
-                "databases are present; run scripts/setup_data.sh.",
-    }
+    return _status.readiness()
 
 
-def _annotation_info_keys() -> set:
-    # Keep in sync with the reader: every INFO alias + the consequence blocks.
-    keys = {"ANN", "CSQ"}
-    for aliases in config.INFO_ALIASES.values():
-        keys.update(aliases)
-    return keys
+@mcp.tool()
+def inspect_vcf(vcf_path: str) -> dict:
+    """Detect build, sample, variant counts, and whether the VCF is annotated (Stage 3).
+
+    Returns annotated (bool) + annotation_source (VEP CSQ / SnpEff ANN / consequence /
+    population INFO / null) so the flow knows whether to annotate before classifying.
+    """
+    return _inspect.inspect_vcf(vcf_path)
 
 
-def _looks_annotated(variants) -> bool:
-    sample = variants[:200]
-    if any(v.consequence for v in sample):
-        return True
-    keys = _annotation_info_keys()
-    return any(any(k in (v.info or {}) for k in keys) for v in sample)
+@mcp.tool()
+def analysis_capabilities(vcf_path: str, hpo_given: bool = False) -> dict:
+    """Which ACMG criteria are computable for this VCF (Stage 5 — the honest gate).
+
+    Combines the VCF's annotation status with the installed stores and returns each
+    criterion as available | limited | na with the reason (e.g. gnomAD store absent ->
+    PM2/BA1/BS1 limited; single-proband -> segregation N/A).
+    """
+    return _inspect.analysis_capabilities(vcf_path, hpo_given=hpo_given)
+
+
+def _annotate_vcf(vcf_path: str, reference: str = "", out_dir: str = "") -> dict:
+    """Detect-then-annotate (shared by the annotate_vcf tool and the express path)."""
+    variants, _build, _ = _parse_vcf(vcf_path)
+    annotated, source = _inspect._detect_annotation(variants)
+    if annotated:
+        return {"annotated_path": vcf_path, "already_annotated": True,
+                "annotation_source": source, "validated": True, "missing": [],
+                "steps": [f"already annotated ({source}) — skipping annotation"]}
+    missing_tools = [t for t in ("bcftools", "snpEff", "vcfanno") if not shutil.which(t)]
+    if reference and not missing_tools:
+        out = Path(out_dir) if out_dir else config.OUTPUT_DIR
+        out.mkdir(parents=True, exist_ok=True)
+        annotated_out = out / (Path(vcf_path).stem.replace(".vcf", "") + ".annotated.vcf.gz")
+        script = str(config.REPO_ROOT / "scripts" / "annotate_vcf.sh")
+        try:
+            proc = subprocess.run(
+                ["bash", script, vcf_path, reference, str(annotated_out)],
+                capture_output=True, text=True, timeout=3600)
+        except subprocess.TimeoutExpired:
+            return {"error": "annotation_timeout",
+                    "hint": "Annotation exceeded 1h; check input size / tool health."}
+        if proc.returncode != 0:
+            tail = (proc.stderr or proc.stdout or "").strip().splitlines()[-15:]
+            return {"error": "annotation_failed", "exit_code": proc.returncode,
+                    "stderr_tail": "\n".join(tail),
+                    "hint": "See docs/ANNOTATION.md; check tool versions and the "
+                            "GRCh38 reference / vcfanno.conf.toml data paths."}
+        return {"annotated_path": str(annotated_out), "already_annotated": False,
+                "validated": True, "missing": [],
+                "steps": ["annotated locally via bcftools norm + SnpEff + vcfanno"]}
+    missing = (["GRCh38 reference FASTA"] if not reference else []) + \
+              [f"{t} (not on PATH)" for t in missing_tools]
+    return {"annotated_path": vcf_path, "already_annotated": False,
+            "validated": False, "missing": missing,
+            "steps": ["not annotated and (tools or reference) unavailable; classification "
+                      "will be coordinate-only — PVS1/PM4/PP3/BP4 and HGVS are limited."],
+            "hint": "See docs/ANNOTATION.md to annotate first."}
+
+
+@mcp.tool()
+def annotate_vcf(vcf_path: str, reference: str = "", out_dir: str = "") -> dict:
+    """Annotate a raw VCF locally when possible, else report the coordinate-only limits (Stage 4).
+
+    If already annotated -> returns it unchanged (skipping). If not, and bcftools +
+    snpEff + vcfanno + a GRCh38 ``reference`` FASTA are present -> annotates via
+    scripts/annotate_vcf.sh. Otherwise returns validated=false with what's missing.
+    """
+    return _annotate_vcf(vcf_path, reference=reference, out_dir=out_dir)
 
 
 @mcp.tool()
 def annotate_and_report(vcf_path: str, hpo_terms: Optional[list[str]] = None,
                         reference: str = "", out_dir: str = "") -> dict:
-    """One-call path for a bench scientist: raw VCF -> draft report.
+    """One-call express path for a bench scientist: raw VCF -> draft report.
 
-    If the VCF is already annotated (ANN/CSQ or population fields in INFO) it is
-    classified directly. Otherwise, if the annotation tools and a GRCh38
-    ``reference`` FASTA are available, it is annotated locally (SnpEff + vcfanno)
-    first. Returns the report path, tiers, timings, and the rendered Markdown.
+    Annotates first if needed (see annotate_vcf), then runs the full pipeline.
+    The guided /vcf2report flow calls the stages separately; this is the fast path.
     """
-    variants, _build, _ = _parse_vcf(vcf_path)
-    used = vcf_path
-    steps: list[str] = []
-    if not _looks_annotated(variants):
-        have_tools = all(shutil.which(t) for t in ("bcftools", "snpEff", "vcfanno"))
-        if reference and have_tools:
-            out = Path(out_dir) if out_dir else config.OUTPUT_DIR
-            out.mkdir(parents=True, exist_ok=True)
-            annotated = out / (Path(vcf_path).stem.replace(".vcf", "") + ".annotated.vcf.gz")
-            script = str(config.REPO_ROOT / "scripts" / "annotate_vcf.sh")
-            try:
-                proc = subprocess.run(
-                    ["bash", script, vcf_path, reference, str(annotated)],
-                    capture_output=True, text=True, timeout=3600)
-            except subprocess.TimeoutExpired:
-                return {"error": "annotation_timeout",
-                        "hint": "Annotation exceeded 1h; check input size / tool health."}
-            if proc.returncode != 0:
-                tail = (proc.stderr or proc.stdout or "").strip().splitlines()[-15:]
-                return {"error": "annotation_failed", "exit_code": proc.returncode,
-                        "stderr_tail": "\n".join(tail),
-                        "hint": "See docs/ANNOTATION.md; check tool versions and the "
-                                "GRCh38 reference / vcfanno.conf.toml data paths."}
-            used = str(annotated)
-            steps.append("annotated locally via bcftools norm + SnpEff + vcfanno")
-        else:
-            steps.append(
-                "VCF is not annotated and (tools or reference) are unavailable; "
-                "classified on coordinates only — consequence-based criteria are "
-                "limited. See docs/ANNOTATION.md to annotate first.")
+    ann = _annotate_vcf(vcf_path, reference=reference, out_dir=out_dir)
+    if ann.get("error"):
+        return ann
+    used = ann["annotated_path"]
     result = run_report(used, hpo_terms=hpo_terms, out_dir=out_dir)
-    result["steps"] = steps
+    result["steps"] = ann["steps"]
     result["annotated_input"] = used
     return result
 
