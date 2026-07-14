@@ -4,12 +4,12 @@
 A pure-Python alternative to make_synthetic_exomes.sh's download+bcftools steps:
 reads a per-sample DRAGEN small-variant VCF over remote tabix (htslib HTTPS range
 queries against the public s3://1000genomes-dragen-v4-4-7 bucket), keeps only the
-PASS variants that fall inside the IDT xGen Exome v2 target BED, and writes a
+PASS variants that fall inside the MANE/GENCODE exome BED (data/gnomad/exome_hg38.bed), and writes a
 single-sample exome VCF with the participant's real genotype/DP/GQ/AD. No AWS CLI,
 no bcftools, no reference FASTA, no 440 MB download of the whole file.
 
     VCF2REPORT_ALLOW_NETWORK=1 python scripts/build_dragen_exome.py \
-        --sample NA12878 --bed scratch/idt_exome_v2.bed --out data/real/NA12878_exome.vcf
+        --sample NA12878 --bed data/gnomad/exome_hg38.bed --out data/real/NA12878_exome.vcf
 """
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def _member(starts, ivs, pos1):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--sample", default="NA12878")
-    ap.add_argument("--bed", default=str(REPO / "scratch" / "idt_exome_v2.bed"))
+    ap.add_argument("--bed", default=str(REPO / "data" / "gnomad" / "exome_hg38.bed"))
     ap.add_argument("--out", default=str(REPO / "data" / "real" / "NA12878_exome.vcf"))
     ap.add_argument("--chroms", default=",".join(AUTOSOMES))
     args = ap.parse_args()
@@ -98,7 +98,7 @@ def main() -> int:
 
     contigs = "\n".join(f"##contig=<ID={c}>" for c in chroms)
     header = (f"##fileformat=VCFv4.2\n##reference=GRCh38\n"
-              f"##source=1000G DRAGEN v4.4.7 {args.sample}, subset to IDT xGen Exome v2 targets\n"
+              f"##source=1000G DRAGEN v4.4.7 {args.sample}, subset to the MANE/GENCODE exome (GENCODE v46, ±50bp)\n"
               f"##note=Real per-sample genotypes (DRAGEN 4.4.7); PASS variants inside the exome BED.\n"
               f"{contigs}\n"
               "##FILTER=<ID=PASS,Description=\"All filters passed\">\n"

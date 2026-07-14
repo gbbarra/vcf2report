@@ -24,8 +24,8 @@ ClinVar pathogenic @ true coords  ──┘        (de-identified, real coords/H
   (so PP5 fires and the disease name reaches the report), and de-identifies the
   sample to `SYN-00N`.
 - **`scripts/make_synthetic_exomes.sh`** — the full per-sample pipeline: download
-  from the public 1000G DRAGEN S3 bucket → `bcftools norm` → subset to the IDT
-  xGen Exome v2 targets → spike → sort/bgzip/tabix, plus the matching HPO file.
+  from the public 1000G DRAGEN S3 bucket → `bcftools norm` → subset to the vendor-neutral
+  MANE/GENCODE exome BED → spike → sort/bgzip/tabix, plus the matching HPO file.
 
 ## The five validated cases
 
@@ -46,7 +46,7 @@ zero seizure-HPO overlap (→ Pathogenic, secondary, not leaking into primary).
 ## Run (on a machine that can reach S3 + ClinVar + a GRCh38 FASTA)
 
 ```bash
-# 1. inputs: IDT xGen Exome v2 BED (hg38), ClinVar GRCh38 VCF, GRCh38.fa(+.fai), awscli
+# 1. inputs: ClinVar GRCh38 VCF, GRCh38.fa(+.fai), awscli  (the exome BED ships in the repo: data/gnomad/exome_hg38.bed)
 # 2. build all five synthetic exomes
 scripts/make_synthetic_exomes.sh
 
@@ -56,20 +56,19 @@ python scripts/run_headless.py SYN-001.annotated.vcf.gz --hpo synthetic_exomes/S
 ```
 
 The spike step alone is verifiable offline against a tiny mock ClinVar; the S3 /
-FASTA / IDT-BED steps require the real inputs and are meant to run on your machine.
+FASTA steps require the real inputs and are meant to run on your machine.
 
 ### In-sandbox alternative (no AWS CLI / bcftools / FASTA)
 
 `scripts/build_dragen_exome.py` builds the real background exome purely over remote
 tabix — it reads a **DRAGEN 4.4.7** per-sample VCF (bucket `1000genomes-dragen-v4-4-7`)
-by HTTPS range queries and keeps PASS variants inside the IDT BED, no 440 MB
+by HTTPS range queries and keeps PASS variants inside the MANE/GENCODE exome BED, no 440 MB
 download and no bcftools. A full NA12878 exome (~24.8k real variants) builds in
 ~30 s. It was used to generate `docs/EXAMPLE_REPORT_SYN-001.md` end-to-end:
 
 ```bash
-curl -fsSL "$IDT_BED_URL" -o scratch/idt_exome_v2.bed      # verified mirror (see make_synthetic_exomes.sh)
 VCF2REPORT_ALLOW_NETWORK=1 python scripts/build_dragen_exome.py --sample NA12878 \
-    --bed scratch/idt_exome_v2.bed --out data/real/NA12878_exome.vcf
+    --bed data/gnomad/exome_hg38.bed --out data/real/NA12878_exome.vcf
 # ClinVar subset for the 10 target genes (stream the reachable Broad mirror):
 curl -s "$CLINVAR_MIRROR" | awk '/^#/ || /GENEINFO=(SCN1A|KCNQ2|SCN2A|STXBP1|SLC2A1|RB1|APC|STK11|WT1|FBN1):/' > scratch/clinvar_targets.vcf
 python scripts/spike_pathogenic.py --exome data/real/NA12878_exome.vcf \

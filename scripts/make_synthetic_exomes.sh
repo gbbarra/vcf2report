@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Build N synthetic case exomes from public 1000G DRAGEN samples:
-#   download per-sample WGS VCF -> normalize -> subset to IDT xGen Exome v2 ->
+#   download per-sample WGS VCF -> normalize -> subset to the MANE/GENCODE exome BED ->
 #   spike real ClinVar pathogenic variants -> de-identify -> bgzip+tabix.
 #
 # Real, diverse background (5 super-populations) + planted pathogenic variants,
 # so the demo reliably shows Pathogenic/Likely-Pathogenic calls on realistic data.
 #
-# Requirements (all local, run on YOUR machine — this needs AWS S3 + the IDT BED,
-# which the sandbox can't reach): awscli, bcftools, bgzip, tabix, python3.
+# Requirements (all local, run on YOUR machine — this needs AWS S3, which the sandbox
+# can't reach; the exome BED ships in the repo): awscli, bcftools, bgzip, tabix, python3.
 #
 #   ./make_synthetic_exomes.sh
 #
@@ -32,10 +32,10 @@ S3_VCF_TEMPLATE="${S3_BUCKET}/${S3_PIPE}/{SAMPLE}/{SAMPLE}.hard-filtered.vcf.gz"
 # (older fallback, GRCh38, per-sample: s3://1000genomes-dragen/data/dragen-3.5.7b/hg38_altaware_nohla-cnv-anchored/{SAMPLE}/{SAMPLE}.hard-filtered.vcf.gz
 #  — but NA19240 is ABSENT there; use NA19238/NA19239 (YRI) if you downgrade.)
 
-# IDT xGen Exome Hyb Panel v2 targets (hg38). A byte-exact public mirror of IDT's
-# official BED (verified reachable); or download from IDT and set a local path.
-IDT_BED="idt_xgen_exome_v2_hg38.bed"
-IDT_BED_URL="https://raw.githubusercontent.com/icgc-argo-workflows/target_seq_bed_files/main/TEST-INTL/WXS/xGenTM_Exome_Hyb_panel_v2/primary_target_regions.bed"
+# Agnostic exome region — the SAME MANE Select + Plus Clinical ±50 bp (GENCODE v46) BED the
+# gnomAD store is sliced to (data/gnomad/exome_hg38.bed), so the test corpus matches the engine's
+# own coverage exactly. Vendor-neutral — no capture-kit BED. Ships in the repo (no download).
+EXOME_BED="$(cd "$(dirname "$0")" && pwd)/../data/gnomad/exome_hg38.bed"
 REF_FASTA="GRCh38.fa"                     # for bcftools norm (indexed .fai)
 # Reachable GRCh38 FASTA mirror: https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta (+ .fai)
 CLINVAR_VCF="clinvar_GRCh38.vcf.gz"       # ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/
@@ -63,10 +63,7 @@ mkdir -p "$OUTDIR"
 for tool in aws bcftools bgzip tabix python3; do
   command -v "$tool" >/dev/null 2>&1 || { echo "ERROR: '$tool' not on PATH" >&2; exit 1; }
 done
-if [[ ! -f "$IDT_BED" ]]; then
-  echo "IDT BED not found locally; fetching mirror -> $IDT_BED"
-  curl -fsSL "$IDT_BED_URL" -o "$IDT_BED" || { echo "ERROR: could not fetch IDT BED" >&2; exit 1; }
-fi
+[[ -f "$EXOME_BED" ]] || { echo "ERROR: exome BED not found: $EXOME_BED (data/gnomad/exome_hg38.bed)" >&2; exit 1; }
 [[ -f "$CLINVAR_VCF" ]] || { echo "ERROR: ClinVar VCF not found: $CLINVAR_VCF" >&2; exit 1; }
 
 i=0
@@ -88,11 +85,11 @@ for entry in "${SAMPLES[@]}"; do
   aws s3 cp --no-sign-request "$s3uri" "$work/raw.vcf.gz"
   tabix -f -p vcf "$work/raw.vcf.gz" 2>/dev/null || bcftools index -t "$work/raw.vcf.gz"
 
-  echo "[2/4] normalize + subset to IDT exome v2"
+  echo "[2/4] normalize + subset to the MANE/GENCODE exome BED"
   # -T (targets, streaming) not -R (regions, needs an index) because the input is
   # a pipe. bcftools accepts a BED for -T; overlap-filters as it streams.
   bcftools norm -m -any -f "$REF_FASTA" -Ou "$work/raw.vcf.gz" \
-    | bcftools view -T "$IDT_BED" -Oz -o "$work/exome.vcf.gz"
+    | bcftools view -T "$EXOME_BED" -Oz -o "$work/exome.vcf.gz"
   tabix -f -p vcf "$work/exome.vcf.gz"
   echo "      exome variants: $(bcftools view -H "$work/exome.vcf.gz" | wc -l)"
 
