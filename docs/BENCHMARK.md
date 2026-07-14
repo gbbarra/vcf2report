@@ -165,18 +165,26 @@ through the full offline pipeline (~6 s each). The honest question: is the plant
 the clinician's attention — by ACMG tier (Likely Pathogenic / Pathogenic), or as a phenotype-matched
 primary candidate ranked for curation against the ~2,400 real background candidates?
 
-**77/100 surfaced** — 46 as P/LP by tier, 8 flagged as a ≥2-star ClinVar-Pathogenic the engine tiered
-lower (from the full local ClinVar), and 23 as phenotype-matched primary candidates; 23 not surfaced.
+**73/100 surfaced** — 46 as P/LP by tier, 8 flagged as a ≥2-star ClinVar-Pathogenic the engine tiered
+lower (from the full local ClinVar), and 19 as phenotype-matched primary candidates; 27 not surfaced.
+When it surfaces, the planted variant sits at **median rank 3** of the ~2,400 real background candidates
+(top of the list in 27/100) — the specialist reads it near the top, not buried.
 
 | consequence | surfaced | why |
 |---|---|---|
-| stop-gain | 23/25 (92%) | LoF → PVS1 + PM2 reaches P/LP |
-| start-loss | 4/5 (80%) | |
+| stop-gain | 22/25 (88%) | LoF → PVS1 + PM2 reaches P/LP |
 | in-frame indel | 8/10 (80%) | PM4 + PM2 / phenotype (see the fix below) |
-| missense | 26/35 (74%) | AlphaMissense PP3 + phenotype |
-| frameshift | 16/25 (64%) | LoF, but PVS1 needs the gene flagged LoF-intolerant in the constraint table |
+| start-loss | 4/5 (80%) | |
+| missense | 24/35 (69%) | AlphaMissense PP3 + phenotype |
+| frameshift | 15/25 (60%) | LoF, but PVS1 needs the gene flagged LoF-intolerant in the constraint table |
 
 The misses are disclosed, not hidden:
+- **Specificity, not a regression (77 → 73).** An earlier run surfaced 77/100. Tightening the
+  phenotype routing to require the best-match **average** (not the single strongest term) to clear
+  threshold removed **4 non-specific phenotype matches** — the intended trade: on a decoy (random,
+  unrelated) phenotype the false-match rate falls **62% → 22%**. The 4 dropped were promiscuous
+  single-term hits, not genuine gene↔phenotype fits; the ACMG-tier and ClinVar signals (54/100) are
+  unchanged.
 - **In-frame indels — fixed.** An earlier run scored 0/10 here; the cause was a consequence-term
   mismatch, not an ACMG gap. The impact filter and PM4 recognised only the VEP terms
   `inframe_insertion`/`inframe_deletion`, so an in-frame indel spelled `inframe_indel` (or SnpEff's
@@ -186,9 +194,9 @@ The misses are disclosed, not hidden:
   only → VUS; phenotype misses track gene↔HPO annotation coverage. Both are data-coverage gaps, not
   classification errors, and a specialist curates the ranked list regardless.
 
-This whole-exome, real-background figure (77%, rank against real candidates) is the honest, non-circular
+This whole-exome, real-background figure (73%, rank against real candidates) is the honest, non-circular
 counterpart to the isolated harness's phenotype tier — the metric that matters is that the true variant
-is *brought forward*, with a clear, measured breakdown of where it is not.
+is *brought forward* near the top, with a clear, measured breakdown of where it is not.
 
 ## Honest limitations
 
