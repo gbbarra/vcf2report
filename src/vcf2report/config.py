@@ -67,6 +67,15 @@ INSILICO_LOCAL = DATA_DIR / "insilico" / "insilico.tsv"
 ALPHAMISSENSE_LOCAL = Path(os.environ.get(
     "VCF2REPORT_ALPHAMISSENSE", DATA_DIR / "alphamissense" / "AlphaMissense_hg38.tsv.gz"))
 
+# Per-source Parquet stores for the batch DuckDB annotate join (kept SEPARATE, not one
+# unified table — see docs/DATA_ARCHITECTURE.md). Built by scripts/build_alphamissense_parquet.py
+# (MAX-per-locus) and scripts/build_clinvar_parquet.py (review_stars precomputed, weekly).
+# Absent by default; the tabix clients remain the offline fallback.
+ALPHAMISSENSE_PARQUET = Path(os.environ.get(
+    "VCF2REPORT_ALPHAMISSENSE_PARQUET", DATA_DIR / "alphamissense" / "am_parquet"))
+CLINVAR_PARQUET = Path(os.environ.get(
+    "VCF2REPORT_CLINVAR_PARQUET", DATA_DIR / "clinvar" / "clinvar_parquet"))
+
 # ---------------------------------------------------------------------------
 # Genome build — the whole pipeline assumes GRCh38 to match gnomAD r4 / ClinVar.
 # ---------------------------------------------------------------------------
