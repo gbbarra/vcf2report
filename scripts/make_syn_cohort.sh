@@ -60,11 +60,11 @@ tail -n +2 "$COHORT" | while IFS=$'\t' read -r syn sample gene chrom pos ref alt
   bcftools norm -m -any "$work/raw.vcf.gz" -Ou 2>/dev/null \
     | bcftools view -T "$BED" -Oz -o "$work/exome.vcf.gz"
 
-  # 3) spike the gene's pathogenic ClinVar variant (carries CLNSIG/CLNREVSTAT/CLNDN -> PP5 + disease)
-  printf 'gene\tcategory\tzygosity\n%s\tprimary\thet\n' "$gene" > "$work/targets.tsv"
-  python3 "$REPO/scripts/spike_pathogenic.py" \
-    --exome "$work/exome.vcf.gz" --clinvar "$CLINVAR" --targets "$work/targets.tsv" \
-    --sample-id "$syn" --out "$OUT/$syn.synthetic.vcf"
+  # 3) spike the EXACT phenopacket variant (coordinate) + its ClinVar CLNSIG (PP5) + disease
+  python3 "$REPO/scripts/spike_variant.py" \
+    --exome "$work/exome.vcf.gz" --clinvar "$CLINVAR" \
+    --chrom "$chrom" --pos "$pos" --ref "$ref" --alt "$alt" --gene "$gene" \
+    --consequence "$cons" --disease "$disease" --sample-id "$syn" --out "$OUT/$syn.synthetic.vcf"
   bgzip -f "$OUT/$syn.synthetic.vcf"; tabix -f -p vcf "$OUT/$syn.synthetic.vcf.gz"
 
   # 4) HPO + truth
