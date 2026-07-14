@@ -128,9 +128,27 @@ python3 -m pip install -e .            # core engine (only dependency: jinja2)
 
 That is enough to run the offline demo below — **all databases for it are already
 bundled** in `data/` (a tiny ClinVar fallback slice, gnomAD snapshot, ABraOM, HPO,
-gene constraint, in-silico; ~2 MB total, no download). For real use, build the **full
-local ClinVar** (all ~4.2M GRCh38 variants, tabix-indexed, offline) with
-`scripts/build_clinvar_local.py` — once present it is the authoritative offline source.
+gene constraint, in-silico; ~2 MB total, no download).
+
+### Data stores — REQUIRED for real-exome analysis
+
+A **real exome** needs the three full annotation Parquet stores; the `/vcf2report` store gate
+**blocks an analysis until they are present + intact**. Get all three with **one command** after
+installing:
+
+```bash
+bash scripts/setup_stores.sh
+```
+
+| Store | Size | Source |
+|---|---|---|
+| **gnomAD v4.1** | ~1.3 GB | pre-built GitHub release — `fetch_gnomad_parquet.sh` (checksummed, frozen) |
+| **ClinVar GRCh38** | ~60 MB | pre-built GitHub release — `fetch_clinvar_parquet.sh` (checksummed, rebuilt **weekly**) |
+| **AlphaMissense hg38** | ~1 GB | fetched from DeepMind + built locally — **CC BY-NC-SA 4.0, not redistributed** |
+
+Prereqs: `gh` (GitHub CLI), `zstd`, and `duckdb` (`pip install duckdb`); AlphaMissense also needs
+htslib/tabix (`brew install htslib` / `conda install -c bioconda htslib`). Check each store's
+availability, version, build date, and integrity anytime with `python3 scripts/check_stores.py`.
 
 Optional extras:
 
@@ -144,7 +162,6 @@ python3 -m pip install -e ".[dev]"     # + pytest/hypothesis (to run the test su
 
 | Database | Needed for | How |
 |---|---|---|
-| **AlphaMissense hg38** (~1 GB, CC BY 4.0) | calibrated missense PP3/BP4 (v2) | `bash scripts/fetch_alphamissense.sh` then `python3 scripts/freeze_alphamissense.py` (needs htslib: `brew install htslib` / `conda install -c bioconda htslib`) |
 | **Live gnomAD / ClinVar** | up-to-the-minute frequencies | opt in with `VCF2REPORT_ALLOW_NETWORK=1` (sends only variant coordinates, never the VCF) |
 | **SnpEff + reference** | annotating a *raw* (un-annotated) VCF | `conda install -c bioconda snpeff bcftools vcfanno htslib` — see [docs/LOCAL_ANNOTATION.md](docs/LOCAL_ANNOTATION.md) |
 

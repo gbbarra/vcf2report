@@ -15,6 +15,13 @@ mkdir -p ~/.claude/skills/vcf2report && curl -fsSL \
 ```
 
 Restart Claude Code, then say *"analyze this VCF: /path/to/exome.vcf"* (or `/vcf2report`).
+For a **real exome** (beyond the bundled demo), also run the data-store setup once — the
+`/vcf2report` store gate blocks an analysis until the three Parquet stores are present + intact:
+
+```bash
+cd ~/vcf2report && bash scripts/setup_stores.sh   # gnomAD + ClinVar (pre-built) + AlphaMissense (local build)
+```
+
 That's the whole setup — see [../vcf2report.md](../vcf2report.md). Everything below is
 only for the Claude Desktop / MCP path.
 
@@ -41,17 +48,30 @@ python3 -m pip install -e ".[mcp]"        # engine + MCP SDK (jinja2 included)
 conda install -c bioconda bcftools snpeff vcfanno htslib
 ```
 
-## 2. One-time data download (for real exomes)
+## 2. Data stores — REQUIRED for real exomes
+
+The analysis needs the three annotation Parquet stores; the store gate blocks until they are
+present + intact. One command:
+
+```bash
+bash scripts/setup_stores.sh
+```
+
+Downloads the **gnomAD v4.1 + ClinVar** Parquet stores (pre-built, checksummed GitHub releases)
+and builds **AlphaMissense** locally (CC BY-NC-SA 4.0 — not redistributed). Verify each store's
+availability / version / build date / integrity anytime with `python3 scripts/check_stores.py`.
+(Skip it to run the **offline synthetic demo** — the bundled `data/` already has everything for that.)
+
+### 2b. Annotation toolchain — only to annotate a *raw* (un-annotated) VCF
 
 ```bash
 scripts/setup_data.sh ./annotation_data                 # full
 scripts/setup_data.sh ./annotation_data --panel genes.bed   # small subset (laptop/demo)
 ```
 
-Downloads ClinVar, the SnpEff GRCh38 DB, and points you at gnomAD/ABraOM. Then
-edit `scripts/vcfanno.conf.toml` so its `file` paths point at `./annotation_data`.
-(You can skip this entirely to run the **offline synthetic demo** — the bundled
-`data/` already has everything for that.)
+Downloads the SnpEff GRCh38 DB + ClinVar VCF for local annotation; then edit
+`scripts/vcfanno.conf.toml` so its `file` paths point at `./annotation_data`. Not needed if your
+VCF is already annotated (ANN/CSQ).
 
 ## 3. Register the MCP server in Claude Desktop
 
