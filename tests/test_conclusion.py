@@ -75,6 +75,25 @@ def test_single_submitter_clinvar_not_surfaced():
     assert "Classified Pathogenic" not in " ".join(summarize(_report([c])))
 
 
+def test_hom_gnomad_absent_flagged_as_artifact_not_primary():
+    # A homozygous variant absent from gnomAD (AC=0 -> af 0.0) is implausible/likely-artifact:
+    # kept in the ranked table (other), flagged for verification, but NOT a confident primary
+    # finding. A heterozygous variant with the same evidence stays primary.
+    from vcf2report.report.assemble import split_findings
+    hom = Classification(
+        variant=Variant(chrom="1", pos=1, ref="A", alt="AT", gene="GENEZ", zygosity="hom"),
+        annotation=Annotation(hpo_match_score=0.9, hpo_best_match=0.9, gnomad_af=0.0),
+        criteria=[], tier="Pathogenic", rule_path="")
+    het = Classification(
+        variant=Variant(chrom="1", pos=2, ref="A", alt="AT", gene="GENEW", zygosity="het"),
+        annotation=Annotation(hpo_match_score=0.9, hpo_best_match=0.9, gnomad_af=0.0),
+        criteria=[], tier="Pathogenic", rule_path="")
+    primary, _sec, other = split_findings([hom, het])
+    assert het in primary and hom not in primary and hom in other
+    txt = " ".join(summarize(_report([hom, het])))
+    assert "Verify the genotype" in txt and "GENEZ" in txt
+
+
 def test_primary_routing_uses_specific_average_not_the_max():
     # Specificity: a high single-term match (max 0.9) with a low average (0.3) is a non-specific,
     # decoy-like match and must NOT route to primary; a genuine average >= 0.6 does.

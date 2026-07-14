@@ -83,6 +83,13 @@ def split_findings(classifications):
     from ..config import ACMG_SF_GENES, HPO_RELATED_MIN
     primary, secondary, other = [], [], []
     for c in classifications:
+        # QC caution: a homozygous genotype for a variant the store vouches is absent from gnomAD
+        # (AC=0) is implausible for a real allele (a homozygote needs the allele to exist in the
+        # population) and a classic calling-artifact signature in difficult regions. Keep it in the
+        # ranked table with its ACMG tier, but don't present it as a confident primary finding.
+        if is_hom_absent_artifact(c):
+            other.append(c)
+            continue
         # Route on the best-match-average (not the single strongest match): a random,
         # unrelated phenotype clears the max on one broad term far too often, so the max
         # is not specific. The average requires the phenotype as a whole to fit the gene —
@@ -96,6 +103,16 @@ def split_findings(classifications):
         else:
             other.append(c)
     return primary, secondary, other
+
+
+def is_hom_absent_artifact(c) -> bool:
+    """Homozygous genotype for a variant the store vouches is absent from gnomAD (AC=0). A
+    homozygote requires the allele to exist in the population, so AC=0 + hom is implausible for a
+    real allele and a common calling-artifact signature in difficult regions (segdup / low-complexity
+    / homopolymer). A QC caution only — the ACMG tier is untouched; it is just not presented as a
+    confident diagnostic finding. Heterozygous variants (incl. genuine novel dominant LoF) are
+    unaffected."""
+    return (c.variant.zygosity == "hom") and (c.annotation.gnomad_af == 0.0)
 
 
 def clinvar_stars(review_status) -> int:
@@ -164,6 +181,14 @@ def summarize(report: "ReportModel") -> list[str]:
         lines.append(f"⚠️ **Classified Pathogenic/Likely Pathogenic in ClinVar** (≥2-star review) — "
                      f"the engine's independent tier is lower, but DO NOT dismiss: **{g}**. Review the "
                      "ClinVar assertion and its underlying evidence.")
+
+    artifacts = [c for c in report.classifications if is_hom_absent_artifact(c) and c.tier in _PLP]
+    if artifacts:
+        g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in artifacts)
+        lines.append(f"⚠️ **Verify the genotype before interpreting** — {len(artifacts)} homozygous "
+                     f"variant(s) that are absent from gnomAD (AC=0), which is implausible for a real "
+                     f"allele and a common calling-artifact signature in difficult regions: {g}. Confirm "
+                     "the call (orthogonal / Sanger) before interpreting these.")
 
     sec = [c for c in secondary if c.tier in _PLP]
     if sec:
