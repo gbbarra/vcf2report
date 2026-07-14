@@ -281,6 +281,13 @@ def main(argv: list[str] | None = None) -> int:
         shutil.copy(args.bed, out_dir / "panel.bed")   # bundle so the store is self-contained
         meta["bed_path"] = "panel.bed"                  # resolved relative to the store dir
     (out_dir / "_meta.json").write_text(json.dumps(meta, indent=2) + "\n")
+    try:
+        from vcf2report import stores
+        stores.write_manifest("gnomad", path=str(out_dir),
+                              source={"name": "gnomAD", "release": "v4.1",
+                                      "preset": args.preset, "note": "frozen release"})
+    except Exception as exc:
+        _warn(f"manifest not stamped: {exc}")
 
     print(f"\nDone ({meta['mode']}): {total:,} variants across {len(ok)} chrom(s) -> {out_dir}",
           file=sys.stderr)

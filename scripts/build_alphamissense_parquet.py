@@ -59,3 +59,6 @@ if OUT.exists():
     shutil.rmtree(OUT)
 TMP.rename(OUT)
 print(f"[am-parquet] wrote {n:,} loci (MAX-per-locus) -> {OUT}")
+from vcf2report import stores  # noqa: E402
+stores.write_manifest("alphamissense", path=str(OUT))
+print("[am-parquet] _manifest.json stamped — verify with scripts/check_stores.py")

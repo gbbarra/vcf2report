@@ -11,6 +11,7 @@ import platform
 import shutil
 
 from . import config
+from . import stores as _stores
 
 
 def _store(present: bool, path, enables: str) -> dict:
@@ -54,6 +55,9 @@ def readiness() -> dict:
         "package_importable": True,  # this code is running, so the import succeeded
         "annotation_tools_on_path": tools,
         "stores": stores,
+        # Per-store size + build date + freshness (quick: no row scan). A full integrity /
+        # completeness scan is scripts/check_stores.py (or store_health(measure=True)).
+        "store_health": _stores.store_health(measure=False),
         "bundled_local_data": bundled,
         "ready_for_offline_demo": all(bundled.values()),
         "annotation_tools_installed": all(tools.values()),

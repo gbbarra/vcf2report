@@ -73,6 +73,12 @@ Show python ≥ 3.10, which of `bcftools`/`snpEff`/`vcfanno` are on PATH, and fo
 (gnomAD parquet, AlphaMissense, ClinVar, HPO) whether it is present + what it costs if missing —
 **loudly** for gnomAD (missing → PM2/BA1/BS1 disabled, absence not assertable → **over-call risk**).
 
+The readiness output carries `store_health` — each Parquet store's **size, build date, and freshness**
+(ClinVar is weekly; gnomAD v4.1 / AlphaMissense are frozen). For a full **integrity + completeness**
+scan (readability, row count vs the build manifest, all core contigs present), run
+`python3 scripts/check_stores.py` (Code) or the `check_stores` MCP tool (Desktop) — it flags any store
+that is missing / corrupt / incomplete / stale and exits non-zero (usable as a cron / CI probe).
+
 ### 2 · Ask for the VCF + phenotype
 - **VCF** — single-proband **GRCh38** `.vcf`/`.vcf.gz`. Warn on another build → set `lift: true`.
   Derive `<SAMPLE>` from the `#CHROM` header (`grep -m1 '^#CHROM' <VCF> | cut -f10-`) / `bcftools

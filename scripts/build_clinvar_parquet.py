@@ -64,3 +64,6 @@ if OUT.exists():
     shutil.rmtree(OUT)
 TMP.rename(OUT)
 print(f"[clinvar-parquet] wrote {n:,} variants (review_stars precomputed) -> {OUT}")
+from vcf2report import stores  # noqa: E402
+stores.write_manifest("clinvar", path=str(OUT))
+print("[clinvar-parquet] _manifest.json stamped — verify with scripts/check_stores.py")

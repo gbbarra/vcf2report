@@ -79,6 +79,28 @@ LEFT JOIN read_parquet('data/clinvar/clinvar_parquet/**/*.parquet') c
 Each builder writes to a `.building` temp dir and swaps atomically, so a mid-rebuild reader
 never sees a partial store. All three are git-ignored (data, not code).
 
+## Health, integrity & monitoring
+
+Each store carries a `_manifest.json` (build date, source + version, row count, chromosomes,
+schema) written by its builder — stamp a store built earlier with
+`python3 scripts/stamp_store_manifest.py <store|all>`.
+
+`python3 scripts/check_stores.py` (or the `check_stores` MCP tool on Desktop; a quick summary
+rides in `data_status` / `preflight.py`) reports, per store:
+
+| check | how |
+|---|---|
+| **presence** | the store dir exists |
+| **size** | on-disk bytes |
+| **integrity** | DuckDB reads + counts every partition (a corrupt/truncated Parquet raises) |
+| **completeness** | all 24 core contigs (chr1–22,X,Y) present **and** the measured row count equals the manifest's |
+| **freshness** | build date + age; by cadence — **ClinVar weekly** (stale after 14 d → rebuild), **gnomAD v4.1 / AlphaMissense frozen** (no routine update) |
+
+It exits non-zero if any store is missing / corrupt / incomplete / stale, so it doubles as a
+cron / CI probe. **Update policy:** rebuild ClinVar weekly from a fresh
+`clinvar.vcf.gz` (`build_clinvar_local.py` → `build_clinvar_parquet.py`); gnomAD and AlphaMissense
+only when the upstream ships a new major release.
+
 ## Performance (measured on this machine)
 
 The 3-way join was validated on real NA12878 candidate loci (POGZ spike + an AlphaMissense-only

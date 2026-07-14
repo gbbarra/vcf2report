@@ -149,6 +149,16 @@ def data_status() -> dict:
 
 
 @mcp.tool()
+def check_stores() -> dict:
+    """Full health + integrity scan of the annotation Parquet stores (gnomAD, AlphaMissense,
+    ClinVar): presence, size, row count, integrity (reads cleanly), completeness vs the build
+    manifest, build date + source version, and freshness by cadence (ClinVar weekly; gnomAD v4.1
+    / AlphaMissense frozen). ``data_status`` carries a quick summary; this does the row scan."""
+    from . import stores as _stores_mod
+    return _stores_mod.store_health(measure=True)
+
+
+@mcp.tool()
 def inspect_vcf(vcf_path: str) -> dict:
     """Detect build, sample, variant counts, and whether the VCF is annotated (Stage 3).
 
