@@ -106,6 +106,12 @@ def run_pipeline(
             "them, so the report likely OVER-calls."
         )
     _mark("gnomad_prime_s")
+    # ClinVar — the one source with no batch path — resolved in ONE chr-pruned DuckDB join
+    # over the post-QC set when a Parquet store is present; clinvar.lookup reads that cache
+    # first, then falls back to the per-variant tabix / live / slice. No-op if unconfigured.
+    from .annotate import clinvar_parquet
+    clinvar_parquet.prime(kept)
+    _mark("clinvar_prime_s")
     # AlphaMissense is deferred: it only feeds PP3/BP4 at classification, never the
     # filter, so we skip the (per-variant, ~1 GB tabix) lookup across the whole
     # post-QC set and query just the surviving candidates below.

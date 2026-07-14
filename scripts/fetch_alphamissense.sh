@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Fetch + tabix-index the AlphaMissense hg38 missense predictions (CC BY 4.0).
+# Fetch + tabix-index the AlphaMissense hg38 missense predictions (CC BY-NC-SA 4.0).
 #
 # One-time download (~1 GB) used by the AlphaMissense annotation client and the
 # concordance-panel freeze. AlphaMissense predictions are © Google DeepMind,
-# licensed CC BY 4.0 (attribution required) — see docs/DISCLAIMERS.md.
+# licensed CC BY-NC-SA 4.0 (attribution + non-commercial + share-alike) — see docs/DISCLAIMERS.md.
 #
 #   bash scripts/fetch_alphamissense.sh
 #

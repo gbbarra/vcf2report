@@ -1,6 +1,6 @@
 """AlphaMissense missense-pathogenicity client (local tabix).
 
-AlphaMissense (Cheng et al., Science 2023; (c) Google DeepMind, CC BY 4.0) scores
+AlphaMissense (Cheng et al., Science 2023; (c) Google DeepMind, CC BY-NC-SA 4.0) scores
 every possible human missense substitution 0..1. We read the tabix-indexed hg38
 file (``AlphaMissense_hg38.tsv.gz``, fetched once by scripts/fetch_alphamissense.sh)
 for a single variant — no network egress and no multi-GB data bundled in the repo.
@@ -107,8 +107,24 @@ def prime(variants) -> int:
     access); the slow part avoided here is ``cache.put`` rewriting the whole JSON per
     key. Returns the number newly primed. No-op if the local file/pysam is absent.
     """
+    if not variants:
+        return 0
+    # Prefer the DuckDB/Parquet store (ONE chr-pruned join) over the per-variant tabix
+    # loop; fall back to tabix when the store / duckdb is absent (behaviour-preserving).
+    # The parquet returns dict-or-None per key, identical to _best, so lookup() is unchanged.
+    from . import alphamissense_parquet
+    if alphamissense_parquet.available():
+        got = alphamissense_parquet.prime(variants)
+        if got is not None:
+            n = 0
+            with _lock:
+                for k, val in got.items():
+                    if k not in _primed:
+                        _primed[k] = val
+                        n += 1
+            return n
     tabix = _open()
-    if tabix is None or not variants:
+    if tabix is None:
         return 0
     n = 0
     with _lock:

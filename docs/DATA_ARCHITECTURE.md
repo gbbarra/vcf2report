@@ -98,11 +98,17 @@ ClinVar 69 MB (4,195,020 rows), AlphaMissense 509 MB (71,034,269 loci, 0 duplica
 
 - ✅ Build scripts landed and validated (ClinVar 4.2M variants in ~5 s; AlphaMissense 71M loci,
   MAX-per-locus, 0 duplicates). 3-way join proven correct + fast (chr-pruned) on real loci.
-- ⏳ **Next (staged):** wire the 3-way join into the annotate stage — generalise
-  `annotate/gnomad_parquet.py::prime()` into a shared `batch_annotate.prime()` running the single
-  SQL above, with `alphamissense.lookup()` / `clinvar.lookup()` checking the Parquet cache first and
-  the tabix clients kept as the offline fallback. Must be validated byte-identical to the current
-  tabix path on `data/concordance/` before the tabix stores are retired.
+- ✅ **Wired into the annotate stage.** `annotate/alphamissense_parquet.py` and
+  `annotate/clinvar_parquet.py` each run a chr-pruned `prime()` mirroring `gnomad_parquet`;
+  `alphamissense.prime()` prefers the Parquet store (tabix fallback preserved), `clinvar.lookup()`
+  reads the Parquet cache before the per-variant tabix (a miss falls through unchanged), and the
+  pipeline primes ClinVar over the whole post-QC set — its **first-ever batch path**. AlphaMissense
+  is stored as **DOUBLE** so scores are bit-for-bit equal to the tabix `float()` parse.
+- ✅ **Validated byte-identical** on real NA12878 (2,395 candidates): parquet path == tabix path on
+  every gene / tier / ACMG criterion / AlphaMissense score / ClinVar field (0 differences). ~12%
+  faster offline (7.98 s → 7.05 s); ClinVar resolves in one 0.24 s join instead of ~24k per-variant
+  lookups (a larger win when network ClinVar would otherwise be hit). The tabix clients remain the
+  offline / no-duckdb fallback and are not retired.
 
 > ⚠️ **AlphaMissense license:** the source file header declares **CC BY-NC-SA 4.0** (non-commercial,
 > share-alike), while `scripts/fetch_alphamissense.sh` states CC BY 4.0. Resolve which is authoritative

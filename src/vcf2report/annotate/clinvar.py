@@ -67,8 +67,8 @@ def _tabix_lookup(variant: Variant) -> Optional[dict]:
             f = line.rstrip("\n").split("\t")
             if len(f) >= 6 and int(f[1]) == variant.pos and f[2].upper() == ref and f[3].upper() == alt:
                 return {"significance": f[4] or None, "review_status": f[5] or None,
-                        "accession": f[6] if len(f) > 6 else None,
-                        "condition": f[7] if len(f) > 7 else None, "date": "local snapshot"}
+                        "accession": (f[6] or None) if len(f) > 6 else None,
+                        "condition": (f[7] or None) if len(f) > 7 else None, "date": "local snapshot"}
     except (ValueError, OSError):
         return None
     return None
@@ -181,6 +181,14 @@ def lookup(variant: Variant) -> dict:
     cached = cache.get(_SOURCE, variant.key)
     if cached is not None:
         return {**cached, "_source": "ClinVar (cache)"}
+
+    # Batch DuckDB/Parquet store (chr-pruned prime over the post-QC set) — checked before
+    # the per-variant tabix. Same fields, same _source; a miss returns None here and falls
+    # through exactly like a tabix miss (never a fabricated 'no record').
+    from . import clinvar_parquet
+    cp = clinvar_parquet.get(variant.key)
+    if cp is not None and cp.get("significance"):
+        return {**cp, "_source": "ClinVar (local)"}
 
     # Full local ClinVar (complete, offline, versioned snapshot) — authoritative before the
     # network. A miss falls through to live enrichment (a variant newer than the snapshot).

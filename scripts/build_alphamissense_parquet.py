@@ -47,7 +47,7 @@ COPY (
                 auto_detect=false, quote='', escape='', strict_mode=false,
                 columns={{'chrom':'VARCHAR','pos':'INTEGER','ref':'VARCHAR','alt':'VARCHAR',
                           'genome':'VARCHAR','uniprot_id':'VARCHAR','transcript_id':'VARCHAR',
-                          'protein_variant':'VARCHAR','am_pathogenicity':'FLOAT','am_class':'VARCHAR'}})
+                          'protein_variant':'VARCHAR','am_pathogenicity':'DOUBLE','am_class':'VARCHAR'}})
   GROUP BY chrom, pos, ref, alt
 ) TO '{TMP.as_posix()}' (FORMAT PARQUET, PARTITION_BY (chrom), OVERWRITE_OR_IGNORE);
 """)

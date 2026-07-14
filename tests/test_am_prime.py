@@ -5,7 +5,7 @@ The scores are identical to the per-variant lookup (same _fetch/_best), so no
 classification changes — this only removes the disk churn that dominated the phase.
 """
 from vcf2report import config, pipeline
-from vcf2report.annotate import alphamissense, cache
+from vcf2report.annotate import alphamissense, alphamissense_parquet, cache
 from vcf2report.models import Variant
 
 
@@ -17,6 +17,8 @@ def _v(pos, ref="A", alt="T"):
 def _fake_store(monkeypatch, scores):
     """Resolve prime/lookup from an in-test store (pos -> score or None) via _best,
     with NO real tabix file."""
+    # Isolate the tabix path: prime() now prefers the Parquet store when one is present.
+    monkeypatch.setattr(alphamissense_parquet, "available", lambda: False)
     monkeypatch.setattr(alphamissense, "_open", lambda: object())      # non-None handle
     monkeypatch.setattr(alphamissense, "_fetch", lambda t, c, p: ["row"])
 
@@ -64,6 +66,7 @@ def test_unprimed_variant_falls_through(monkeypatch):
 
 def test_prime_noop_without_file(monkeypatch):
     alphamissense._reset_for_tests()
+    monkeypatch.setattr(alphamissense_parquet, "available", lambda: False)  # no parquet either
     monkeypatch.setattr(alphamissense, "_open", lambda: None)   # no local file/pysam
     assert alphamissense.prime([_v(100)]) == 0
     alphamissense._reset_for_tests()
