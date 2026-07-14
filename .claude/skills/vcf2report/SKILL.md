@@ -63,11 +63,15 @@ On **Code**, after Stages 1–2 gather the VCF, drive Stages 1&3–8 with **one 
 as the Background-Tasks boxes. On **Desktop**, call the MCP tool named for each stage in order.
 
 ### 1 · 🖥️ Dependency check — FIRST; this opens the progress surface
-Before asking anything else, run the readiness probe and **render it visually, explaining each item
-and what it enables/disables**:
-- **Code:** `python3 scripts/preflight.py` (it is also the first Workflow phase, which is what
-  auto-opens Background Tasks).
-- **Desktop:** the `data_status` MCP tool.
+Before asking anything else, render the readiness + store gate **visually in the progress surface**,
+explaining each item and what it enables/disables:
+- **Code:** the moment `/vcf2report` is invoked, **launch the preflight Workflow** — `Workflow` tool,
+  `scriptPath: <repo>/.claude/skills/vcf2report/references/preflight.workflow.js`, `args: { repo }`. It
+  needs NO VCF, so Stage 1 (dependency check + the store gate) renders as **Background-Tasks phases in
+  the right-side pane, before asking for the VCF**. ⚠️ **Do NOT run `preflight.py` / `check_stores.py`
+  as inline Bash** — inline output prints in the chat, NOT the right-side Tasks panel.
+- **Desktop:** the `data_status` + `check_stores` MCP tools (show_widget stepper on Mac; text checklist
+  on classic Desktop).
 
 Show python ≥ 3.10, which of `bcftools`/`snpEff`/`vcfanno` are on PATH, and for **each store**
 (gnomAD parquet, AlphaMissense, ClinVar, HPO) whether it is present + what it costs if missing —
@@ -76,8 +80,10 @@ Show python ≥ 3.10, which of `bcftools`/`snpEff`/`vcfanno` are on PATH, and fo
 **⛔ Store gate (HARD — every run, before any analysis).** Verify the **three Parquet stores are
 available + intact** and render each one's **availability · version · build date · integrity ·
 completeness** in the progress surface (Background Tasks / show_widget / text):
-- **Code:** `python3 scripts/check_stores.py --gate` — this is the **first Workflow phase**; it exits
-  non-zero and the workflow **aborts** (no analysis) if a store is missing / corrupt / incomplete.
+- **Code:** the preflight Workflow's second phase runs `python3 scripts/check_stores.py --gate` (exits
+  non-zero on a blocking store). Read its returned `ready`: if **false**, STOP — do not launch the
+  analysis Workflow. The analysis Workflow (`analyze.workflow.js`) also re-runs this gate as its own
+  first phase (defense in depth).
 - **Desktop:** the `check_stores` MCP tool — treat any store with status `missing` / `corrupt` /
   `incomplete` as **blocking**. (`data_status` also carries a quick `store_health` summary.)
 
