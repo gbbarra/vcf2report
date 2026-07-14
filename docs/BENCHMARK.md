@@ -143,15 +143,14 @@ individual** (only POGZ is real). We traced every one:
   is still recommended: it removes the *other* false-absence class — a variant genuinely present in
   gnomAD genomes but not exomes. The shipped store is exomes-only today (`data/gnomad/NOTICE.md`).
 
-**Phenotype decoy control.** For all 5,335 cases we re-scored each with a *random, unrelated*
-phenotype. The decoy still matches the causative gene **62%** of the time (vs 83% for the true
-phenotype) at the routing threshold — so only **~20 points** of the phenotype signal is truly
-specific, and even an exact-match threshold leaves a ~45% decoy false-match rate (HPO annotations
-for neuro/developmental terms are broadly promiscuous). The "+phenotype 88%" tier is therefore
-mostly non-specific prioritization; the engine's own P/LP rate (42%) and the genuine ≥2-star
-ClinVar surface are the specific signals, which is why they are reported separately. The fix is a
-specificity-calibrated phenotype score (surface only when the gene beats the decoy distribution)
-and rank-based reporting.
+**Phenotype decoy control — measured, then fixed.** For all 5,335 cases we re-scored each with a
+*random, unrelated* phenotype. Originally the primary-findings routing used the *single strongest*
+patient↔gene term match (`hpo_best_match`), which a decoy cleared **62%** of the time (vs 83% true
+— only ~20 pts specific), because one broad term matches almost any gene. **Fix (implemented):**
+route on the best-match-**average** (`hpo_match_score`, requiring the phenotype *as a whole* to fit
+the gene) at 0.6 — the same bar as PP4. This drops the decoy false-match to **22%** (77% true), so
+the discriminative gap nearly triples, **20 → 54 pts**. The engine's own P/LP rate and the genuine
+≥2-star ClinVar surface remain the fully-specific signals, reported separately.
 
 ## Whole-exome scale test — 100 planted variants on NA12878
 

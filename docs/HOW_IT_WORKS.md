@@ -187,10 +187,10 @@ is why they are reported separately.
 
 **Honest limitations.** (1) Single-proband: no de-novo/segregation/phasing evidence. (2) The
 AlphaMissense/REVEL/CADD strength thresholds are documented *seed* values pending empirical
-calibration. (3) The phenotype signal is only ~20 points specific: a decoy (random) phenotype
-still matches the causative gene 62% of the time, so "+phenotype 88%" is mostly non-specific
-prioritization — the honest measure is rank against real background (POGZ ranked #1 of 2,394 on a
-whole NA12878 exome). (4) **Specificity on a healthy exome:** on NA12878 the engine calls 29 P/LP
+calibration. (3) Phenotype specificity: the primary routing now uses the best-match-average, not
+the single strongest match, which cut the decoy (random-phenotype) false-match from 62% to 22%
+(discriminative gap 20 → 54 pts); the honest sensitivity measure remains rank against real
+background (POGZ ranked #1 of 2,394 on a whole NA12878 exome). (4) **Specificity on a healthy exome:** on NA12878 the engine calls 29 P/LP
 (only the planted one is real). A fixed store bug (a present-but-filtered variant read as absent →
 spurious PM2) removed several (29→23); the residual are homozygous novel LoF indels in constrained
 genes that are absent from *all* of gnomAD — exome-calling artifacts, addressed by upstream
