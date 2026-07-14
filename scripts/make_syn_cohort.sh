@@ -54,7 +54,10 @@ tail -n +2 "$COHORT" | while IFS=$'\t' read -r syn sample gene chrom pos ref alt
     [ -n "$key" ] || { echo "  WARN: no DRAGEN VCF for $sample — skipping"; rm -rf "$work"; continue; }
     url="https://$BUCKET.s3.amazonaws.com/$key"
   fi
-  curl -fL --retry 3 --max-time 1800 -o "$work/raw.vcf.gz" "$url"
+  # S3 sometimes hands out a slow node — abort a stall (< 1 MB/s for 25 s) and retry on a fresh
+  # connection, resuming (-C -) from where the partial left off.
+  curl -fL --retry 8 --retry-delay 2 --speed-limit 1000000 --speed-time 25 \
+       --connect-timeout 20 --max-time 3600 -C - -o "$work/raw.vcf.gz" "$url"
 
   # 2) split multiallelics (no FASTA needed) + subset to the MANE BED — one streaming pass
   bcftools norm -m -any "$work/raw.vcf.gz" -Ou 2>/dev/null \
