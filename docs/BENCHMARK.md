@@ -134,11 +134,15 @@ individual** (only POGZ is real). We traced every one:
   *no* record exists (PASS records still definitive; non-PASS → AF unavailable, not absent). This
   removed those over-calls (**29 → 23 P/LP**) with no benchmark regression (genuine ≥2★ ClinVar-known
   held at 1067/1067). See `annotate/gnomad_parquet.py`.
-- **Residual — calling artifacts, not the store.** The rest are homozygous LoF indels in constrained
+- **Residual — calling artifacts, now flagged.** The rest are **homozygous** LoF indels in constrained
   genes (CYFIP2, LTBP4, PRKDC…) that a wide remote-tabix scan confirms are **absent from all of gnomAD**
-  (76k genomes) — the classic signature of exome-calling artifacts in hard regions, faithfully scored
-  as LoF + novel → Pathogenic. A joint store does *not* fix these (they are genome-absent too); the
-  fixes are upstream variant/region-callability QC and cautious PVS1 for uncorroborated novel LoF.
+  (76k genomes) — the classic signature of exome-calling artifacts in hard regions. A homozygote requires
+  the allele to exist in the population, so AC=0 + hom is implausible for a real allele. **Fix (implemented):**
+  such variants keep their ACMG tier in the ranked table but are routed out of the confident
+  "likely-explanatory" findings into a *"verify the genotype (orthogonal/Sanger) first"* caution — on the
+  POGZ demo the likely-explanatory list drops from 8 genes to 3. Heterozygous variants (incl. genuine novel
+  dominant LoF like the planted POGZ) are untouched. The few remaining P/LP are *heterozygous* novel LoF,
+  which are genotype-indistinguishable from a true positive and need region-callability QC to separate.
 - **A joint (exomes+genomes) store** (`build_gnomad_parquet.py --preset joint`, the script default)
   is still recommended: it removes the *other* false-absence class — a variant genuinely present in
   gnomAD genomes but not exomes. The shipped store is exomes-only today (`data/gnomad/NOTICE.md`).
