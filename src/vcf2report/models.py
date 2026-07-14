@@ -93,8 +93,8 @@ class Annotation:
     am_class: Optional[str] = None            # likely_benign | ambiguous | likely_pathogenic
 
     # phenotype
-    hpo_match_score: Optional[float] = None      # 0..1 best-match-avg patient<->gene (PP4)
-    hpo_best_match: Optional[float] = None        # 0..1 single strongest match (routing)
+    hpo_match_score: Optional[float] = None      # 0..1 best-match-avg patient<->gene (PP4 + primary routing)
+    hpo_best_match: Optional[float] = None        # 0..1 single strongest match (surfaced for display)
     hpo_matched_terms: list[str] = field(default_factory=list)
 
     source: dict[str, str] = field(default_factory=dict)  # field -> "db@date"

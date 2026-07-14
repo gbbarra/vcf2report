@@ -53,12 +53,13 @@ ABRAOM_LOCAL = DATA_DIR / "abraom" / "abraom_sabe.tsv"
 HPO_GENES_LOCAL = DATA_DIR / "hpo" / "genes_to_phenotype.tsv.gz"
 HPO_GRAPH_LOCAL = DATA_DIR / "hpo" / "hpo_graph.tsv.gz"  # ontology + IC (build_hpo_graph.py)
 # Report routing: a gene is "phenotype-related" (-> primary findings) when its
-# SINGLE strongest patient<->gene term similarity (hpo_best_match) is at/above this.
-# Routing on the best match, not the average, keeps a gene that strongly explains one
-# key phenotype in primary instead of diluting it out on a phenotype-rich case. Set
-# above the incidental ontology noise floor (unrelated genes peak ~0.4) and below a
-# real moderate match; distinct from the PP4 evidence bar (0.6), which uses the average.
-HPO_RELATED_MIN = 0.5
+# best-match-AVERAGE over the patient's terms (hpo_match_score) is at/above this. The
+# average — not the single strongest match — is what makes the signal specific: a decoy
+# (random, unrelated) phenotype clears the max on a broad term far too often. A negative
+# control (5335 cases) measured this directly: routing on the max cleared a decoy 62% of
+# the time (vs 83% true, ~20 pts discriminative); routing on the average at 0.6 drops the
+# decoy to ~21% (76% true, ~55 pts discriminative). Aligned with the PP4 evidence bar (0.6).
+HPO_RELATED_MIN = 0.6
 CONSTRAINT_LOCAL = DATA_DIR / "constraint" / "gene_constraint.tsv.gz"
 INSILICO_LOCAL = DATA_DIR / "insilico" / "insilico.tsv"
 # AlphaMissense hg38 predictions (CC BY 4.0) — tabix-indexed, fetched once via

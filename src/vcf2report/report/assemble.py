@@ -83,9 +83,11 @@ def split_findings(classifications):
     from ..config import ACMG_SF_GENES, HPO_RELATED_MIN
     primary, secondary, other = [], [], []
     for c in classifications:
-        # Route on the single strongest phenotype match, not the average, so a gene
-        # that strongly explains one key phenotype isn't diluted out of primary.
-        related = (c.annotation.hpo_best_match or 0) >= HPO_RELATED_MIN
+        # Route on the best-match-average (not the single strongest match): a random,
+        # unrelated phenotype clears the max on one broad term far too often, so the max
+        # is not specific. The average requires the phenotype as a whole to fit the gene —
+        # measured 2-3x more discriminative against a decoy control (see config).
+        related = (c.annotation.hpo_match_score or 0) >= HPO_RELATED_MIN
         is_sf = c.variant.gene in ACMG_SF_GENES
         if related and c.tier not in _BENIGN:
             primary.append(c)

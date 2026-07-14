@@ -75,6 +75,22 @@ def test_single_submitter_clinvar_not_surfaced():
     assert "Classified Pathogenic" not in " ".join(summarize(_report([c])))
 
 
+def test_primary_routing_uses_specific_average_not_the_max():
+    # Specificity: a high single-term match (max 0.9) with a low average (0.3) is a non-specific,
+    # decoy-like match and must NOT route to primary; a genuine average >= 0.6 does.
+    from vcf2report.report.assemble import split_findings
+    nonspec = Classification(
+        variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene="GENEX"),
+        annotation=Annotation(hpo_best_match=0.9, hpo_match_score=0.3),
+        criteria=[], tier="Pathogenic", rule_path="")
+    specific = Classification(
+        variant=Variant(chrom="1", pos=2, ref="A", alt="T", gene="GENEY"),
+        annotation=Annotation(hpo_best_match=0.9, hpo_match_score=0.8),
+        criteria=[], tier="Pathogenic", rule_path="")
+    primary, _sec, other = split_findings([nonspec, specific])
+    assert specific in primary and nonspec not in primary and nonspec in other
+
+
 def test_incidental_plp_surfaced_in_conclusion():
     # An unrelated (hpo=0) P/LP in a NON-SF gene must still be named in the conclusion,
     # not left to the ranked table alone.
