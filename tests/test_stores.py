@@ -85,6 +85,27 @@ def test_quick_mode_skips_row_scan(tmp_path, monkeypatch):
     assert e["present"] and e.get("rows") is None and e["status"] == "ok"
 
 
+def test_gate_blocks_on_missing_or_corrupt(monkeypatch):
+    monkeypatch.setattr(stores, "store_health", lambda measure=True: {
+        "gnomad": {"status": "ok"}, "alphamissense": {"status": "missing"},
+        "clinvar": {"status": "stale"}})
+    g = stores.gate()
+    assert not g["ready"] and g["blocking"] == ["alphamissense"] and g["stale"] == ["clinvar"]
+    monkeypatch.setattr(stores, "store_health", lambda measure=True: {
+        "gnomad": {"status": "corrupt"}, "alphamissense": {"status": "ok"},
+        "clinvar": {"status": "ok"}})
+    assert not stores.gate()["ready"]
+
+
+def test_gate_ready_when_intact_even_if_stale(monkeypatch):
+    # A stale-but-intact ClinVar warns but must NOT block the analysis.
+    monkeypatch.setattr(stores, "store_health", lambda measure=True: {
+        "gnomad": {"status": "ok"}, "alphamissense": {"status": "ok"},
+        "clinvar": {"status": "stale"}})
+    g = stores.gate()
+    assert g["ready"] and g["blocking"] == [] and g["stale"] == ["clinvar"]
+
+
 def test_frozen_store_not_stale_without_manifest(tmp_path, monkeypatch):
     # gnomAD/AM are frozen: no manifest date -> still not flagged for a routine update.
     p = _mk_clinvar(tmp_path, sorted(stores.CORE_CHROMS))  # shape irrelevant; reuse

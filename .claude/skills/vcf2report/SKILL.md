@@ -73,11 +73,18 @@ Show python ≥ 3.10, which of `bcftools`/`snpEff`/`vcfanno` are on PATH, and fo
 (gnomAD parquet, AlphaMissense, ClinVar, HPO) whether it is present + what it costs if missing —
 **loudly** for gnomAD (missing → PM2/BA1/BS1 disabled, absence not assertable → **over-call risk**).
 
-The readiness output carries `store_health` — each Parquet store's **size, build date, and freshness**
-(ClinVar is weekly; gnomAD v4.1 / AlphaMissense are frozen). For a full **integrity + completeness**
-scan (readability, row count vs the build manifest, all core contigs present), run
-`python3 scripts/check_stores.py` (Code) or the `check_stores` MCP tool (Desktop) — it flags any store
-that is missing / corrupt / incomplete / stale and exits non-zero (usable as a cron / CI probe).
+**⛔ Store gate (HARD — every run, before any analysis).** Verify the **three Parquet stores are
+available + intact** and render each one's **availability · version · build date · integrity ·
+completeness** in the progress surface (Background Tasks / show_widget / text):
+- **Code:** `python3 scripts/check_stores.py --gate` — this is the **first Workflow phase**; it exits
+  non-zero and the workflow **aborts** (no analysis) if a store is missing / corrupt / incomplete.
+- **Desktop:** the `check_stores` MCP tool — treat any store with status `missing` / `corrupt` /
+  `incomplete` as **blocking**. (`data_status` also carries a quick `store_health` summary.)
+
+**Proceed ONLY if all three (gnomAD · AlphaMissense · ClinVar) are available and intact.** If any is
+blocked, **STOP**: show the user which store failed + the fix (`build_gnomad_parquet.py` /
+`build_alphamissense_parquet.py` / `build_clinvar_parquet.py`, or `stamp_store_manifest.py`), and do
+NOT run the analysis. A merely **stale** ClinVar (past its weekly window) warns but does not block.
 
 ### 2 · Ask for the VCF + phenotype
 - **VCF** — single-proband **GRCh38** `.vcf`/`.vcf.gz`. Warn on another build → set `lift: true`.

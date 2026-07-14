@@ -30,14 +30,26 @@ let vcf = a.vcf
 let hpoFile = a.hpo || ''
 const REF = a.reference || ''
 
-// 1 — 🖥️ DEPENDENCY CHECK — opens Background Tasks; explains the environment before we touch the VCF
+// 1 — 🖥️ DEPENDENCY CHECK — opens Background Tasks; the Parquet-store GATE runs here, before
+// anything patient-specific. The analysis proceeds ONLY if the stores are available + intact.
 phase('🖥️ Local · Dependency check')
 const deps = await agent(
-  `cd ${REPO} && python3 scripts/preflight.py. Return, in plain language: the python version; which of ` +
-  `bcftools/snpEff/vcfanno are on PATH; and for EACH store (gnomAD parquet, AlphaMissense, ClinVar, HPO) ` +
-  `whether it is present AND what it enables/disables (use the store's 'enables' text). Flag LOUDLY if the ` +
-  `gnomAD store is missing (PM2/BA1/BS1 disabled → over-call risk). This is the environment check; nothing patient-specific yet.`,
+  `cd ${REPO} && python3 scripts/preflight.py. Return, in plain language: the python version and which of ` +
+  `bcftools/snpEff/vcfanno are on PATH. (Parquet-store details come from the gate step next.)`,
   { label: '🖥️ preflight', phase: '🖥️ Local · Dependency check' })
+// HARD GATE — availability + version + build date + integrity of the 3 Parquet stores.
+const gate = await agent(
+  `cd ${REPO} && python3 scripts/check_stores.py --gate; echo "STORES_EXIT=$?". Show the user the store ` +
+  `table VERBATIM — for EACH parquet (gnomAD · AlphaMissense · ClinVar): available? · version (source) · ` +
+  `BUILD DATE · integrity · complete — then the READY/BLOCKED banner and the STORES_EXIT line (do not omit it).`,
+  { label: '🖥️ parquet stores — availability + integrity GATE', phase: '🖥️ Local · Dependency check' })
+if (!/STORES_EXIT=0/.test(gate || '')) {
+  log('⛔ ANALYSIS BLOCKED — the gnomAD / AlphaMissense / ClinVar Parquet stores are not all available and ' +
+      'intact. Fix the flagged store(s) — build_gnomad_parquet.py / build_alphamissense_parquet.py / ' +
+      'build_clinvar_parquet.py (or stamp_store_manifest.py) — then re-run. No analysis was performed.')
+  return { error: 'stores_unavailable', deps, gate }
+}
+log('✅ Parquet stores available + intact — proceeding with the analysis.')
 
 // 2 — 🖥️ INSPECT VCF — liftover first if needed, then detect build + whether it is annotated
 phase('🖥️ Local · Inspect VCF')

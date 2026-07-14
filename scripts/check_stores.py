@@ -30,6 +30,9 @@ def main() -> int:
     ap.add_argument("store", nargs="?", choices=["gnomad", "alphamissense", "clinvar"])
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     ap.add_argument("--quick", action="store_true", help="skip the row-count / integrity scan")
+    ap.add_argument("--gate", action="store_true",
+                    help="analysis gate: exit non-zero ONLY if a store blocks (missing/corrupt/"
+                         "incomplete); a merely-stale store warns but passes")
     a = ap.parse_args()
 
     health = stores.store_health(name=a.store, measure=not a.quick)
@@ -67,6 +70,18 @@ def main() -> int:
             if e.get("rows_mismatch"):
                 print(f"          ⚠ row-count mismatch (corrupt/partial): {e['rows_mismatch']}")
         print()
+
+    if a.gate:
+        blocking = [n for n, e in health.items() if e["status"] in stores._BLOCKING]
+        stale = [n for n, e in health.items() if e["status"] == "stale"]
+        if not a.json:
+            if blocking:
+                print(f"  ⛔ BLOCKED — parquet store(s) not available/intact: {blocking}. "
+                      "Analysis must NOT run — build/repair them and re-run.\n")
+            else:
+                warn = f"  (⚠ stale, update soon: {stale})" if stale else ""
+                print(f"  ✅ READY — all required parquet stores are available + intact.{warn}\n")
+        return 1 if blocking else 0
 
     bad = {n: e["status"] for n, e in health.items() if e["status"] != "ok"}
     if bad and not a.json:

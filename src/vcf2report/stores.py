@@ -227,6 +227,24 @@ def store_health(name: Optional[str] = None, measure: bool = True) -> dict:
     return out
 
 
+# The Parquet stores an analysis needs before it may run. Missing / corrupt / incomplete
+# among these BLOCK the run; merely stale (an old but intact ClinVar) only warns.
+REQUIRED = ("gnomad", "alphamissense", "clinvar")
+_BLOCKING = {"missing", "corrupt", "incomplete"}
+
+
+def gate(required=REQUIRED, measure: bool = True) -> dict:
+    """Analysis-readiness gate for the guided flow's Stage 1.
+
+    Returns ``{ready, blocking, stale, health}``: ``ready`` is False (do NOT run the analysis)
+    when any ``required`` store is missing / corrupt / incomplete; a stale store is listed in
+    ``stale`` but does not block (it is intact, just past its refresh window)."""
+    health = store_health(measure=measure)
+    blocking = [n for n in required if health.get(n, {}).get("status") in _BLOCKING]
+    stale = [n for n, e in health.items() if e.get("status") == "stale"]
+    return {"ready": not blocking, "blocking": blocking, "stale": stale, "health": health}
+
+
 def write_manifest(name: str, source: Optional[dict] = None,
                    built_at: Optional[str] = None, path: Optional[str] = None) -> dict:
     """Measure a built store and write its ``_manifest.json`` (build date, source, row count,
