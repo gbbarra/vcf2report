@@ -17,14 +17,17 @@ whose gene comes from a real **GA4GH phenopacket case** so it carries that case'
 - `SYN-00N.synthetic.vcf.gz` (+ `.tbi`), `SYN-00N.hpo.txt`, `truth.tsv` — **generated** (git-ignored;
   rebuild anytime from `cohort.tsv`).
 
-## Build (on a machine with AWS S3 access — not the sandbox)
+## Build
 
 ```bash
-REF_FASTA=/path/GRCh38.fa CLINVAR_VCF=/path/clinvar_GRCh38.vcf.gz \
-  bash scripts/make_syn_cohort.sh
+cd ~/vcf2report && bash scripts/make_syn_cohort.sh      # all 100 (resumable)
+# smoke test first:  N=3 bash scripts/make_syn_cohort.sh
 ```
-Needs: `awscli`, `bcftools`, `bgzip`, `tabix`, `python3`, a GRCh38 FASTA (+`.fai`), a ClinVar GRCh38 VCF.
-Each case ≈ download + MANE subset + spike (~30 s–1 min); resumable (skips cases already built).
+Self-contained — needs only `curl`, `bcftools`, `bgzip`, `tabix`, `python3`. The DRAGEN VCFs stream
+from the public S3 bucket over HTTPS (no `aws` CLI); the ClinVar VCF is auto-downloaded once (~180 MB);
+no reference FASTA. Each case ≈ 422 MB download + MANE subset + spike (~1–3 min); resumable (skips
+cases already built). Point at an existing ClinVar VCF with `CLINVAR_VCF=/path/clinvar.vcf.gz` to skip
+the download.
 
 ## Validate
 
