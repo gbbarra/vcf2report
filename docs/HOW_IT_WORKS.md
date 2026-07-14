@@ -123,7 +123,7 @@ GRCh38 input rather than mis-annotate; a loud warning fires if a configured gnom
 
 ### Local engine vs Claude — the two-phase analysis
 
-Run from Claude (the `analyze-vcf` skill), the pipeline is presented as labelled phases so it is
+Run from Claude (the `vcf2report` skill), the pipeline is presented as labelled phases so it is
 always visible *who* performs each step:
 
 | phase | who | what |

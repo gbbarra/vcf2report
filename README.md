@@ -82,7 +82,7 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
   [data/gnomad/NOTICE.md](data/gnomad/NOTICE.md).
 - **Private by default.** Runs fully offline on bundled data; the VCF never leaves
   the machine, and outbound lookups are opt-in (`VCF2REPORT_ALLOW_NETWORK=1`).
-- **Auditable & tested.** 194 automated tests; the classification logic is validated
+- **Auditable & tested.** 246 automated tests; the classification logic is validated
   against real ClinVar ground truth (below) and was hardened by multi-agent
   adversarial review.
 
@@ -200,9 +200,9 @@ Flags: `--hpo FILE` · `--out DIR` · `--stdout` · `--sample-id ID` · `--timin
 guided skill once; it works in any session and bootstraps everything itself:
 
 ```bash
-mkdir -p ~/.claude/skills/analyze-vcf && curl -fsSL \
-  https://raw.githubusercontent.com/gbbarra/vcf2report/main/.claude/skills/analyze-vcf/SKILL.md \
-  -o ~/.claude/skills/analyze-vcf/SKILL.md
+mkdir -p ~/.claude/skills/vcf2report && curl -fsSL \
+  https://raw.githubusercontent.com/gbbarra/vcf2report/main/.claude/skills/vcf2report/SKILL.md \
+  -o ~/.claude/skills/vcf2report/SKILL.md
 ```
 
 Then say *"analyze this VCF: /path/to/exome.vcf"* — Claude clones/installs (if
@@ -219,7 +219,7 @@ restart, and ask in plain language. Full guide: [docs/SETUP.md](docs/SETUP.md).
 Three front doors, one engine:
 
 ```
-Claude Code   ── /analyze-vcf skill (guided harness) ──┐
+Claude Code   ── /vcf2report skill (guided harness) ──┐
 Claude Desktop ── Agent Skills ▸ MCP server ───────────┤
 Terminal      ── scripts/run_headless.py ──────────────┤
                                                        ▼
@@ -258,7 +258,7 @@ GA4GH Phenopackets.
 
 ```bash
 python3 -m pip install -e ".[dev]"
-python3 -m pytest -q        # 138 tests
+python3 -m pytest -q        # 246 tests
 ```
 
 ## License

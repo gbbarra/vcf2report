@@ -1,9 +1,10 @@
 ---
 name: acmg-classify
 description: >-
-  Claude Desktop / MCP reference for auditable ACMG/AMP criteria (PVS1, PM2, PP3,
-  BA1, …) — pairs with the vcf2report engine's classification. Reference material,
-  not the entry point: to analyze a VCF end-to-end in Claude Code use `analyze-vcf`.
+  ⚠️ Claude Desktop only (MCP) — NOT a Claude Code command. Reference for auditable
+  ACMG/AMP criteria (PVS1, PM2, PP3, BA1, …), pairing with the vcf2report engine's
+  classification. In Claude Code / the terminal, use the `/vcf2report` command instead
+  — it runs the whole pipeline (parse → QC → annotate → ACMG → laudo) end-to-end.
 ---
 
 # Auditable ACMG/AMP classification

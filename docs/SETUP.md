@@ -5,16 +5,16 @@ There are two Claude surfaces. **Claude Code is the quickest** (a one-step skill
 
 ## Option A — Claude Code (recommended, one step)
 
-Install the guided `analyze-vcf` skill once — it works in any session and
+Install the guided `vcf2report` skill once — it works in any session and
 bootstraps everything (clone, install, run, render) itself:
 
 ```bash
-mkdir -p ~/.claude/skills/analyze-vcf && curl -fsSL \
-  https://raw.githubusercontent.com/gbbarra/vcf2report/main/.claude/skills/analyze-vcf/SKILL.md \
-  -o ~/.claude/skills/analyze-vcf/SKILL.md
+mkdir -p ~/.claude/skills/vcf2report && curl -fsSL \
+  https://raw.githubusercontent.com/gbbarra/vcf2report/main/.claude/skills/vcf2report/SKILL.md \
+  -o ~/.claude/skills/vcf2report/SKILL.md
 ```
 
-Restart Claude Code, then say *"analyze this VCF: /path/to/exome.vcf"* (or `/analyze-vcf`).
+Restart Claude Code, then say *"analyze this VCF: /path/to/exome.vcf"* (or `/vcf2report`).
 That's the whole setup — see [../vcf2report.md](../vcf2report.md). Everything below is
 only for the Claude Desktop / MCP path.
 
@@ -68,7 +68,7 @@ tools/data are ready.
 
 The Claude Desktop clinical SOP lives in `.claude/skills/` (`vcf2report-orchestrator`,
 `acmg-classify`, `variant-report`) — these drive the flow through the MCP tools.
-(The separate `analyze-vcf` skill is the terminal-based harness for Option A / Claude
+(The separate `vcf2report` skill is the terminal-based harness for Option A / Claude
 Code and needs no MCP server.) Add the Desktop skills via the **Skills** capability
 (Settings → Capabilities in the Claude apps), or run from Claude Code where
 `.claude/skills/` is discovered automatically. If Skills aren't available in your

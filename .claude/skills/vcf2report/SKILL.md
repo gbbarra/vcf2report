@@ -1,11 +1,13 @@
 ---
-name: analyze-vcf
+name: vcf2report
 description: >
-  Guided harness to run vcf2report on an exome VCF entirely from Claude — set up
-  the environment and databases, run the pipeline, and render an auditable ACMG
-  variant-interpretation report (laudo) inline as an Artifact. Use whenever the
-  user wants to analyze a VCF / exome, get a variant report or "laudo", classify
-  variants by ACMG, or install / set up vcf2report.
+  THE vcf2report command — the single entry point in Claude Code / the terminal.
+  Guided harness to run vcf2report on an exome VCF entirely from Claude: set up the
+  environment and databases, run the pipeline, and render an auditable ACMG
+  variant-interpretation report (laudo) inline as an Artifact. Use whenever the user
+  wants to analyze a VCF / exome, get a variant report or "laudo", classify variants
+  by ACMG, or install / set up vcf2report. (The acmg-classify, variant-report and
+  vcf2report-orchestrator skills are Claude Desktop / MCP references — not used here.)
 ---
 
 # vcf2report — guided analysis harness
@@ -74,7 +76,7 @@ not available in this environment, skip it silently and continue with plain text
    present; fall back to the filename stem. Use it as `<SAMPLE>` everywhere below.
 2. **Per-sample session (left panel).** Offer this analysis as its own entry in
    Recents: call `spawn_task` with `title: "VCF2Report - <SAMPLE>"` and a prompt that
-   re-runs `/analyze-vcf` for this VCF. One click spins it into a titled session. Skip
+   re-runs `/vcf2report` for this VCF. One click spins it into a titled session. Skip
    if `spawn_task` isn't available.
 3. **Command panel (center panel).** Render the interactive control panel: read
    `references/command_panel.html`, substitute `{{SAMPLE}}` with the sample name and
@@ -87,7 +89,7 @@ not available in this environment, skip it silently and continue with plain text
 ## Step 4 — Run the analysis (visible phases, right panel)
 Run the pipeline so the user watches it work in the **Background Tasks** pane. Two ways:
 - **Rich (named phases)** — invoke the `Workflow` tool with `scriptPath:
-  <repo>/.claude/skills/analyze-vcf/references/analyze.workflow.js` and `args: { repo,
+  <repo>/.claude/skills/vcf2report/references/analyze.workflow.js` and `args: { repo,
   vcf, sample, hpo, phenotypeText, out, lift, chain }`. The phases render as the step boxes
   in Background Tasks, each **labeled with who does the work** so the user can tell local
   from Claude at a glance: **🖥️ Local · Setup → 🤖 Claude · Phenotype→HPO → 🖥️ Local ·
@@ -108,7 +110,7 @@ candidates), and the per-stage **timings** in plain terms.
 1. Read the generated report markdown (`<OUT_DIR>/<name>_report.md`).
 2. Build a self-contained HTML report from it and publish it with the **Artifact**
    tool, using the template at
-   `<repo>/.claude/skills/analyze-vcf/references/report_template.html` (from the repo
+   `<repo>/.claude/skills/vcf2report/references/report_template.html` (from the repo
    located/cloned in Step 0) as the exact style + structure. If this skill is
    installed at the user level, that template still lives in the cloned repo.
    Fill it from the run: masthead (sample, build, generated, HPO chips), the

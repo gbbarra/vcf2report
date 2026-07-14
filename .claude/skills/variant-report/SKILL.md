@@ -1,9 +1,10 @@
 ---
 name: variant-report
 description: >-
-  Claude Desktop / MCP reference for assembling the draft report from already-
-  classified variants (the `run_report` MCP tool). Not the entry point: to go from
-  a VCF to a rendered report in Claude Code, use the `analyze-vcf` skill.
+  ⚠️ Claude Desktop only (MCP) — NOT a Claude Code command. Reference for assembling
+  the draft report from already-classified variants (the `run_report` MCP tool). In
+  Claude Code / the terminal, use the `/vcf2report` command instead — it goes from a
+  VCF all the way to a rendered report end-to-end.
 ---
 
 # Variant report assembly

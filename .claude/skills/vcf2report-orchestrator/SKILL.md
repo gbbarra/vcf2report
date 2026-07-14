@@ -1,10 +1,11 @@
 ---
 name: vcf2report-orchestrator
 description: >-
-  Claude Desktop only — REQUIRES the vcf2report MCP server. End-to-end clinical
-  exome interpretation via the vcf2report MCP tools (parse, QC, annotate, ACMG,
-  report). Do NOT use in plain Claude Code (the MCP tools are absent there) — the
-  `analyze-vcf` skill runs the whole pipeline via the terminal instead.
+  ⚠️ Claude Desktop only — REQUIRES the vcf2report MCP server. NOT a Claude Code
+  command. End-to-end clinical exome interpretation via the vcf2report MCP tools
+  (parse, QC, annotate, ACMG, report). Do NOT use in plain Claude Code (the MCP tools
+  are absent there) — use the `/vcf2report` command, which runs the whole pipeline via
+  the terminal instead.
 ---
 
 # vcf2report — clinical exome interpretation SOP

@@ -21,7 +21,7 @@ src/vcf2report/
 └── concordance.py   ClinVar-vs-engine validation panel (see docs/CONCORDANCE.md)
 ```
 
-Two thin adapters drive the same package: the Claude Code **`analyze-vcf` skill**
+Two thin adapters drive the same package: the Claude Code **`vcf2report` skill**
 (a terminal harness — clone/install/run/render, no MCP needed) and the Claude
 Desktop **MCP server** (natural-language chat).
 

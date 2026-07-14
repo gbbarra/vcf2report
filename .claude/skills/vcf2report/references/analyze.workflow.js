@@ -12,7 +12,7 @@ export const meta = {
   ],
 }
 
-// args (from the analyze-vcf skill): { repo, vcf, sample, hpo?, phenotypeText?, out?, lift?,
+// args (from the vcf2report skill): { repo, vcf, sample, hpo?, phenotypeText?, out?, lift?,
 // chain? }. The skill fills these after locating the repo and the VCF.
 const a = (typeof args === 'string' ? JSON.parse(args) : args) || {}
 const REPO = a.repo || '.'
