@@ -67,3 +67,11 @@ data/clinvar/clinvar_grch38.tsv.gz
 data/clinvar/clinvar_grch38.tsv.gz.tbi
 # ClinVar Parquet store — built by scripts/build_clinvar_parquet.py (weekly, ~69 MB, not committed)
 data/clinvar/clinvar_parquet/
+
+# SYN validation cohort — generated outputs (rebuild from data/synthetic_cohort/cohort.tsv)
+data/synthetic_cohort/*.vcf.gz
+data/synthetic_cohort/*.vcf.gz.tbi
+data/synthetic_cohort/*.hpo.txt
+data/synthetic_cohort/truth.tsv
+data/synthetic_cohort/validation_results.tsv
+data/synthetic_cohort/.work/
