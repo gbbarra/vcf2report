@@ -75,3 +75,4 @@ data/synthetic_cohort/*.hpo.txt
 data/synthetic_cohort/truth.tsv
 data/synthetic_cohort/validation_results.tsv
 data/synthetic_cohort/.work/
+data/synthetic_cohort/adversarial_results.tsv
