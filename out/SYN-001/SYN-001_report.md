@@ -1,0 +1,203 @@
+# Variant Interpretation Report — SYN-001
+
+> **DRAFT — for expert review. Not for clinical use.** Auto-generated candidate
+> interpretation to be verified and signed out by a qualified professional.
+
+- **Genome build:** GRCh38
+- **Pipeline:** vcf2report v0.1.0
+- **Generated:** 2026-07-13T22:31:12+00:00
+- **Patient HPO terms:** HP:0001250, HP:0002133, HP:0011097
+
+## Conclusion (draft interpretation)
+
+- Likely explanatory finding for the clinical indication: **SCN1A — Pathogenic** (in a gene overlapping the patient's phenotype) — confirm and review.
+- ⚠️ **Classified Pathogenic/Likely Pathogenic in ClinVar** (≥2-star review) — the engine's independent tier is lower, but DO NOT dismiss: **None (3★; engine: Uncertain Significance (VUS)); None (2★; engine: Benign)**. Review the ClinVar assertion and its underlying evidence.
+- Reportable **secondary finding** (ACMG SF v3.2 — actionable, subject to the patient's opt-in policy): RB1 — Pathogenic.
+- Sequencing depth at called sites is adequate (median 35.0x); note that a variant-only VCF conveys no breadth of coverage, so poorly-covered regions cannot be assessed from this input.
+- Single-proband analysis: de novo / segregation / phasing criteria (PS2, PM3, PM6, PP1, BS4) are N/A — parental or trio testing could upgrade candidates or resolve VUS.
+- **Recommended next steps:** expert review and sign-out; orthogonal confirmation (e.g. Sanger) of any reported P/LP variant; segregation / functional evidence to resolve variants of uncertain significance.
+
+## Quality control & filtering funnel
+
+- Total variants: **24801**
+- PASS filter: **24801**
+- After QC (DP/GQ/AB): **22985**
+- After rarity: **2831**
+- After coding/splice impact: **4**
+- **Candidates classified: 4**
+
+## Sequencing quality (estimated from variant sites)
+
+- **Assay (by variant count):** exome / large-panel-scale (24801 variants)
+- **Depth at called sites:** 36.3x mean / 35.0x median — 99.3% ≥10x, 97.6% ≥20x
+- **Genotype quality:** median 54, 93.3% ≥20
+- **Ti/Tv (SNVs):** 2.91 (24126 SNVs)
+- **Het/Hom:** 1.56 (15110 het / 9691 hom)
+- **Indel:SNV ratio:** 0.028 (674 indels)
+- **Multiallelic sites:** 0.0% (0 / 24758)
+- **Het allele balance:** 98.3% balanced
+- **FILTER = PASS:** 100.0%
+- _Depth is measured only at called variant sites — a proxy for sequencing quality, not genome-wide breadth of coverage (a variants-only VCF cannot give breadth; a gVCF or BAM would)._
+- _Ti/Tv = 2.91 (expected ~3.0 for exome, ~2.0-2.1 for whole genome; a much lower value suggests false-positive calls)._
+- _VCF is not dbSNP-annotated (few/no rsIDs in the ID column) — novelty rate not computed (annotate with dbSNP IDs to enable it)._
+
+
+## Primary (diagnostic) findings
+
+_Variants in genes overlapping the patient's phenotype._
+| Gene | Transcript | Variant (c./p.) | Zyg | Consequence | ClinVar | gnomAD AF | ABraOM AF | HPO | ACMG |
+|---|---|---|---|---|---|---|---|---|---|
+| SCN1A | — | 2-165991486-AG-A | het | frameshift_variant | Pathogenic | 0.000000 | n/a | 1.0 | **Pathogenic** |
+
+
+## Secondary findings (ACMG SF v3.2)
+
+_P/LP variants in ACMG SF v3.2 genes, unrelated to the indication — reportable actionable secondary findings, subject to the patient's opt-in policy._
+| Gene | Transcript | Variant (c./p.) | Zyg | Consequence | ClinVar | gnomAD AF | ABraOM AF | HPO | ACMG |
+|---|---|---|---|---|---|---|---|---|---|
+| RB1 | — | 13-48303914-T-TGCCGCCCAAAACCCCCCGAAAAACGGCCGCCACC | het | frameshift_variant | Pathogenic | 0.000000 | n/a | 0.198 | **Pathogenic** |
+
+## Other candidates
+
+_Incidental P/LP not on the ACMG SF list, plus phenotype-unrelated uncertain/benign candidates. Not routinely reported._
+| Gene | Transcript | Variant (c./p.) | Zyg | Consequence | ClinVar | gnomAD AF | ABraOM AF | HPO | ACMG |
+|---|---|---|---|---|---|---|---|---|---|
+| ? | — | 12-102840474-T-C | het | ? | Pathogenic | 0.000443 | n/a | 0.0 | **Uncertain Significance (VUS)** |
+| ? | — | 6-160706469-A-G | het | ? | Pathogenic/Likely pathogenic | 0.006510 | n/a | 0.0 | **Benign** |
+
+
+## Per-variant ACMG rationale (auditable)
+
+### SCN1A — 2-165991486-AG-A → Pathogenic
+
+**Rule path:** `PVS1 + PM2 + PP4 + PP5 => Pathogenic [PATH-1 (PVS1 + strong/moderate/supporting)]`
+
+| Criterion | Applied | Strength | Evidence | Source | By | Reasoning |
+|---|---|---|---|---|---|---|
+| **PVS1** | ✅ met | very_strong | consequence=frameshift_variant, gene_lof_intolerant=True, exon=None, pvs1_strength=very_strong | gnomAD v2.1.1 LoF constraint (local) | engine | frameshift_variant is loss-of-function and SCN1A is LoF-intolerant |
+| **PS1** | — | strong | hgvs_p=None | — | model | Requires a residue-level cross-match to a distinct ClinVar pathogenic variant — model adjudication (own ClinVar record is PP5) |
+| **PS2** | N/A | strong | — | — | engine | Requires parental (trio) data — not available from a single proband VCF |
+| **PS3** | — | strong | — | — | model | Requires literature review of functional assays — left for expert/model adjudication |
+| **PS4** | — | strong | gnomad_af=0.0, abraom_af=None | — | model | Needs case-control data; population absence alone is captured by PM2 |
+| **PM1** | — | moderate | consequence=frameshift_variant, hgvs_p=None | — | model | Domain/hotspot membership requires curated annotation — model adjudication |
+| **PM2** | ✅ met | moderate | gnomad_af=0.0, abraom_af=None, ceiling=0.0001, moi=AD, strength_model=richards | VCF INFO; ABraOM SABE (not in local table) | engine | gnomAD popmax AF=0.000000, ABraOM not checked — gnomAD at/under 0.0001 (SCN1A is AD) |
+| **PM3** | N/A | moderate | — | — | engine | Requires phasing / a second variant — not determinable from this VCF alone |
+| **PM4** | — | moderate | consequence=frameshift_variant | — | engine | no protein-length-changing consequence |
+| **PM5** | — | moderate | hgvs_p=None | — | model | Requires residue-level ClinVar cross-check — model adjudication |
+| **PM6** | N/A | moderate | — | — | engine | Requires parental data — not available from a single proband VCF |
+| **PP2** | — | supporting | consequence=frameshift_variant, gene=SCN1A | — | model | Gene-level missense constraint requires curated metric — model adjudication |
+| **PP3** | — | supporting | revel=None, cadd_phred=None, revel_cutoff=0.7, cadd_cutoff=20.0 | in-silico (none) | engine | in-silico predictors below deleterious cutoffs / unavailable |
+| **PP4** | ✅ met | supporting | hpo_match_score=1.0, matched_terms=['HP:0001250→HP:0001250 (Seizure, 1.00)', 'HP:0002133→HP:0002133 (Status epilepticus, 1.00)', 'HP:0011097→HP:0011097 (Epileptic spasm, 1.00)'], cutoff=0.6 | HPO ontology-aware (Lin/IC, local) | engine | phenotype match 1.00 (terms: HP:0001250→HP:0001250 (Seizure, 1.00), HP:0002133→HP:0002133 (Status epilepticus, 1.00), HP:0011097→HP:0011097 (Epileptic spasm, 1.00)) |
+| **PP5** | ✅ met | supporting | clinvar=Pathogenic, review_status=criteria provided, single submitter | — | engine | ClinVar Pathogenic (criteria provided, single submitter) |
+| **BA1** | — | stand_alone | af=0.0, cutoff=0.05, basis=gnomAD/ABraOM popmax AF (no faf95 available) | VCF INFO; ABraOM SABE (not in local table) | engine | gnomAD/ABraOM popmax AF (no faf95 available) = 0.0000 below 0.05 |
+| **BS1** | — | strong | af=0.0, cutoff=0.001, moi=AD, basis=gnomAD/ABraOM popmax AF (no faf95 available) | VCF INFO; ABraOM SABE (not in local table) | engine | gnomAD/ABraOM popmax AF (no faf95 available) = 0.0000 under the 0.001 BS1 cutoff (SCN1A is AD) |
+| **BS2** | — | strong | gnomad_homozygotes=0, cutoff=2 | VCF INFO | engine | 0 homozygotes (below 2) |
+| **BP4** | — | supporting | revel=None, cadd_phred=None, revel_cutoff=0.15, cadd_cutoff=10.0 | — | engine | in-silico predictors not benign / unavailable |
+| **BP7** | — | supporting | consequence=frameshift_variant | — | engine | not a synonymous variant |
+
+### RB1 — 13-48303914-T-TGCCGCCCAAAACCCCCCGAAAAACGGCCGCCACC → Pathogenic
+
+**Rule path:** `PVS1 + PM2 + PP5 => Pathogenic [PATH-1 (PVS1 + strong/moderate/supporting)]`
+
+| Criterion | Applied | Strength | Evidence | Source | By | Reasoning |
+|---|---|---|---|---|---|---|
+| **PVS1** | ✅ met | very_strong | consequence=frameshift_variant, gene_lof_intolerant=True, exon=None, pvs1_strength=very_strong | gnomAD v2.1.1 LoF constraint (local) | engine | frameshift_variant is loss-of-function and RB1 is LoF-intolerant |
+| **PS1** | — | strong | hgvs_p=None | — | model | Requires a residue-level cross-match to a distinct ClinVar pathogenic variant — model adjudication (own ClinVar record is PP5) |
+| **PS2** | N/A | strong | — | — | engine | Requires parental (trio) data — not available from a single proband VCF |
+| **PS3** | — | strong | — | — | model | Requires literature review of functional assays — left for expert/model adjudication |
+| **PS4** | — | strong | gnomad_af=0.0, abraom_af=None | — | model | Needs case-control data; population absence alone is captured by PM2 |
+| **PM1** | — | moderate | consequence=frameshift_variant, hgvs_p=None | — | model | Domain/hotspot membership requires curated annotation — model adjudication |
+| **PM2** | ✅ met | moderate | gnomad_af=0.0, abraom_af=None, ceiling=0.0001, moi=AD, strength_model=richards | VCF INFO; ABraOM SABE (not in local table) | engine | gnomAD popmax AF=0.000000, ABraOM not checked — gnomAD at/under 0.0001 (RB1 is AD) |
+| **PM3** | N/A | moderate | — | — | engine | Requires phasing / a second variant — not determinable from this VCF alone |
+| **PM4** | — | moderate | consequence=frameshift_variant | — | engine | no protein-length-changing consequence |
+| **PM5** | — | moderate | hgvs_p=None | — | model | Requires residue-level ClinVar cross-check — model adjudication |
+| **PM6** | N/A | moderate | — | — | engine | Requires parental data — not available from a single proband VCF |
+| **PP2** | — | supporting | consequence=frameshift_variant, gene=RB1 | — | model | Gene-level missense constraint requires curated metric — model adjudication |
+| **PP3** | — | supporting | revel=None, cadd_phred=None, revel_cutoff=0.7, cadd_cutoff=20.0 | in-silico (none) | engine | in-silico predictors below deleterious cutoffs / unavailable |
+| **PP4** | — | supporting | hpo_match_score=0.198, matched_terms=['HP:0001250→HP:0001249 (Intellectual disability, 0.31)'], cutoff=0.6 | HPO ontology-aware (Lin/IC, local) | engine | phenotype match 0.20 below 0.6 |
+| **PP5** | ✅ met | supporting | clinvar=Pathogenic, review_status=criteria provided, single submitter | — | engine | ClinVar Pathogenic (criteria provided, single submitter) |
+| **BA1** | — | stand_alone | af=0.0, cutoff=0.05, basis=gnomAD/ABraOM popmax AF (no faf95 available) | VCF INFO; ABraOM SABE (not in local table) | engine | gnomAD/ABraOM popmax AF (no faf95 available) = 0.0000 below 0.05 |
+| **BS1** | — | strong | af=0.0, cutoff=0.001, moi=AD, basis=gnomAD/ABraOM popmax AF (no faf95 available) | VCF INFO; ABraOM SABE (not in local table) | engine | gnomAD/ABraOM popmax AF (no faf95 available) = 0.0000 under the 0.001 BS1 cutoff (RB1 is AD) |
+| **BS2** | — | strong | gnomad_homozygotes=0, cutoff=2 | VCF INFO | engine | 0 homozygotes (below 2) |
+| **BP4** | — | supporting | revel=None, cadd_phred=None, revel_cutoff=0.15, cadd_cutoff=10.0 | — | engine | in-silico predictors not benign / unavailable |
+| **BP7** | — | supporting | consequence=frameshift_variant | — | engine | not a synonymous variant |
+
+### ? — 12-102840474-T-C → Uncertain Significance (VUS)
+
+**Rule path:** `PP3 + PP5 => criteria insufficient for a benign or pathogenic call => VUS`
+
+| Criterion | Applied | Strength | Evidence | Source | By | Reasoning |
+|---|---|---|---|---|---|---|
+| **PVS1** | — | very_strong | consequence=None, gene_lof_intolerant=None, exon=None, pvs1_strength=None | gnomAD constraint (no gene) | engine | variant is not a qualifying null variant in a LoF-intolerant gene |
+| **PS1** | — | strong | hgvs_p=None | — | model | Requires a residue-level cross-match to a distinct ClinVar pathogenic variant — model adjudication (own ClinVar record is PP5) |
+| **PS2** | N/A | strong | — | — | engine | Requires parental (trio) data — not available from a single proband VCF |
+| **PS3** | — | strong | — | — | model | Requires literature review of functional assays — left for expert/model adjudication |
+| **PS4** | — | strong | gnomad_af=0.000443396, abraom_af=None | — | model | Needs case-control data; population absence alone is captured by PM2 |
+| **PM1** | — | moderate | consequence=None, hgvs_p=None | — | model | Domain/hotspot membership requires curated annotation — model adjudication |
+| **PM2** | — | moderate | gnomad_af=0.000443396, abraom_af=None, ceiling=0.0001, moi=None, strength_model=richards | gnomAD v4.1 joint (parquet); ABraOM SABE (not in local table) | engine | present above the 0.0001 PM2 ceiling (inheritance unknown → strict default): gnomAD AF=0.000443, ABraOM not checked |
+| **PM3** | N/A | moderate | — | — | engine | Requires phasing / a second variant — not determinable from this VCF alone |
+| **PM4** | — | moderate | consequence=None | — | engine | no protein-length-changing consequence |
+| **PM5** | — | moderate | hgvs_p=None | — | model | Requires residue-level ClinVar cross-check — model adjudication |
+| **PM6** | N/A | moderate | — | — | engine | Requires parental data — not available from a single proband VCF |
+| **PP2** | — | supporting | consequence=None, gene=None | — | model | Gene-level missense constraint requires curated metric — model adjudication |
+| **PP3** | ✅ met | supporting | am_pathogenicity=0.8118, am_class=likely_pathogenic, predictor=AlphaMissense (ClinGen-calibrated) | AlphaMissense hg38 (primed) | engine | AlphaMissense=0.812 -> PP3_supporting |
+| **PP4** | — | supporting | hpo_match_score=0.0, matched_terms=[], cutoff=0.6 | HPO (no gene/terms) | engine | phenotype match 0.00 below 0.6 |
+| **PP5** | ✅ met | supporting | clinvar=Pathogenic, review_status=reviewed by expert panel | 593 | engine | ClinVar Pathogenic (reviewed by expert panel) |
+| **BA1** | — | stand_alone | af=0.00041101, cutoff=0.05, basis=gnomAD filtering AF (faf95, grpmax) | gnomAD v4.1 joint (parquet); ABraOM SABE (not in local table) | engine | gnomAD filtering AF (faf95, grpmax) = 0.0004 below 0.05 |
+| **BS1** | — | strong | af=0.00041101, cutoff=0.005, moi=None, basis=gnomAD filtering AF (faf95, grpmax) | gnomAD v4.1 joint (parquet); ABraOM SABE (not in local table) | engine | gnomAD filtering AF (faf95, grpmax) = 0.0004 under the 0.005 BS1 cutoff (inheritance unknown → default cutoff) |
+| **BS2** | — | strong | gnomad_homozygotes=1, cutoff=2 | gnomAD v4.1 joint (parquet) | engine | 1 homozygotes (below 2) |
+| **BP4** | — | supporting | am_pathogenicity=0.8118, am_class=likely_pathogenic, predictor=AlphaMissense (ClinGen-calibrated) | AlphaMissense hg38 (primed) | engine | AlphaMissense=0.812 above the BP4 benign threshold |
+| **BP7** | — | supporting | consequence=None | — | engine | not a synonymous variant |
+
+### ? — 6-160706469-A-G → Benign
+
+**Rule path:** `PP5 + BS1 + BS2 + BP4 => Benign [BEN-2 (>=2 Strong benign)]`
+
+| Criterion | Applied | Strength | Evidence | Source | By | Reasoning |
+|---|---|---|---|---|---|---|
+| **PVS1** | — | very_strong | consequence=None, gene_lof_intolerant=None, exon=None, pvs1_strength=None | gnomAD constraint (no gene) | engine | variant is not a qualifying null variant in a LoF-intolerant gene |
+| **PS1** | — | strong | hgvs_p=None | — | model | Requires a residue-level cross-match to a distinct ClinVar pathogenic variant — model adjudication (own ClinVar record is PP5) |
+| **PS2** | N/A | strong | — | — | engine | Requires parental (trio) data — not available from a single proband VCF |
+| **PS3** | — | strong | — | — | model | Requires literature review of functional assays — left for expert/model adjudication |
+| **PS4** | — | strong | gnomad_af=0.0065097, abraom_af=None | — | model | Needs case-control data; population absence alone is captured by PM2 |
+| **PM1** | — | moderate | consequence=None, hgvs_p=None | — | model | Domain/hotspot membership requires curated annotation — model adjudication |
+| **PM2** | — | moderate | gnomad_af=0.0065097, abraom_af=None, ceiling=0.0001, moi=None, strength_model=richards | gnomAD v4.1 joint (parquet); ABraOM SABE (not in local table) | engine | present above the 0.0001 PM2 ceiling (inheritance unknown → strict default): gnomAD AF=0.006510, ABraOM not checked |
+| **PM3** | N/A | moderate | — | — | engine | Requires phasing / a second variant — not determinable from this VCF alone |
+| **PM4** | — | moderate | consequence=None | — | engine | no protein-length-changing consequence |
+| **PM5** | — | moderate | hgvs_p=None | — | model | Requires residue-level ClinVar cross-check — model adjudication |
+| **PM6** | N/A | moderate | — | — | engine | Requires parental data — not available from a single proband VCF |
+| **PP2** | — | supporting | consequence=None, gene=None | — | model | Gene-level missense constraint requires curated metric — model adjudication |
+| **PP3** | — | supporting | am_pathogenicity=0.1455, am_class=likely_benign, predictor=AlphaMissense (ClinGen-calibrated) | AlphaMissense hg38 (primed) | engine | AlphaMissense=0.145 below the PP3 pathogenic threshold |
+| **PP4** | — | supporting | hpo_match_score=0.0, matched_terms=[], cutoff=0.6 | HPO (no gene/terms) | engine | phenotype match 0.00 below 0.6 |
+| **PP5** | ✅ met | supporting | clinvar=Pathogenic/Likely pathogenic, review_status=criteria provided, multiple submitters, no conflicts | 13583 | engine | ClinVar Pathogenic/Likely pathogenic (criteria provided, multiple submitters, no conflicts) |
+| **BA1** | — | stand_alone | af=0.00638426, cutoff=0.05, basis=gnomAD filtering AF (faf95, grpmax) | gnomAD v4.1 joint (parquet); ABraOM SABE (not in local table) | engine | gnomAD filtering AF (faf95, grpmax) = 0.0064 below 0.05 |
+| **BS1** | ✅ met | strong | af=0.00638426, cutoff=0.005, moi=None, basis=gnomAD filtering AF (faf95, grpmax) | gnomAD v4.1 joint (parquet); ABraOM SABE (not in local table) | engine | gnomAD filtering AF (faf95, grpmax) = 0.0064 ≥ 0.005 (inheritance unknown → default cutoff), below BA1's 0.05 |
+| **BS2** | ✅ met | strong | gnomad_homozygotes=34, cutoff=2 | gnomAD v4.1 joint (parquet) | engine | 34 homozygotes in gnomAD |
+| **BP4** | ✅ met | supporting | am_pathogenicity=0.1455, am_class=likely_benign, predictor=AlphaMissense (ClinGen-calibrated) | AlphaMissense hg38 (primed) | engine | AlphaMissense=0.145 -> BP4_supporting |
+| **BP7** | — | supporting | consequence=None | — | engine | not a synonymous variant |
+
+## Methods
+- **genome_build:** GRCh38
+- **qc_thresholds:** {'min_DP': 10, 'min_GQ': 20}
+- **rarity_cutoff_popmax_af:** 0.005
+- **ba1_cutoff:** 0.05
+- **databases:** ['ClinVar', 'gnomAD r4', 'ABraOM (SABE)', 'HPO', 'gnomAD constraint']
+- **standards:** ['ACMG/AMP variant classification (Richards et al., Genet Med 2015)', 'ClinGen SVI criteria refinements', 'ACMG secondary-findings list (SF v3.2, Miller et al. 2023)', 'HGVS nomenclature', 'GA4GH Phenopackets (phenotype exchange)']
+
+## Performance (this run)
+- **parse:** 0.1767 s
+- **qc:** 0.0127 s
+- **gnomad prime:** 1.8076 s
+- **annotate:** 2.2107 s
+- **filter:** 0.0151 s
+- **alphamissense:** 0.0091 s
+- **classify:** 0.0002 s
+- **total:** 4.2321 s
+- **variants per:** 5860.2
+
+## Limitations & disclaimers
+
+- Single-proband analysis: criteria requiring parental/segregation/phasing data (PS2, PM3, PM6, PP1, BS4) are reported as N/A.
+- Judgment criteria (PS3, PS4, PM1, PM5, PP2) are surfaced for expert/model adjudication and default to not-met unless explicitly supported.
+- Population and clinical databases are versioned snapshots; re-check before sign-out.
+- **This is a draft-generation aid, not a diagnostic device.**

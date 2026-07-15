@@ -54,7 +54,7 @@ conversational interface and judgment adjudication, but the clinical logic is
 deterministic and testable.
 
 ```bash
-pytest        # 13 golden/parse/offline/e2e tests, ~0.05s
+pytest        # 276 tests (~16s)
 ```
 
 ## One-liner takeaways

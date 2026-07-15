@@ -27,7 +27,7 @@ pipeline is offline.
 ## One command
 
 ```bash
-scripts/annotate_vcf.sh raw.vcf.gz GRCh38.fa out.annotated.vcf.gz
+scripts/annotate_vcf.sh raw.vcf.gz out.annotated.vcf.gz
 python scripts/run_headless.py out.annotated.vcf.gz --hpo patient_hpo_terms.txt
 ```
 

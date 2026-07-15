@@ -7,11 +7,22 @@ without the ``mcp`` SDK so the Bash path stays lightweight.
 """
 from __future__ import annotations
 
+import os
 import platform
 import shutil
+from pathlib import Path
 
 from . import config
 from . import stores as _stores
+
+
+def snpeff_jar() -> Path:
+    """Where scripts/setup_snpeff.sh installs SnpEff (SNPEFF_JAR overrides)."""
+    return Path(os.environ.get("SNPEFF_JAR") or (config.DATA_DIR / "tools" / "snpEff" / "snpEff.jar"))
+
+
+def _snpeff_available() -> bool:
+    return snpeff_jar().is_file() or bool(shutil.which("snpEff"))
 
 
 def _store(present: bool, path, enables: str) -> dict:
@@ -25,7 +36,12 @@ def readiness() -> dict:
     back-compat) plus ``python``, ``stores`` (each with an ``enables`` note), so
     Stage 1 can explain to the user why a missing store matters.
     """
-    tools = {t: bool(shutil.which(t)) for t in ("bcftools", "snpEff", "vcfanno")}
+    # snpEff is normally a JAR (scripts/setup_snpeff.sh), not a PATH command — checking only
+    # shutil.which would report it missing while annotation actually works. vcfanno is legacy:
+    # the engine reads gnomAD/AlphaMissense/ClinVar from the Parquet stores, so it is not
+    # required for annotation and its absence costs nothing.
+    tools = {t: bool(shutil.which(t)) for t in ("bcftools", "vcfanno")}
+    tools["snpEff"] = _snpeff_available()
     gnomad_parquet = config._resolve_gnomad_parquet()
     stores = {
         "gnomad_parquet": _store(
@@ -60,7 +76,10 @@ def readiness() -> dict:
         "store_health": _stores.store_health(measure=False),
         "bundled_local_data": bundled,
         "ready_for_offline_demo": all(bundled.values()),
-        "annotation_tools_installed": all(tools.values()),
+        # What annotation actually requires: bcftools + snpEff. vcfanno is legacy (the engine
+        # reads the Parquet stores), so gating on it would report annotation as unavailable on
+        # a machine where it works fine.
+        "annotation_tools_installed": tools["bcftools"] and tools["snpEff"],
         "network_egress_allowed": config.allow_network(),
         "note": "Patient data stays local by default: no gnomAD/NCBI calls unless "
                 "VCF2REPORT_ALLOW_NETWORK=1. Tools on PATH do not imply the annotation "

@@ -13,7 +13,7 @@ consequence, which is exactly what annotation adds.
 python scripts/phenopacket_to_inputs.py case.json --out-prefix data/out/case
 
 # 2. Annotate the VCF (consequence + gnomAD/ClinVar) — see ANNOTATION.md
-scripts/annotate_vcf.sh data/out/case.vcf GRCh38.fa data/out/case.annotated.vcf.gz
+scripts/annotate_vcf.sh data/out/case.vcf data/out/case.annotated.vcf.gz
 
 # 3. Classify + report
 python scripts/run_headless.py data/out/case.annotated.vcf.gz --hpo data/out/case.hpo.txt

@@ -1,0 +1,2 @@
+HP:0004390	Hamartomatous polyposis
+HP:0200008	Intestinal polyposis

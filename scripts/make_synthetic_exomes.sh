@@ -109,5 +109,5 @@ done
 
 echo ""; echo "Done. ${#SAMPLES[@]} synthetic exomes in $OUTDIR/"
 echo "NEXT: annotate each (SnpEff/vcfanno) then run vcf2report, e.g.:"
-echo "  scripts/annotate_vcf.sh $OUTDIR/SYN-001.synthetic.vcf.gz $REF_FASTA SYN-001.annotated.vcf.gz"
+echo "  scripts/annotate_vcf.sh $OUTDIR/SYN-001.synthetic.vcf.gz SYN-001.annotated.vcf.gz"
 echo "  python scripts/run_headless.py SYN-001.annotated.vcf.gz --hpo $OUTDIR/SYN-001.hpo.txt"

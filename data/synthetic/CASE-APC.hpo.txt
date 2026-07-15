@@ -1,0 +1,3 @@
+HP:0005227	Adenomatous colonic polyposis
+HP:0003003	Colon cancer
+HP:0100245	Desmoid tumor

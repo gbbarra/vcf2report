@@ -13,6 +13,7 @@ Requires ``pip install "mcp[cli]"``.
 """
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -187,16 +188,21 @@ def _annotate_vcf(vcf_path: str, reference: str = "", out_dir: str = "") -> dict
         return {"annotated_path": vcf_path, "already_annotated": True,
                 "annotation_source": source, "validated": True, "missing": [],
                 "steps": [f"already annotated ({source}) — skipping annotation"]}
-    missing_tools = [t for t in ("bcftools", "snpEff", "vcfanno") if not shutil.which(t)]
-    if reference and not missing_tools:
+    # vcfanno is NOT required: frequencies/clinical data come from the Parquet stores, not
+    # from a vcfanno pass. A GRCh38 reference is optional too — it only enables indel
+    # left-alignment. SnpEff may be a JAR (scripts/setup_snpeff.sh) rather than on PATH.
+    snpeff_jar = Path(os.environ.get("SNPEFF_JAR") or (config.DATA_DIR / "tools" / "snpEff" / "snpEff.jar"))
+    has_snpeff = snpeff_jar.is_file() or bool(shutil.which("snpEff"))
+    missing_tools = ([] if shutil.which("bcftools") else ["bcftools (not on PATH)"]) + \
+                    ([] if has_snpeff else ["snpEff (run: bash scripts/setup_snpeff.sh)"])
+    if not missing_tools:
         out = Path(out_dir) if out_dir else config.OUTPUT_DIR
         out.mkdir(parents=True, exist_ok=True)
         annotated_out = out / (Path(vcf_path).stem.replace(".vcf", "") + ".annotated.vcf.gz")
         script = str(config.REPO_ROOT / "scripts" / "annotate_vcf.sh")
+        cmd = ["bash", script, vcf_path, str(annotated_out)] + ([reference] if reference else [])
         try:
-            proc = subprocess.run(
-                ["bash", script, vcf_path, reference, str(annotated_out)],
-                capture_output=True, text=True, timeout=3600)
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
         except subprocess.TimeoutExpired:
             return {"error": "annotation_timeout",
                     "hint": "Annotation exceeded 1h; check input size / tool health."}
@@ -204,15 +210,13 @@ def _annotate_vcf(vcf_path: str, reference: str = "", out_dir: str = "") -> dict
             tail = (proc.stderr or proc.stdout or "").strip().splitlines()[-15:]
             return {"error": "annotation_failed", "exit_code": proc.returncode,
                     "stderr_tail": "\n".join(tail),
-                    "hint": "See docs/ANNOTATION.md; check tool versions and the "
-                            "GRCh38 reference / vcfanno.conf.toml data paths."}
+                    "hint": "See docs/ANNOTATION.md; check the SnpEff database and that the "
+                            "VCF's chromosome naming was resolved."}
         return {"annotated_path": str(annotated_out), "already_annotated": False,
                 "validated": True, "missing": [],
-                "steps": ["annotated locally via bcftools norm + SnpEff + vcfanno"]}
-    missing = (["GRCh38 reference FASTA"] if not reference else []) + \
-              [f"{t} (not on PATH)" for t in missing_tools]
+                "steps": ["annotated locally via bcftools norm + SnpEff (MANE)"]}
     return {"annotated_path": vcf_path, "already_annotated": False,
-            "validated": False, "missing": missing,
+            "validated": False, "missing": missing_tools,
             "steps": ["not annotated and (tools or reference) unavailable; classification "
                       "will be coordinate-only — PVS1/PM4/PP3/BP4 and HGVS are limited."],
             "hint": "See docs/ANNOTATION.md to annotate first."}
@@ -222,9 +226,10 @@ def _annotate_vcf(vcf_path: str, reference: str = "", out_dir: str = "") -> dict
 def annotate_vcf(vcf_path: str, reference: str = "", out_dir: str = "") -> dict:
     """Annotate a raw VCF locally when possible, else report the coordinate-only limits (Stage 4).
 
-    If already annotated -> returns it unchanged (skipping). If not, and bcftools +
-    snpEff + vcfanno + a GRCh38 ``reference`` FASTA are present -> annotates via
-    scripts/annotate_vcf.sh. Otherwise returns validated=false with what's missing.
+    If already annotated -> returns it unchanged (skipping). If not, and bcftools + snpEff
+    are present -> annotates via scripts/annotate_vcf.sh (gene + consequence + HGVS on MANE
+    transcripts). ``reference`` is optional and only enables indel left-alignment.
+    Otherwise returns validated=false with what's missing.
     """
     return _annotate_vcf(vcf_path, reference=reference, out_dir=out_dir)
 

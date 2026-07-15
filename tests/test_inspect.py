@@ -82,3 +82,36 @@ def test_readiness_stores_carry_enables_notes():
     for k in ("gnomad_parquet", "alphamissense", "clinvar_tabix", "hpo"):
         assert r["stores"][k]["enables"], f"{k} must explain what it enables"
     assert r["python"] and r["package_importable"] is True
+
+
+def test_snpeff_detected_as_jar_not_only_on_path(tmp_path, monkeypatch):
+    """SnpEff installs as a JAR (setup_snpeff.sh), so PATH-only detection under-reports it.
+
+    Stage 1 showing 'snpEff missing' while annotation actually works would push the flow to
+    the coordinate-only fallback and cost the laudo its HGVS.
+    """
+    jar = tmp_path / "snpEff.jar"
+    jar.write_text("")
+    monkeypatch.setenv("SNPEFF_JAR", str(jar))
+    monkeypatch.setattr(status.shutil, "which", lambda _t: None)
+    assert status._snpeff_available() is True
+    r = status.readiness()
+    assert r["annotation_tools_on_path"]["snpEff"] is True
+
+
+def test_annotation_readiness_ignores_vcfanno(tmp_path, monkeypatch):
+    """vcfanno is legacy — the engine reads the Parquet stores, so its absence must not
+    report annotation as unavailable."""
+    jar = tmp_path / "snpEff.jar"
+    jar.write_text("")
+    monkeypatch.setenv("SNPEFF_JAR", str(jar))
+    monkeypatch.setattr(status.shutil, "which", lambda t: "/usr/bin/bcftools" if t == "bcftools" else None)
+    r = status.readiness()
+    assert r["annotation_tools_on_path"]["vcfanno"] is False
+    assert r["annotation_tools_installed"] is True
+
+
+def test_snpeff_absent_when_no_jar_and_not_on_path(tmp_path, monkeypatch):
+    monkeypatch.setenv("SNPEFF_JAR", str(tmp_path / "missing.jar"))
+    monkeypatch.setattr(status.shutil, "which", lambda _t: None)
+    assert status._snpeff_available() is False

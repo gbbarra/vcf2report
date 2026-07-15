@@ -78,23 +78,33 @@ const inspect = await agent(
   { label: '🖥️ inspect: anotado? quais campos?', phase: '🖥️ Local · Inspect VCF' })
 const annotated = /ANNOTATED=yes/i.test(inspect || '')
 
-// 3 — 🖥️ ANNOTATE — only if the VCF isn't annotated; otherwise skip (visibly). No reference → explain the limits.
+// 3 — 🖥️ ANNOTATE — only if the VCF isn't annotated; otherwise skip (visibly). A reference FASTA is
+// OPTIONAL (it only adds indel left-alignment), so a raw VCF gets annotated whenever SnpEff is
+// installed. Annotation is what gives the laudo its gene/consequence/HGVS — only if it genuinely
+// cannot run do we fall back to explaining the coordinate-only limits.
 phase('🖥️ Local · Annotate')
 if (annotated) {
   log('🖥️ VCF already annotated — skipping annotation (consequence terms present).')
-} else if (REF) {
-  await agent(
-    `cd ${REPO} && bash scripts/annotate_vcf.sh ${vcf} ${REF} ${OUT}/${SAMPLE}.annotated.vcf.gz 2>&1 | tail -8. ` +
-    `Return whether annotation succeeded and the steps run (bcftools norm + SnpEff + vcfanno).`,
-    { label: '🖥️ annotate (SnpEff+vcfanno)', phase: '🖥️ Local · Annotate' })
-  vcf = `${OUT}/${SAMPLE}.annotated.vcf.gz`
 } else {
-  await agent(
-    `The VCF is NOT annotated and no reference FASTA was provided, so local annotation (bcftools+SnpEff+vcfanno) ` +
-    `can't run. In 2-3 lines tell the user: classification will be COORDINATE-ONLY — PVS1/PM4/PP3/BP4 and HGVS ` +
-    `c./p. are unavailable; gnomAD/ClinVar coordinate lookups + the ≥2★ ClinVar safety flag still work. ` +
-    `Recommend annotating first (docs/ANNOTATION.md) for full ACMG.`,
-    { label: '🤖 annotation options', phase: '🖥️ Local · Annotate' })
+  const out = `${OUT}/${SAMPLE}.annotated.vcf.gz`
+  const ann = await agent(
+    `cd ${REPO} && mkdir -p ${OUT} && bash scripts/annotate_vcf.sh ${vcf} ${out} ${REF} > ${OUT}/annotate.log 2>&1; ` +
+    `echo "ANNOTATE_EXIT=$?"; tail -12 ${OUT}/annotate.log. ` +
+    `Output the ANNOTATE_EXIT line VERBATIM as your FIRST line, then report to the user: whether annotation ` +
+    `succeeded, and the "annotated N/M records" count (that is the share of the callset that now has gene + ` +
+    `consequence + HGVS). If ANNOTATE_EXIT is non-zero, say which step failed and quote the error.`,
+    { label: '🖥️ annotate (bcftools norm + SnpEff MANE)', phase: '🖥️ Local · Annotate' })
+  if (/ANNOTATE_EXIT=0/.test(ann || '')) {
+    vcf = out
+    log('🖥️ Annotated — the laudo will carry gene, consequence and HGVS c./p.')
+  } else {
+    await agent(
+      `Local annotation did NOT run (SnpEff missing, or the script failed). In 2-3 lines tell the user: ` +
+      `classification will be COORDINATE-ONLY — PVS1/PM4/PP3/BP4 and HGVS c./p. are unavailable for the whole ` +
+      `callset; gnomAD/ClinVar coordinate lookups + the ≥2★ ClinVar safety flag still work. To fix it, install ` +
+      `the annotator: \`bash scripts/setup_snpeff.sh\` (see docs/ANNOTATION.md).`,
+      { label: '🤖 annotation unavailable — limits', phase: '🖥️ Local · Annotate' })
+  }
 }
 
 // 4 — 🤖 ANALYSIS TRIAGE — the honesty gate: say what this run can and cannot conclude

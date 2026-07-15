@@ -11,7 +11,7 @@ coordinates. Everything is synthetic-but-real-sourced and de-identified.
                                      ├─ spike_pathogenic.py ─► SYN-00N.synthetic.vcf
 ClinVar pathogenic @ true coords  ──┘        (de-identified, real coords/HGVS)
         │
-        ├─ annotate_vcf.sh (SnpEff + vcfanno: consequence + gnomAD + ClinVar)
+        ├─ annotate_vcf.sh (SnpEff MANE: gene + consequence + HGVS)
         ▼
    run_headless.py --hpo ...  ─►  auditable ACMG report (primary / secondary split)
 ```
@@ -51,7 +51,7 @@ zero seizure-HPO overlap (→ Pathogenic, secondary, not leaking into primary).
 scripts/make_synthetic_exomes.sh
 
 # 3. annotate + report one case
-scripts/annotate_vcf.sh synthetic_exomes/SYN-001.synthetic.vcf.gz GRCh38.fa SYN-001.annotated.vcf.gz
+scripts/annotate_vcf.sh synthetic_exomes/SYN-001.synthetic.vcf.gz SYN-001.annotated.vcf.gz
 python scripts/run_headless.py SYN-001.annotated.vcf.gz --hpo synthetic_exomes/SYN-001.hpo.txt
 ```
 

@@ -1,0 +1,96 @@
+1
+00:00:00,000 --> 00:00:06,000
+vcf2report — turn a raw exome VCF into
+an auditable ACMG report. Offline. In seconds.
+
+2
+00:00:07,000 --> 00:00:13,000
+One command: point Claude at a VCF
+and the patient's phenotype (HPO terms).
+
+3
+00:00:20,000 --> 00:00:27,000
+An app appears inside Claude:
+a per-sample session and a command panel.
+
+4
+00:00:32,000 --> 00:00:40,000
+Live phases — Local = the deterministic engine
+on your machine · Claude = phenotype→HPO + narrative.
+
+5
+00:00:41,000 --> 00:00:50,000
+24,801 variants → 2 candidates,
+fully offline (~3 seconds).
+
+6
+00:00:52,000 --> 00:00:58,000
+The result: a draft laudo (report).
+
+7
+00:00:59,000 --> 00:01:08,000
+SCN1A — Pathogenic (primary) ·
+RB1 — Pathogenic (secondary, ACMG SF actionable).
+
+8
+00:01:15,000 --> 00:01:22,000
+Not a black box: every ACMG criterion is shown.
+
+9
+00:01:23,000 --> 00:01:31,000
+PVS1 + PM2 + PP4 + PP5 → Pathogenic —
+each with its source and date.
+
+10
+00:01:31,500 --> 00:01:37,000
+engine = decided deterministically ·
+model = left for expert review.
+
+11
+00:01:37,500 --> 00:01:45,000
+Real databases, all local:
+gnomAD v4.1 · full ClinVar · AlphaMissense.
+
+12
+00:01:45,500 --> 00:01:52,000
+The VCF never leaves the machine.
+
+13
+00:01:53,000 --> 00:02:01,000
+Same engine, any phenotype:
+Marfan, colorectal, renal, retinoblastoma…
+
+14
+00:02:01,500 --> 00:02:12,000
+AlphaMissense recovers a pathogenic missense:
+PAX6 → Likely Pathogenic (0.9999) — VUS without it.
+
+15
+00:02:13,000 --> 00:02:20,000
+Does it actually work? 200 real ClinVar variants —
+ClinVar withheld from the engine (non-circular).
+
+16
+00:02:20,500 --> 00:02:30,000
+0 pathogenic-vs-benign flips ·
+100% precision when it commits.
+
+17
+00:02:30,500 --> 00:02:40,000
+At scale: 5,335 real cases · 1,067 / 1,067
+known ClinVar-pathogenic surfaced — 0 missed.
+
+18
+00:02:40,500 --> 00:02:48,000
+246 automated tests passing ·
+everything reproducible offline.
+
+19
+00:02:48,500 --> 00:02:54,000
+Built with Claude Code —
+hardened by multi-agent adversarial review.
+
+20
+00:02:54,500 --> 00:03:00,000
+Draft aid, not a diagnostic device.
+github.com/gbbarra/vcf2report

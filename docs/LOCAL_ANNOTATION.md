@@ -199,7 +199,7 @@ Referenced by `scripts/vcfanno.conf.toml` — point each `file=` at your local p
 
 ```bash
 # raw/synthetic VCF (bgzipped) + GRCh38 FASTA (+ .fai) -> annotated VCF
-scripts/annotate_vcf.sh SYN-001.synthetic.vcf.gz GRCh38.fa SYN-001.annotated.vcf.gz
+scripts/annotate_vcf.sh SYN-001.synthetic.vcf.gz SYN-001.annotated.vcf.gz
 #   [1/3] bcftools norm   (split multiallelics + left-align)
 #   [2/3] snpEff          (adds INFO/ANN: consequence + HGVS)   <-- SnpEff here
 #   [3/3] vcfanno         (adds gnomAD_AF, CLNSIG, REVEL from local files)

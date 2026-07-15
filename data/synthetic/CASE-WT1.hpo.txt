@@ -1,0 +1,2 @@
+HP:0002667	Nephroblastoma
+HP:0000093	Proteinuria

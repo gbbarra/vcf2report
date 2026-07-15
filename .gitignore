@@ -76,3 +76,6 @@ data/synthetic_cohort/truth.tsv
 data/synthetic_cohort/validation_results.tsv
 data/synthetic_cohort/.work/
 data/synthetic_cohort/adversarial_results.tsv
+
+# transient run logs (cohort build, adversarial sweeps)
+*.log

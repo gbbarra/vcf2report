@@ -49,4 +49,4 @@ echo "  bgzipped, tabix-indexed GRCh38 VCF at $DATA_DIR/abraom_GRCh38.vcf.gz"
 
 echo ""
 echo "Next: point scripts/vcfanno.conf.toml 'file' paths at $DATA_DIR, then:"
-echo "  scripts/annotate_vcf.sh raw.vcf.gz GRCh38.fa out.annotated.vcf.gz"
+echo "  scripts/annotate_vcf.sh raw.vcf.gz out.annotated.vcf.gz"

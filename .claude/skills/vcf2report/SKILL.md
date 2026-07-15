@@ -120,9 +120,13 @@ NOT run the analysis. A merely **stale** ClinVar (past its weekly window) warns 
 
 ### 4 · 🖥️ Annotate — only if not annotated
 - **Already annotated** → visible "skipping (consequence terms present)".
-- **Not annotated** + `bcftools`+`snpEff`+`vcfanno` + a GRCh38 **reference FASTA** present → annotate:
-  **Code** `bash scripts/annotate_vcf.sh <VCF> <REF> <OUT>.annotated.vcf.gz` · **Desktop**
-  `annotate_vcf(vcf_path, reference, out_dir)`.
+- **Not annotated** + `bcftools` + `snpEff` present → annotate: **Code** `bash
+  scripts/annotate_vcf.sh <VCF> <OUT>.annotated.vcf.gz [REF]` · **Desktop**
+  `annotate_vcf(vcf_path, out_dir=...)`. A GRCh38 **reference FASTA is optional** (it only adds
+  indel left-alignment) — do NOT withhold annotation for lack of one. Report the `annotated N/M
+  records` count. SnpEff annotates on **MANE** transcripts (`GRCh38.mane.1.5.refseq`), the same
+  transcript set the gnomAD store is sliced by, and emits clinical `NM_` accessions.
+- **SnpEff missing** → install it: `bash scripts/setup_snpeff.sh` (~600 MB, one-time).
 - **Else** explain: classification is **coordinate-only** — PVS1/PM4/PP3/BP4 and HGVS c./p. are
   unavailable; gnomAD/ClinVar coordinate lookups + the ≥2★ ClinVar safety flag still work
   (`docs/ANNOTATION.md`). Never invent HGVS.
