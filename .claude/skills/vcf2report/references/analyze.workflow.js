@@ -66,10 +66,16 @@ if (a.lift) {
 const hpoFlag = (hpoFile || a.phenotypeText) ? '--hpo' : ''
 const inspect = await agent(
   `cd ${REPO} && python3 scripts/inspect_vcf.py ${vcf} ${hpoFlag}. From the JSON, output the VERY FIRST line as ` +
-  `exactly \`ANNOTATED=yes\` or \`ANNOTATED=no\` (from inspect.annotated), then summarize: build, sample id, total + ` +
-  `PASS counts, annotation source (VEP CSQ / SnpEff ANN / consequence / none), and the capabilities.criteria map ` +
-  `(each ACMG criterion → available|limited|na + reason). Do NOT classify yet.`,
-  { label: '🖥️ inspect + capabilities', phase: '🖥️ Local · Inspect VCF' })
+  `exactly \`ANNOTATED=yes\` or \`ANNOTATED=no\` (from inspect.annotated), then show the user, clearly:\n` +
+  `• build, sample id, total + PASS counts;\n` +
+  `• **is it annotated?** — annotation_source (VEP CSQ / SnpEff ANN / consequence / none) AND the coverage: ` +
+  `\`variants_with_consequence\`/\`total_variants\` (consequence_coverage). A raw caller's VCF is ~0% — say so plainly;\n` +
+  `• **WHICH FIELDS the VCF actually carries** — list \`info_fields\` (e.g. AC/AF/DP/MQ… from the caller) and ` +
+  `highlight \`info_fields_annotation\` (ANN/CSQ/CLNSIG/gnomad_*…) if any;\n` +
+  `• the capabilities.criteria map (each ACMG criterion → available|limited|na + reason).\n` +
+  `If coverage is ~0 the file is NOT annotated: PVS1/PM4/PP3 and HGVS are unavailable for the whole callset — ` +
+  `flag that Stage 4 must annotate it, because the laudo depends on it. Do NOT classify yet.`,
+  { label: '🖥️ inspect: anotado? quais campos?', phase: '🖥️ Local · Inspect VCF' })
 const annotated = /ANNOTATED=yes/i.test(inspect || '')
 
 // 3 — 🖥️ ANNOTATE — only if the VCF isn't annotated; otherwise skip (visibly). No reference → explain the limits.

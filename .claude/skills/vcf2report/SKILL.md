@@ -104,11 +104,19 @@ NOT run the analysis. A merely **stale** ClinVar (past its weekly window) warns 
   via `show_widget` (markdown menu if unavailable). Optionally `spawn_task` `"VCF2Report - <SAMPLE>"`
   for a per-sample session.
 
-### 3 · 🖥️ Inspect VCF — is it annotated?
+### 3 · 🖥️ Inspect VCF — is it annotated? which fields does it carry?
 - **Code:** `python3 scripts/inspect_vcf.py <VCF> [--hpo]`  ·  **Desktop:** `inspect_vcf(vcf_path)`.
 
-Reports build, sample, total + PASS counts, and **annotated?** (VEP CSQ / SnpEff ANN / consequence /
-none) plus the capability map. This decides whether Stage 4 needs to annotate.
+**Show the user, in the progress surface, before any analysis:**
+- build, sample id, total + PASS counts;
+- **annotated?** — `annotation_source` (VEP CSQ / SnpEff ANN / consequence / none) **and the coverage**
+  `variants_with_consequence / total_variants`. A raw caller's VCF (DRAGEN/GATK) is **~0%** — say so plainly;
+- **which fields the file actually carries** — `info_fields` (e.g. AC/AF/DP/MQ… from the caller), highlighting
+  `info_fields_annotation` (ANN/CSQ/CLNSIG/gnomad_*…) if present;
+- the capability map (each ACMG criterion → available | limited | na).
+
+**Why it matters:** with ~0% consequence coverage the engine cannot evaluate **PVS1/PM4/PP3** and the laudo has
+**no HGVS** for the whole callset — Stage 4 must annotate it first. The annotation is what makes the laudo real.
 
 ### 4 · 🖥️ Annotate — only if not annotated
 - **Already annotated** → visible "skipping (consequence terms present)".

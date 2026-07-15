@@ -42,27 +42,45 @@ def _sample_id_from_header(vcf_path: str) -> str | None:
 
 
 def _detect_annotation(variants):
-    """Return (annotated: bool, source: str|None). Consequence field wins; then the
-    SnpEff ANN / VEP CSQ / population INFO blocks. Samples the first 200 records."""
-    sample = variants[:200]
-    if any(v.consequence for v in sample):
+    """Return (annotated: bool, source: str|None) for the BULK of the callset.
+
+    Scans every record (not a 200-record head sample — a spiked/annotated variant can sit anywhere
+    in a sorted VCF, and a head sample of a raw caller's output would also miss a partially
+    annotated file). "Annotated" means the callset as a whole carries functional annotation: a
+    consequence on >50% of records, or an ANN/CSQ block. A file where only a handful of records
+    are annotated is NOT annotated for reporting purposes — the engine cannot classify the rest.
+    """
+    n = len(variants) or 1
+    if sum(1 for v in variants if v.consequence) > n / 2:
         return True, "consequence"
-    info_keys = _annotation_info_keys()
-    for name, present in (("SnpEff ANN", ("ANN",)), ("VEP CSQ", ("CSQ",))):
-        if any(any(k in (v.info or {}) for k in present) for v in sample):
+    for name, keys in (("SnpEff ANN", ("ANN",)), ("VEP CSQ", ("CSQ",))):
+        if sum(1 for v in variants if any(k in (v.info or {}) for k in keys)) > n / 2:
             return True, name
-    if any(any(k in (v.info or {}) for k in info_keys) for v in sample):
+    info_keys = _annotation_info_keys()
+    if sum(1 for v in variants if any(k in (v.info or {}) for k in info_keys)) > n / 2:
         return True, "population INFO"
     return False, None
 
 
 def inspect_vcf(vcf_path: str) -> dict:
-    """Build, sample, variant counts, and annotation status for one VCF (Stage 3)."""
+    """Build, sample, counts, the INFO field inventory, and annotation status for one VCF (Stage 3).
+
+    Reports WHICH fields the VCF actually carries (``info_fields``) and how much of the callset is
+    functionally annotated (``consequence_coverage``) — a raw caller's output (DRAGEN/GATK) carries
+    only AC/AF/DP/... and no consequence, so the engine cannot evaluate PVS1/PM4/PP3 on it and the
+    laudo has no HGVS. That is the difference Stage 4 has to fix by annotating.
+    """
     variants, build, _ = parse_vcf(vcf_path)
     annotated, source = _detect_annotation(variants)
     pass_filter = sum(1 for v in variants if v.filter_status in ("PASS", ".", "", None))
-    present_keys = sorted({k for v in variants[:200] for k in (v.info or {})
-                           if k in _annotation_info_keys()})
+    all_keys: set = set()
+    n_csq = 0
+    for v in variants:
+        if v.consequence:
+            n_csq += 1
+        if v.info:
+            all_keys.update(v.info.keys())
+    n = len(variants) or 1
     return {
         "vcf_path": str(vcf_path),
         "build": build,
@@ -71,7 +89,13 @@ def inspect_vcf(vcf_path: str) -> dict:
         "pass_filter": pass_filter,
         "annotated": annotated,
         "annotation_source": source,
-        "info_keys_present": present_keys,
+        # WHICH fields the file carries, and how much of it is actually annotated
+        "info_fields": sorted(all_keys),
+        "info_fields_annotation": sorted(all_keys & _annotation_info_keys()),
+        "variants_with_consequence": n_csq,
+        "consequence_coverage": round(n_csq / n, 4),
+        # kept for back-compat with earlier callers
+        "info_keys_present": sorted(all_keys & _annotation_info_keys()),
     }
 
 
