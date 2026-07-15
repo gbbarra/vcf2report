@@ -164,25 +164,32 @@ raw / synthetic exome VCF into the fully-annotated VCF `vcf2report` reads direct
 | Tool | What for | Install |
 |---|---|---|
 | **Java 11+** | runs SnpEff | `apt install default-jre` / `brew install openjdk` |
-| **SnpEff** | consequence + HGVS (`ANN=`) | `curl -L https://snpeff.blob.core.windows.net/versions/snpEff_latest_core.zip -o snpEff.zip && unzip snpEff.zip` (or `conda install -c bioconda snpeff`) |
+| **SnpEff** | consequence + HGVS (`ANN=`) | `bash scripts/setup_snpeff.sh` — installs SnpEff + the MANE database into `data/tools/` |
 | **bcftools + htslib** | normalize, bgzip, tabix | `conda install -c bioconda bcftools htslib` |
-| **vcfanno** | gnomAD/ClinVar/REVEL from local files | `conda install -c bioconda vcfanno` |
+| **vcfanno** | *(legacy)* gnomAD/ClinVar from local VCFs | `conda install -c bioconda vcfanno` — not required: the engine reads the Parquet stores |
+
+> Do not install SnpEff from SourceForge or `brewsci/bio`: both are frozen at **4.3t (2017)**, whose
+> newest human database is Ensembl 86 and which has no MANE databases. The old
+> `snpeff.blob.core.windows.net` host no longer resolves. `setup_snpeff.sh` pins the current upstream.
 
 Easiest: `conda create -n vcf2report -c bioconda -c conda-forge snpeff bcftools htslib vcfanno openjdk`
 
-## 2. SnpEff GRCh38 database (~1–2 GB, one-time)
+## 2. SnpEff + the MANE database (~600 MB, one-time)
 
 ```bash
-snpEff download GRCh38.105          # Ensembl-based; chromosomes are "1".."22","X"
+bash scripts/setup_snpeff.sh        # SnpEff 5.4c + GRCh38.mane.1.5.refseq -> data/tools/
 ```
 
-> **Chromosome-naming gotcha (important for the DRAGEN synthetic cases).**
-> DRAGEN VCFs are `chr`-prefixed (`chr1`), but the Ensembl SnpEff DB uses `1`. If they
-> don't match, SnpEff annotates **nothing**. Pick ONE naming and make every file agree:
-> - strip `chr` from the VCF before SnpEff:
->   `bcftools annotate --rename-chrs <(for c in $(seq 1 22) X Y M; do echo "chr$c $c"; done) in.vcf.gz -Oz -o in.nochr.vcf.gz`
-> - use the Ensembl DB (`GRCh38.105`), and use a **no-`chr`** ClinVar (NCBI ships `1`-style)
->   and a **no-`chr`** gnomAD (or rename gnomAD, which is `chr`-style, the same way).
+**Why the MANE database.** The gnomAD store is sliced by MANE Select + MANE Plus Clinical
+(`scripts/build_exome_bed.py`, GENCODE v46). Annotating against MANE puts consequence and
+frequency on the **same transcript** — a transcript mismatch is a real source of PVS1 error.
+The `.refseq` flavour emits `NM_` accessions, the convention clinical reports are written in.
+
+> **Chromosome-naming gotcha — handled for you.** The MANE DB is Ensembl-style (`1`), DRAGEN and
+> most clinical VCFs are UCSC-style (`chr1`). If they don't match, SnpEff annotates **nothing**,
+> silently. `annotate_vcf.sh` probes both sides, renames in and back out (so the output keeps the
+> caller's naming and still matches the `chr`-prefixed stores), and **fails loudly** if fewer than
+> half the records come back with `ANN`.
 
 ## 3. Annotation data files for vcfanno (GRCh38, bgzipped + tabixed)
 
@@ -198,22 +205,32 @@ Referenced by `scripts/vcfanno.conf.toml` — point each `file=` at your local p
 ## 4. Run it
 
 ```bash
-# raw/synthetic VCF (bgzipped) + GRCh38 FASTA (+ .fai) -> annotated VCF
+# raw VCF (bgzipped) -> annotated VCF. A GRCh38 FASTA is OPTIONAL (trailing arg):
+# it only enables indel left-alignment, so skip it for an already-normalized callset.
 scripts/annotate_vcf.sh SYN-001.synthetic.vcf.gz SYN-001.annotated.vcf.gz
-#   [1/3] bcftools norm   (split multiallelics + left-align)
-#   [2/3] snpEff          (adds INFO/ANN: consequence + HGVS)   <-- SnpEff here
-#   [3/3] vcfanno         (adds gnomAD_AF, CLNSIG, REVEL from local files)
+#   [1/3] bcftools norm   (split multiallelics; + left-align if a FASTA was given)
+#   [2/3] snpEff          (adds INFO/ANN: gene + consequence + HGVS on MANE)  <-- the real work
+#   [3/3] vcfanno         (skipped: the engine reads the Parquet stores directly)
 
 # then the report — now the WHOLE background is annotated, so the candidate list is rich
-python scripts/run_headless.py SYN-001.annotated.vcf.gz --hpo synthetic_exomes/SYN-001.hpo.txt
+python3 scripts/run_headless.py SYN-001.annotated.vcf.gz --hpo synthetic_exomes/SYN-001.hpo.txt
 ```
 
-`SNPEFF_DB` (default `GRCh38.105`), `VCFANNO_CONF`, and `THREADS` are overridable env vars.
+Measured on SYN-001 (NA12878, ~100k variants): **~45 s, 99.96 % of records annotated**. Candidates
+go from 4 with no HGVS to 1216 with HGVS on every one. The whole SYN cohort:
+`bash scripts/annotate_syn_cohort.sh` (resumable; ~8.5 MB per case).
 
-## Why not in the sandbox?
+`SNPEFF_DB` (default `GRCh38.mane.1.5.refseq`), `SNPEFF_JAR`, `VCFANNO` (`auto`/`0`/`1`),
+`VCFANNO_CONF`, and `THREADS` are overridable env vars.
 
-`snpeff.blob.core.windows.net` (jar + prebuilt DB) and every GTF mirror needed to
-*build* a DB are blocked by the build proxy, and per-variant remote annotation is far
-too slow. So annotation is deliberately a local step. The in-sandbox demo instead
-spikes real ClinVar variants (which carry their own consequence) so the reports still
-show correct Pathogenic/Likely-Pathogenic calls without the full background annotation.
+## Why annotation is a local step
+
+SnpEff's jar + prebuilt DBs and the GTF mirrors needed to *build* one are unreachable from the
+build proxy, and per-variant remote annotation is far too slow for a 100k-variant exome. So
+annotation is deliberately local. Note there is no upstream annotation to reuse either: the 1000G
+DRAGEN release publishes calls + QC only (CRAM, gVCF, VCF, metrics) — no Nirvana/VEP/SnpEff output.
+
+The in-sandbox demo instead spikes real ClinVar variants (which carry their own consequence) so the
+reports still show correct Pathogenic/Likely-Pathogenic calls without the full background annotated.
+**That is a demo shortcut, not a measurement**: an unannotated background cannot be called P/LP at
+all, so any "no over-call" claim made on it is an artifact. Annotate before quoting specificity.

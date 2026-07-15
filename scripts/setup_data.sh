@@ -29,8 +29,8 @@ curl -fL -o "$DATA_DIR/clinvar_GRCh38.vcf.gz" \
   https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz
 tabix -p vcf "$DATA_DIR/clinvar_GRCh38.vcf.gz" || true
 
-echo "== SnpEff GRCh38 database =="
-snpEff download -v GRCh38.105 || echo "  (run 'snpEff download GRCh38.105' manually if this failed)"
+echo "== SnpEff + MANE database =="
+bash "$(dirname "$0")/setup_snpeff.sh" || echo "  (run 'bash scripts/setup_snpeff.sh' manually if this failed)"
 
 echo "== gnomAD v4 sites =="
 if [[ -n "$PANEL_BED" ]]; then
