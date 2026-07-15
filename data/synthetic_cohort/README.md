@@ -17,12 +17,26 @@ whose gene comes from a real **GA4GH phenopacket case** so it carries that case'
 - `SYN-00N.synthetic.vcf.gz` (+ `.tbi`), `SYN-00N.hpo.txt`, `truth.tsv` — **generated** (git-ignored;
   rebuild anytime from `cohort.tsv`).
 
-## Build
+## Get it
 
+**Download the pre-built corpus** (checksummed GitHub Release, ~617 MB — no S3 rebuild):
+```bash
+cd ~/vcf2report && bash scripts/fetch_syn_cohort.sh
+```
+
+**Or build it from scratch** (100 × 422 MB S3 downloads; resumable):
 ```bash
 cd ~/vcf2report && bash scripts/make_syn_cohort.sh      # all 100 (resumable)
 # smoke test first:  N=3 bash scripts/make_syn_cohort.sh
 ```
+
+## Validation (100-cohort, precise)
+
+All 100 structurally correct (parse, ~100k MANE variants, exact-coord spike, distinct samples/variants).
+Recovery (`scripts/validate_cohort.sh` / `adversarial_cohort.py`): **59/100 surfaced**, **51 engine-only**
+(anti-circular, excludes the ClinVar flag); **over-call median 1** P/LP per case (no flooding on the
+~100k background); **decoy 15%** (phenotype specificity). 71/100 variants are in ClinVar, 29 are not
+(the not-in-ClinVar cases force the engine's independent ACMG — the strongest test).
 Self-contained — needs only `curl`, `bcftools`, `bgzip`, `tabix`, `python3`. The DRAGEN VCFs stream
 from the public S3 bucket over HTTPS (no `aws` CLI); the ClinVar VCF is auto-downloaded once (~180 MB);
 no reference FASTA. Each case ≈ 422 MB download + MANE subset + spike (~1–3 min); resumable (skips
