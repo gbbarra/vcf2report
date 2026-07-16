@@ -159,10 +159,10 @@ BS1_AF_DOMINANT = 0.001     # rare dominant disorder: even ~0.1% is too common
 BS1_AF_RECESSIVE = 0.01     # recessive: carrier frequency runs higher
 BS1_AF_DEFAULT = 0.005      # inheritance unknown → conservative middle ground
 
-# Curated mode-of-inheritance for the genes exercised by the demo/secondary-finding
-# cases (and a few common ones). "AD"/"AR"/"XL"; genes absent here resolve to the
-# conservative BS1_AF_DEFAULT. A curated subset — extend/verify against a source
-# such as OMIM/Genomics England PanelApp before clinical use.
+# Hand-curated mode-of-inheritance, kept as the AUTHORITATIVE layer: these entries win
+# over the HPO-derived table below. "AD"/"AR"/"XL". Genes here are the demo/secondary-
+# finding cases plus a few common ones; everything else now resolves through
+# gene_inheritance(), which falls back to the ~4.7k genes HPO annotates offline.
 GENE_INHERITANCE = {
     # DEE / seizure primaries (haploinsufficiency-driven dominant)
     "SCN1A": "AD", "SCN2A": "AD", "KCNQ2": "AD", "STXBP1": "AD",
@@ -174,17 +174,59 @@ GENE_INHERITANCE = {
 }
 
 
+def gene_inheritance_modes(gene: str | None) -> frozenset:
+    """Every inheritance mode known for a gene, e.g. frozenset({"AD", "AR"}) for ATM.
+
+    The hand-curated GENE_INHERITANCE map wins; anything it does not name falls back to
+    what HPO records (``annotate.inheritance``, ~4.7k genes, offline — the same table PP4
+    already reads). Before this fallback existed only 16 genes had an inheritance, so
+    effectively every real variant fell to the conservative default ceiling.
+
+    Returns the SET, never a single collapsed value: a gene with both dominant and
+    recessive disease (ATM: ataxia-telangiectasia AR + breast-cancer risk AD) has no single
+    right answer, and each criterion has to pick its own pole (see below).
+    Imported lazily: annotate.inheritance reads config for the HPO path.
+    """
+    if not gene:
+        return frozenset()
+    curated = GENE_INHERITANCE.get(gene.upper())
+    if curated:
+        return frozenset({curated})
+    from .annotate.inheritance import modes
+    return modes(gene)
+
+
+def gene_inheritance(gene: str | None) -> str | None:
+    """Inheritance label for display/audit: "AD" | "AR" | "AD+AR" | ... | None.
+
+    NEVER key a threshold off this — use pm2_af_ceiling / bs1_af_cutoff, which resolve the
+    ambiguity in the direction their own criterion needs.
+    """
+    m = gene_inheritance_modes(gene)
+    return "+".join(sorted(m)) if m else None
+
+
+# ---------------------------------------------------------------------------
+# Resolving a multi-mode gene: "conservative" HAS A DIRECTION, and the two directions
+# disagree. PM2 is PATHOGENIC evidence, so its conservative pole is the STRICTEST (lowest)
+# ceiling — hardest to grant. BS1 is BENIGN evidence, so its conservative pole is the
+# MOST PERMISSIVE (highest) cutoff — hardest to call benign. Collapsing both onto one
+# "stricter" value silently inverts BS1: an ATM variant at AF=0.005 — an ordinary
+# ataxia-telangiectasia CARRIER frequency — would clear the dominant 0.001 cutoff and be
+# called Benign, overriding genuine pathogenic evidence. Never let a benign call rest on a
+# frequency that is normal for the gene's recessive disease.
+# ---------------------------------------------------------------------------
 def bs1_af_cutoff(gene: str | None) -> tuple[float, str | None]:
     """BS1 allele-frequency cutoff and the mode of inheritance it came from.
 
-    Returns ``(cutoff, moi)`` where ``moi`` is "AD"/"AR"/"XL" when the gene is in
-    the curated map, else ``None`` (→ conservative default cutoff).
+    Returns ``(cutoff, moi)``. A gene with ANY recessive disease takes the recessive
+    (highest) cutoff, so carrier-frequency alleles are never called benign on frequency.
     """
-    moi = GENE_INHERITANCE.get((gene or "").upper()) if gene else None
-    if moi == "AR":
-        return BS1_AF_RECESSIVE, moi
-    if moi in ("AD", "XL"):
-        return BS1_AF_DOMINANT, moi
+    m = gene_inheritance_modes(gene)
+    if "AR" in m:
+        return BS1_AF_RECESSIVE, "AR"
+    if "AD" in m or "XL" in m:
+        return BS1_AF_DOMINANT, "AD" if "AD" in m else "XL"
     return BS1_AF_DEFAULT, None
 
 
@@ -202,14 +244,15 @@ PM2_AF_DEFAULT = 1e-4       # inheritance unknown → strict default
 def pm2_af_ceiling(gene: str | None) -> tuple[float, str | None]:
     """PM2 rarity ceiling and the mode of inheritance it came from.
 
-    Returns ``(ceiling, moi)``; genes absent from the curated map resolve to the
-    strict default so PM2 is never granted more liberally than we can justify.
+    Returns ``(ceiling, moi)``. Mirror image of bs1_af_cutoff (see the note above): a gene
+    with ANY dominant disease takes the dominant (lowest) ceiling, so PM2 is never granted
+    more liberally than justified. Unknown inheritance → the strict default.
     """
-    moi = GENE_INHERITANCE.get((gene or "").upper()) if gene else None
-    if moi == "AR":
-        return PM2_AF_RECESSIVE, moi
-    if moi in ("AD", "XL"):
-        return PM2_AF_DOMINANT, moi
+    m = gene_inheritance_modes(gene)
+    if "AD" in m or "XL" in m:
+        return PM2_AF_DOMINANT, "AD" if "AD" in m else "XL"
+    if "AR" in m:
+        return PM2_AF_RECESSIVE, "AR"
     return PM2_AF_DEFAULT, None
 
 # ---------------------------------------------------------------------------

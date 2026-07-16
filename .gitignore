@@ -79,3 +79,6 @@ data/synthetic_cohort/adversarial_results.tsv
 
 # transient run logs (cohort build, adversarial sweeps)
 *.log
+
+# generated adversarial/validation results (regenerate with scripts/adversarial_cohort.py)
+data/synthetic_cohort/adversarial_results*.tsv

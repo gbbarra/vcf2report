@@ -198,6 +198,44 @@ This whole-exome, real-background figure (73%, rank against real candidates) is 
 counterpart to the isolated harness's phenotype tier — the metric that matters is that the true variant
 is *brought forward* near the top, with a clear, measured breakdown of where it is not.
 
+## 100 distinct backgrounds, real annotation — the SYN cohort
+
+The NA12878 test above spikes into a single background with a constructed `ANN`. This one removes both
+crutches: 100 **distinct** 1000-Genomes DRAGEN exomes (one planted variant each, exact ClinVar
+coordinate, distinct gene + phenotype), **functionally annotated end-to-end with SnpEff on the MANE
+transcript set** (`GRCh38.mane.1.5.refseq`, the same transcripts the gnomAD store is sliced by) — 99.99%
+of ~100k background variants per exome annotated, so the engine can (and must) classify the whole
+background, not just the spike. This is what makes specificity measurable at all: an unannotated
+background cannot be called P/LP, so any "no over-call" claim on one is an artifact, not a result.
+
+**Read the two questions separately — conflating them inflates the number.**
+
+*Diagnostic sensitivity* — is the planted variant presented as the likely **diagnosis** (primary section)?
+**38/100.** Where the planted variant lands: **38 primary · 15 carrier · 20 incidental P/LP · 27 miss.**
+
+That 38 is honest precisely because 15 went to *carrier* instead. The spiker plants every variant as a
+lone **heterozygote**, but 22 of the 100 genes are autosomal-**recessive**-only — where a single allele
+is a healthy **carrier**, not a diagnosis. The engine reaches the (correct) Pathogenic tier on those
+variants and then correctly routes them to a **Carrier findings** section rather than calling them the
+answer. So the fair diagnostic denominator is the **78 biologically-coherent** cases (41 AD/X-linked +
+37 without recorded inheritance): **38/78 ≈ 49%**. The 22 lone-het-in-AR cases are a **cohort** limitation
+— an AR case must be planted biallelically (compound-het or homozygous) to test diagnostic recovery — not
+an engine miss. This is the anti-circular counterpart to the isolated harness: no ClinVar read-back, no
+single shared background, and the phenotype earns its keep (a decoy/random phenotype routes the gene only
+**17%** of the time vs the true phenotype's 44% — a **+27-point** discriminative gap).
+
+*Variant-level classification* — does the engine reach P/LP on the planted (genuinely pathogenic)
+variant, wherever it routes it? Opening PVS1 to recessive genes (see HOW_IT_WORKS — population constraint
+is blind to them) raised this from 49 to **65/100 engine-only**, **+16**, **12 gains / 0 losses, all 12 in
+AR genes**. But that number counts carriers and incidentals as reached-tier, so it is *not* a diagnostic
+figure — 10 of those 12 gains are the lone-het-AR carriers above. It is a correct measure of one thing
+only: the engine now classifies recessive LoF as the pathogenic variant it is.
+
+**Over-call (specificity), now real:** median **4** P/LP per ~100k-variant healthy exome (max 10) — of
+which ~60% are heterozygous recessive **carrier** alleles, which every healthy person carries a few of
+(normal biology, correctly tiered and routed to carrier, not diagnosis). The prior "median 1, no
+flooding" was a pure artifact of the 0%-annotated background and is not comparable.
+
 ## Honest limitations
 
 - Single-proband: PS2/PM3/PM6/PP1/BS4 (de novo, in-trans, segregation) are N/A.
@@ -206,8 +244,17 @@ is *brought forward* near the top, with a clear, measured breakdown of where it 
 - Specificity on a healthy exome is limited (above) — disclosed and quantified, not hidden.
 - The exomes+MANE store keeps PM2 conservative (see above) — a deliberate no-false-absence
   choice, quantified here rather than hidden.
-- The spike-in uses a constructed `ANN`; a real SnpEff/VEP annotation may add exon rank
-  (PVS1 strength modulation) that this harness omits.
+- **The SYN cohort plants lone heterozygotes**, so it cannot test diagnostic recovery for recessive
+  genes (a lone het there is a carrier by definition). 22/100 cases are affected; a cohort v2 must plant
+  AR cases biallelically. The engine's carrier routing is correct — the cohort is what is incomplete.
+- **The PVS1 recessive-LoF route is a gene-level proxy** (see HOW_IT_WORKS): "the gene has an established
+  recessive phenotype" is not disease-scoped, so a gene with both an AD gain-of-function disease and an AR
+  LoF disease opens the route on the whole gene. Disease-scoped inheritance needs an HPO table rebuild that
+  keeps `disease_id` (the local one dropped it). TP53-style late-onset dominants stay a constraint blind
+  spot, and the constraint table's pLI column is empty (LOEUF only).
+- The NA12878 harness above still uses a constructed `ANN`; the SYN cohort is the SnpEff-MANE-annotated
+  measurement that supersedes it (and confirms the exon rank it omitted correctly downgrades start-loss
+  PVS1 — measured, not assumed).
 
 ## Reproduce
 

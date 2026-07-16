@@ -82,12 +82,22 @@ def split_findings(classifications):
     """
     from ..config import ACMG_SF_GENES, HPO_RELATED_MIN
     primary, secondary, other = [], [], []
+    plp_hits = _plp_hits_by_gene(classifications)
     for c in classifications:
         # QC caution: a homozygous genotype for a variant the store vouches is absent from gnomAD
         # (AC=0) is implausible for a real allele (a homozygote needs the allele to exist in the
         # population) and a classic calling-artifact signature in difficult regions. Keep it in the
         # ranked table with its ACMG tier, but don't present it as a confident primary finding.
         if is_hom_absent_artifact(c):
+            other.append(c)
+            continue
+        # Carrier caution: a lone heterozygous null in a recessive-only gene is a PATHOGENIC
+        # VARIANT but a NON-DIAGNOSTIC genotype — the carrier is healthy. Phenotype routing
+        # cannot catch this, because recessive disease genes have exactly the phenotypes a
+        # proband presents with, so the carrier clears HPO_RELATED_MIN and lands in `primary`
+        # next to (or instead of) the real answer. Everyone carries a few of these. Keep the
+        # ACMG tier — it is correct — but report it as carrier status, not as a diagnosis.
+        if _is_carrier(c, plp_hits):
             other.append(c)
             continue
         # Route on the best-match-average (not the single strongest match): a random,
@@ -103,6 +113,63 @@ def split_findings(classifications):
         else:
             other.append(c)
     return primary, secondary, other
+
+
+def _plp_hits_by_gene(classifications) -> dict:
+    """gene -> number of P/LP calls, counted ONCE per report.
+
+    The carrier test needs "does this gene have a second hit?", and asking that per
+    classification is O(n^2) — on a real annotated exome n is ~1200 candidates and the test
+    runs from three places (split_findings, the report's carrier section, the conclusion).
+    """
+    hits: dict = {}
+    for c in classifications:
+        if c.tier in _PLP:
+            hits[c.variant.gene] = hits.get(c.variant.gene, 0) + 1
+    return hits
+
+
+def _is_carrier(c, hits: dict) -> bool:
+    from .. import config
+    if c.tier not in _PLP or c.variant.zygosity != "het":
+        return False
+    m = config.gene_inheritance_modes(c.variant.gene)
+    if "AR" not in m or "AD" in m or "XL" in m:
+        return False
+    return hits.get(c.variant.gene, 0) < 2
+
+
+def is_unconfirmed_ar_carrier(c, classifications) -> bool:
+    """A lone heterozygous P/LP in a gene whose only known disease mechanism is recessive.
+
+    ACMG classifies the VARIANT and the Pathogenic tier is right — but a single het in a
+    recessive gene does not explain a proband's phenotype, it makes them a healthy carrier.
+    An average person carries 2-3 such alleles, so presenting them as diagnostic findings
+    both floods the report and, worse, lets a carrier outrank the true diagnosis (measured:
+    a het LIPA/SKIC2 carrier displaced the real answer into "other").
+
+    It also keeps the ACMG SF v3.2 contract: the recessive SF genes (ATP7B, MUTYH, BTD,
+    GAA, HFE, CASQ2, TRDN, RPE65) are reportable as actionable secondary findings ONLY when
+    biallelic — a carrier must not be reported. Routing them out of `secondary` here honours
+    that generically, via the gene's mechanism rather than a hard-coded list.
+
+    Deliberately narrow — it must never hide a real diagnosis:
+      * genes with ANY dominant/X-linked disease are excluded: a het there can be diagnostic;
+      * ``hom`` is excluded: that is biallelic, i.e. exactly the diagnostic genotype;
+      * a SECOND P/LP hit in the same gene is excluded: possible compound heterozygote (we
+        cannot phase it, but it is a genuine candidate the clinician must see).
+    """
+    return _is_carrier(c, _plp_hits_by_gene(classifications))
+
+
+def carrier_findings(classifications):
+    """The recessive carrier alleles routed out of the diagnostic sections.
+
+    Not noise to be discarded: carrier status carries real reproductive relevance and the
+    report should show it — just not competing with the diagnosis.
+    """
+    hits = _plp_hits_by_gene(classifications)
+    return [c for c in classifications if _is_carrier(c, hits)]
 
 
 def is_hom_absent_artifact(c) -> bool:
@@ -196,9 +263,20 @@ def summarize(report: "ReportModel") -> list[str]:
         lines.append(f"Reportable **secondary finding** (ACMG SF v3.2 — actionable, subject to "
                      f"the patient's opt-in policy): {g}.")
 
+    # Recessive carriers get their own sentence: "clinical relevance is uncertain" is simply
+    # WRONG for them — the relevance is known and it is reproductive, not diagnostic. Lumping a
+    # carrier in with genuine incidental P/LP invites the reader to weigh it as a candidate.
+    carriers = carrier_findings(report.classifications)
+    if carriers:
+        g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in carriers)
+        lines.append(f"**Carrier finding(s)** — heterozygous {('allele' if len(carriers) == 1 else 'alleles')} "
+                     f"in gene(s) whose disease mechanism is recessive: {g}. A single copy does NOT "
+                     "cause the condition and does NOT explain the indication; this is carrier "
+                     "status, relevant to reproductive counselling, not a diagnosis.")
+
     # An engine-P/LP variant that is neither phenotype-matched nor on the SF list still
     # belongs in the conclusion — it is in the ranked table but must not be silent here.
-    inc = [c for c in other if c.tier in _PLP]
+    inc = [c for c in other if c.tier in _PLP and c not in carriers]
     if inc:
         g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in inc)
         lines.append(f"Additional **Pathogenic / Likely Pathogenic** variant(s) not matching the "

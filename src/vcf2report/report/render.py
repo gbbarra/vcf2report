@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .. import config
-from .assemble import ReportModel, split_findings, summarize
+from .assemble import ReportModel, carrier_findings, split_findings, summarize
 
 
 def render_markdown(report: ReportModel) -> str:
@@ -28,9 +28,14 @@ def render_markdown(report: ReportModel) -> str:
                 ", ".join(f"{k}={v}" for k, v in d.items()) or "—"
             )
             primary, secondary, other = split_findings(report.classifications)
+            carriers = carrier_findings(report.classifications)
+            # Carriers are routed into `other` by split_findings; pull them out so the
+            # template can give them their own section instead of burying a reproductively
+            # relevant finding among unrelated VUS.
+            other = [c for c in other if c not in carriers]
             return env.get_template("report.md.j2").render(
                 r=report, primary=primary, secondary=secondary, other=other,
-                conclusion=summarize(report))
+                carriers=carriers, conclusion=summarize(report))
     except ImportError:
         pass
     return _render_markdown_builtin(report)
@@ -149,13 +154,28 @@ def _render_markdown_builtin(report: ReportModel) -> str:
     L.append("")
     _findings_table(secondary)
 
-    if other:
+    carriers = carrier_findings(report.classifications)
+    if carriers:
+        L.append("## Carrier findings (recessive, heterozygous)")
+        L.append("")
+        L.append("_Pathogenic/Likely-Pathogenic alleles found in the heterozygous state in genes "
+                 "whose only known disease mechanism is **recessive**. The ACMG tier refers to the "
+                 "VARIANT, not to this patient: a single copy does **not** cause the condition and "
+                 "does **not** explain the indication — the patient is a healthy carrier. Most "
+                 "people carry a few. Listed here for **reproductive relevance** (partner testing / "
+                 "genetic counselling), deliberately kept out of the diagnostic sections so they "
+                 "cannot compete with the indication._")
+        L.append("")
+        _findings_table(carriers)
+
+    other_non_carrier = [c for c in other if c not in carriers]
+    if other_non_carrier:
         L.append("## Other candidates")
         L.append("")
         L.append("_Incidental P/LP not on the ACMG SF list, plus phenotype-unrelated "
                  "uncertain/benign candidates. Not routinely reported._")
         L.append("")
-        _findings_table(other)
+        _findings_table(other_non_carrier)
 
     L.append("## Per-variant ACMG rationale (auditable)")
     for c in report.classifications:

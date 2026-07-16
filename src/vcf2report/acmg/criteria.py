@@ -23,6 +23,7 @@ from __future__ import annotations
 from typing import Callable
 
 from .. import config
+from ..annotate.inheritance import lof_is_disease_mechanism
 from ..config import AF_BA1
 from ..models import Annotation, CriterionResult, Variant
 
@@ -104,25 +105,46 @@ def _pvs1_strength(v: Variant) -> str:
 @criterion("PVS1")
 def pvs1(v: Variant, a: Annotation) -> CriterionResult:
     name = "Null variant in a gene where LoF is a known disease mechanism"
-    met = bool(v.is_lof and a.gene_lof_intolerant)
+    # ClinGen SVI's first question is whether LoF is a known disease MECHANISM for the gene.
+    # Population constraint (pLI/LOEUF) only measures selection against HETEROZYGOUS LoF, so
+    # it is structurally blind to recessive disease: the carrier is healthy, no selection
+    # acts, the gene scores "tolerant" — and gating on it rejects the very variants whose
+    # mechanism IS loss of function. So an established autosomal-recessive phenotype counts
+    # as mechanism evidence alongside constraint. Dominant genes still need the constraint
+    # evidence: a dominant phenotype can be gain-of-function or dominant-negative, where a
+    # null is NOT the mechanism. Both routes are proxies for ClinGen gene-disease/dosage
+    # curation and the report names which one fired.
+    ar_mechanism = lof_is_disease_mechanism(v.gene)
+    mechanism = bool(a.gene_lof_intolerant) or ar_mechanism
+    met = bool(v.is_lof and mechanism)
     strength = _pvs1_strength(v) if met else None
+    basis = ("gene is LoF-intolerant (population constraint)" if a.gene_lof_intolerant
+             else "gene has an established autosomal-recessive phenotype (HPO)" if ar_mechanism
+             else None)
     cites = []
     if a.source.get("gene_lof_intolerant"):
         cites.append(a.source["gene_lof_intolerant"])
+    if ar_mechanism and not a.gene_lof_intolerant:
+        cites.append("HPO gene-to-phenotype inheritance (local)")
     if met and strength != "very_strong":
         reason = (
-            f"{v.consequence} is loss-of-function in LoF-intolerant {v.gene}, but the "
-            f"ClinGen SVI PVS1 tree downgrades it to {strength} "
+            f"{v.consequence} is loss-of-function and LoF is a disease mechanism in {v.gene} "
+            f"({basis}), but the ClinGen SVI PVS1 tree downgrades it to {strength} "
             f"({'initiation-codon variant' if v.consequence == 'start_lost' else f'NMD-escaping (last exon {v.exon})'})"
         )
     elif met:
-        reason = f"{v.consequence} is loss-of-function and {v.gene} is LoF-intolerant"
+        reason = f"{v.consequence} is loss-of-function and LoF is a disease mechanism in {v.gene} ({basis})"
+    elif v.is_lof:
+        reason = (f"{v.consequence} is a null variant, but LoF is not an established disease "
+                  f"mechanism in {v.gene}: not LoF-intolerant by constraint and no known "
+                  f"autosomal-recessive phenotype")
     else:
-        reason = f"{v.consequence or 'variant'} is not a qualifying null variant in a LoF-intolerant gene"
+        reason = f"{v.consequence or 'variant'} is not a qualifying null variant"
     return CriterionResult(
         "PVS1", name, "very_strong", applies=True, met=met,
         applied_strength=strength,
         evidence={"consequence": v.consequence, "gene_lof_intolerant": a.gene_lof_intolerant,
+                  "lof_mechanism_basis": basis, "gene_moi": config.gene_inheritance(v.gene),
                   "exon": v.exon, "pvs1_strength": strength},
         citation=cites, reasoning=reason,
     )

@@ -105,6 +105,36 @@ Moderate; last-exon NMD-escaping → Strong; else Very Strong). Two combining mo
 **Richards 2015 Table 5** (the conservative default) and the **ClinGen/Tavtigian 2020 points**
 model (opt-in via `VCF2REPORT_ACMG_MODEL=clingen`).
 
+**The PVS1 mechanism gate — and why population constraint alone is not it.** ClinGen SVI's first
+question is whether *LoF is a known mechanism of disease for this gene*. Using pLI/LOEUF as the
+proxy answers a **different question**: those metrics measure selection against **heterozygous**
+LoF. In a recessive disorder the carrier is healthy, no heterozygous selection acts, and the gene
+scores as tolerant — so a constraint-only gate rejects precisely the genes whose mechanism *is*
+loss of function. Measured on the 100-exome cohort: 24 of 44 misses were null variants stopped at
+that gate, their genes overwhelmingly recessive (Bardet-Biedl, Omenn, trichothiodystrophy...). The
+same blind spot misfires on late-onset dominants — TP53's LOEUF is 0.469, i.e. "not LoF-intolerant".
+
+So the gate is `constraint OR an established autosomal-recessive phenotype` (inheritance derived
+offline from the HPO gene-to-phenotype table, ~4.7k genes), and the report names which route fired
+(`lof_mechanism_basis`). Dominant genes still require the constraint evidence: a dominant phenotype
+can be gain-of-function or dominant-negative, where a null is *not* the mechanism. Both routes are
+**proxies** for ClinGen gene-disease-validity + dosage curation, which is what a clinical deployment
+should key PVS1 on; the AR route is also gene-level, so a gene with both an AD gain-of-function
+disease and an AR LoF disease is not yet distinguished (see Honest limitations).
+
+**Carrier findings.** Opening PVS1 to recessive genes makes the engine call the heterozygous null
+alleles every healthy person carries (2–3 on average). The Pathogenic **tier is correct** — ACMG
+classifies the variant, not the patient — but a single copy is *not* diagnostic, and phenotype
+routing cannot separate it, because recessive disease genes have exactly the phenotypes a proband
+presents with. Measured before the fix: a het LIPA/SKIC2 carrier was reported as the "likely
+explanatory finding" while the true COPZ1 sat in "other". So a lone het P/LP in a recessive-**only**
+gene is routed to its own **Carrier findings** section — kept (it has reproductive relevance),
+tier untouched, but never competing with the indication. Homozygotes, a second hit in the same gene
+(possible compound heterozygote), and genes with any dominant/X-linked disease are excluded, so a
+real diagnosis is never hidden. This also keeps the ACMG SF v3.2 contract: the recessive SF genes
+(ATP7B, MUTYH, BTD, GAA, HFE…) are reportable as actionable secondary findings **only when
+biallelic** — a carrier must not be reported.
+
 ### Pipeline stages
 
 `run_pipeline(vcf)` is an ordered, timed sequence:
@@ -198,6 +228,16 @@ variant/region-callability QC and cautious PVS1 for uncorroborated novel LoF, no
 store. A joint exomes+genomes store (`--preset joint`) still helps a separate genome-present /
 exome-absent class. See
 [`BENCHMARK.md`](BENCHMARK.md#specificity--phenotype-circularity--measured-on-a-real-exome).
+(5) **The PVS1 mechanism gate is a proxy, and gene-level.** "The gene has an established recessive
+phenotype" is strong evidence that LoF causes disease there, but it is not ClinGen gene-disease +
+dosage curation, and it does not distinguish *which* of a gene's diseases is recessive — a gene with
+an AD gain-of-function disease **and** an AR LoF disease currently opens the AR route on the whole
+gene. The fix needs disease-scoped inheritance, which the local HPO table cannot supply (it was
+deduplicated at build time and dropped `disease_id`). (6) **Late-onset dominants stay blind:** TP53
+(LOEUF 0.469) is neither constraint-intolerant nor recessive, so PVS1 does not fire on a TP53 null
+even though LoF is its established mechanism. (7) The gene-constraint table's **pLI column is empty**,
+so `lof_intolerant` is decided by LOEUF alone. (8) Carrier routing needs zygosity from the VCF; a
+sites-only VCF (no genotype) cannot be triaged this way.
 
 **Reproducibility & privacy.** Every input is openly licensed and every store is rebuildable from
 public sources (`scripts/build_*`), or downloadable as a checksummed Release. Because the default

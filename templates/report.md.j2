@@ -94,6 +94,12 @@ _Variants in genes overlapping the patient's phenotype._
 
 _P/LP variants in ACMG SF v3.2 genes, unrelated to the indication — reportable actionable secondary findings, subject to the patient's opt-in policy._
 {{ findings(secondary) }}
+{% if carriers %}
+## Carrier findings (recessive, heterozygous)
+
+_Pathogenic/Likely-Pathogenic alleles found in the **heterozygous** state in genes whose only known disease mechanism is **recessive**. The ACMG tier refers to the VARIANT, not to this patient: a single copy does **not** cause the condition and does **not** explain the indication — the patient is a healthy carrier. Most people carry a few. Listed for **reproductive relevance** (partner testing / genetic counselling), and deliberately kept out of the diagnostic sections so they cannot compete with the indication._
+{{ findings(carriers) }}
+{% endif %}
 {% if other %}
 ## Other candidates
 

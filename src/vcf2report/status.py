@@ -55,9 +55,17 @@ def readiness() -> dict:
             config.CLINVAR_TABIX.exists(), config.CLINVAR_TABIX,
             "PS1 / PM5 / PP5 / BP6 + the ≥2★ ClinVar safety flag. Missing → falls back to "
             "the bundled slice / live NCBI."),
+        # This table now drives three things, not one: PP4, and — via the inheritance modes
+        # HPO annotates per gene — the PVS1 recessive-LoF route and the PM2/BS1 AF ceilings.
+        # Its absence degrades conservatively (PVS1 falls back to the constraint-only gate,
+        # frequencies to the strict default) but SILENTLY, and recessive disease genes go
+        # back to being unreachable by PVS1 — so name the full cost here.
         "hpo": _store(
             config.HPO_GENES_LOCAL.exists(), config.HPO_GENES_LOCAL,
-            "PP4 — gene↔phenotype overlap. Missing → no phenotype prioritisation."),
+            "PP4 gene↔phenotype overlap + gene mode-of-inheritance (the PVS1 recessive-LoF "
+            "route and the PM2/BS1 frequency ceilings). Missing → no phenotype "
+            "prioritisation, PVS1 falls back to population constraint alone (blind to "
+            "recessive disease genes), and every gene takes the strict default AF ceiling."),
     }
     bundled = {
         "sample_vcf": config.SAMPLE_VCF.exists(),
