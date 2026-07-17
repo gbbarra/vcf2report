@@ -211,25 +211,36 @@ background cannot be called P/LP, so any "no over-call" claim on one is an artif
 **Read the two questions separately — conflating them inflates the number.**
 
 *Diagnostic sensitivity* — is the planted variant presented as the likely **diagnosis** (primary section)?
-**38/100.** Where the planted variant lands: **38 primary · 15 carrier · 20 incidental P/LP · 27 miss.**
+**58/100.** Where the planted variant lands: **58 primary · 36 carrier · 2 incidental P/LP · 4 miss.**
 
-That 38 is honest precisely because 15 went to *carrier* instead. The spiker plants every variant as a
-lone **heterozygote**, but 22 of the 100 genes are autosomal-**recessive**-only — where a single allele
+That 58 is honest precisely because 36 went to *carrier* instead. The spiker plants every variant as a
+lone **heterozygote**, but 36 of the 100 genes are autosomal-**recessive**-only — where a single allele
 is a healthy **carrier**, not a diagnosis. The engine reaches the (correct) Pathogenic tier on those
 variants and then correctly routes them to a **Carrier findings** section rather than calling them the
-answer. So the fair diagnostic denominator is the **78 biologically-coherent** cases (41 AD/X-linked +
-37 without recorded inheritance): **38/78 ≈ 49%**. The 22 lone-het-in-AR cases are a **cohort** limitation
-— an AR case must be planted biallelically (compound-het or homozygous) to test diagnostic recovery — not
-an engine miss. This is the anti-circular counterpart to the isolated harness: no ClinVar read-back, no
-single shared background, and the phenotype earns its keep (a decoy/random phenotype routes the gene only
-**17%** of the time vs the true phenotype's 44% — a **+27-point** discriminative gap).
+answer. So the fair diagnostic denominator is the **64 biologically-coherent** cases (the rest): **58/64
+≈ 91%**, with only 4 true misses. The 36 lone-het-in-AR cases are a **cohort** limitation — an AR case
+must be planted biallelically (compound-het or homozygous) to test diagnostic recovery — not an engine
+miss. This is the anti-circular counterpart to the isolated harness: no ClinVar read-back, no single
+shared background, and the phenotype earns its keep — a decoy (random) phenotype routes the gene to
+primary only **18%** of the time vs the true phenotype's **37%**.
 
-*Variant-level classification* — does the engine reach P/LP on the planted (genuinely pathogenic)
-variant, wherever it routes it? Opening PVS1 to recessive genes (see HOW_IT_WORKS — population constraint
-is blind to them) raised this from 49 to **65/100 engine-only**, **+16**, **12 gains / 0 losses, all 12 in
-AR genes**. But that number counts carriers and incidentals as reached-tier, so it is *not* a diagnostic
-figure — 10 of those 12 gains are the lone-het-AR carriers above. It is a correct measure of one thing
-only: the engine now classifies recessive LoF as the pathogenic variant it is.
+*What moved the number.* Two data/logic fixes, each measured, not assumed:
+- **PVS1 recognises recessive-LoF disease.** Gating PVS1 on population constraint (pLI/LOEUF) is blind to
+  recessive genes — the carrier is healthy, so the gene never looks constrained (see HOW_IT_WORKS). Adding
+  an established-AR-phenotype route lets the engine classify recessive LoF as the pathogenic variant it is
+  (then route lone hets to carrier). This is what produced the 36 correct carrier calls.
+- **The gene→phenotype/inheritance table was stale.** It was a frozen pyhpo snapshot missing 36 of the
+  cohort's disease genes entirely — dropping both their phenotype match and their inheritance. Rebuilding
+  from the current HPO release covered all 36 (each with inheritance): diagnostic sensitivity 38 → 58,
+  misses 27 → 4, decoy specificity essentially flat (17% → 18%) while true-phenotype routing rose 29% → 37%.
+
+*Phenotype aggregation is already near-optimal — measured, not assumed.* The primary routing scores a gene
+by the **best-match average** over the patient's HPO terms, at a 0.6 threshold. Sweeping alternatives on
+the cohort (top-K averages, max) against the decoy control refutes the tempting "top-K" idea: it lifts
+sensitivity but lifts the decoy false-match *more* (neuro/developmental terms are promiscuous, so a random
+phenotype also has a few strong matches). The all-term average is what separates a true fit (matches many
+of the patient's terms) from a decoy (matches a few) — it sits on the efficient frontier, and if anything
+0.65 buys more specificity (decoy 32% → 21% for one lost case).
 
 **Over-call (specificity), now real:** median **4** P/LP per ~100k-variant healthy exome (max 10) — of
 which ~60% are heterozygous recessive **carrier** alleles, which every healthy person carries a few of
@@ -245,7 +256,7 @@ flooding" was a pure artifact of the 0%-annotated background and is not comparab
 - The exomes+MANE store keeps PM2 conservative (see above) — a deliberate no-false-absence
   choice, quantified here rather than hidden.
 - **The SYN cohort plants lone heterozygotes**, so it cannot test diagnostic recovery for recessive
-  genes (a lone het there is a carrier by definition). 22/100 cases are affected; a cohort v2 must plant
+  genes (a lone het there is a carrier by definition). 36/100 cases are affected; a cohort v2 must plant
   AR cases biallelically. The engine's carrier routing is correct — the cohort is what is incomplete.
 - **The PVS1 recessive-LoF route is a gene-level proxy** (see HOW_IT_WORKS): "the gene has an established
   recessive phenotype" is not disease-scoped, so a gene with both an AD gain-of-function disease and an AR
