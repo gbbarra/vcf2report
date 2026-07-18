@@ -9,6 +9,7 @@ from .. import __version__
 from ..config import (AF_BA1, AF_RECESSIVE_MAX, GENOME_BUILD, QC_MIN_DP,
                       QC_MIN_GQ)
 from ..models import Classification, QCSummary, SeqQuality
+from .vus_triage import probable_pathogenic_vus
 
 
 @dataclass
@@ -285,6 +286,18 @@ def summarize(report: "ReportModel") -> list[str]:
         lines.append(f"Additional **Pathogenic / Likely Pathogenic** variant(s) not matching the "
                      f"stated phenotype and not on the ACMG SF actionable list: {g}. Clinical "
                      "relevance to the indication is uncertain — review in context.")
+
+    # Probable-pathogenic VUS: the engine held these at Uncertain Significance (correctly — the
+    # evidence is Supporting-only), but they overlap the phenotype AND carry molecular signal, so
+    # they are the VUS most worth a human+model second look. Tier unchanged; this is triage.
+    vus = probable_pathogenic_vus(report.classifications)
+    if vus:
+        g = "; ".join(f"{e['classification'].variant.gene} ("
+                      f"{', '.join(s['signal'] for s in e['signals'])})" for e in vus[:3])
+        lines.append(f"**Probable-pathogenic VUS for expert review** — phenotype-relevant variant(s) "
+                     f"the engine held at Uncertain Significance but which carry suggestive evidence: "
+                     f"{g}. Still VUS by ACMG — prioritised for exploration (literature, domain/"
+                     "functional context, the ClinVar assertion), which Claude can help work through.")
 
     sq = report.seq_quality
     if sq and sq.dp_median is not None and sq.dp_median < 20:

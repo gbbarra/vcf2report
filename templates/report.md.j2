@@ -106,6 +106,17 @@ _Pathogenic/Likely-Pathogenic alleles found in the **heterozygous** state in gen
 _Incidental P/LP not on the ACMG SF list, plus phenotype-unrelated uncertain/benign candidates. Not routinely reported._
 {{ findings(other) }}
 {% endif %}
+{% if vus %}
+## Probable-pathogenic VUS — for expert review
+
+_Phenotype-relevant variants the engine held at **Uncertain Significance** (correctly — the evidence is Supporting-only) but which carry suggestive molecular signal. The ACMG tier is unchanged; these are ranked for a human + model second look (literature on the residue/gene, domain / functional context, splicing prediction, and the ClinVar assertion's underlying evidence). Claude can help work through each._
+
+| Rank | Gene | Variant (c./p.) | Suggestive evidence |
+|---|---|---|---|
+{% for e in vus %}
+| {{ loop.index }} | {{ e.classification.variant.gene or '?' }} | {{ e.classification.variant.hgvs_c or '' }}{{ ' ' ~ e.classification.variant.hgvs_p if e.classification.variant.hgvs_p else '' }}{{ e.classification.variant.key if not (e.classification.variant.hgvs_c or e.classification.variant.hgvs_p) else '' }} | {{ e.signals | map(attribute='signal') | join('; ') }} |
+{% endfor %}
+{% endif %}
 
 ## Per-variant ACMG rationale (auditable)
 {% for c in r.classifications %}

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .. import config
 from .assemble import ReportModel, carrier_findings, split_findings, summarize
+from .vus_triage import probable_pathogenic_vus
 
 
 def render_markdown(report: ReportModel) -> str:
@@ -33,9 +34,10 @@ def render_markdown(report: ReportModel) -> str:
             # template can give them their own section instead of burying a reproductively
             # relevant finding among unrelated VUS.
             other = [c for c in other if c not in carriers]
+            vus = probable_pathogenic_vus(report.classifications)
             return env.get_template("report.md.j2").render(
                 r=report, primary=primary, secondary=secondary, other=other,
-                carriers=carriers, conclusion=summarize(report))
+                carriers=carriers, vus=vus, conclusion=summarize(report))
     except ImportError:
         pass
     return _render_markdown_builtin(report)
@@ -176,6 +178,26 @@ def _render_markdown_builtin(report: ReportModel) -> str:
                  "uncertain/benign candidates. Not routinely reported._")
         L.append("")
         _findings_table(other_non_carrier)
+
+    vus = probable_pathogenic_vus(report.classifications)
+    if vus:
+        L.append("## Probable-pathogenic VUS — for expert review")
+        L.append("")
+        L.append("_Phenotype-relevant variants the engine held at **Uncertain Significance** (correctly — "
+                 "the evidence is Supporting-only) but which carry suggestive molecular signal. The ACMG "
+                 "tier is unchanged; these are ranked for a human + model second look (literature on the "
+                 "residue/gene, domain / functional context, splicing prediction, and the ClinVar "
+                 "assertion's underlying evidence). Claude can help work through each._")
+        L.append("")
+        L.append("| Rank | Gene | Variant (c./p.) | Suggestive evidence |")
+        L.append("|---|---|---|---|")
+        for i, e in enumerate(vus, 1):
+            v = e["classification"].variant
+            hgvs = " ".join(x for x in [v.hgvs_c, v.hgvs_p] if x) or v.key
+            sig = "; ".join(f"{s['signal']} ({s['value']})" if s["value"] is not True else s["signal"]
+                            for s in e["signals"])
+            L.append(f"| {i} | {v.gene or '?'} | {hgvs} | {sig} |")
+        L.append("")
 
     L.append("## Per-variant ACMG rationale (auditable)")
     for c in report.classifications:
