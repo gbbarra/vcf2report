@@ -6,6 +6,12 @@ attention?** It uses real, published cases — not hand-invented variants.
 
 ## Data (all openly licensed)
 
+> **How the cohort was built — read [`COHORT_CONSTRUCTION.md`](COHORT_CONSTRUCTION.md) first.** The
+> backgrounds are real 1000G exomes **downloaded** from public S3 (not derived from the Parquet
+> stores); one pathogenic variant from a real patient case is **spiked in**. The construction — and
+> its honesty caveats (synthetic spike, exact-coord ClinVar vs synthetic label, tests classification
+> not calling) — is documented there so these numbers are read for what they are.
+
 | piece | source | license |
 |---|---|---|
 | variants + phenotypes | **GA4GH Phenopacket Store** (10,377 curated cases from 959 publications; GRCh38 coordinates, HGVS, HPO terms, ACMG P/LP) | BSD-3 |
