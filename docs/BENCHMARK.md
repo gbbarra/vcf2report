@@ -211,20 +211,42 @@ background cannot be called P/LP, so any "no over-call" claim on one is an artif
 **Read the two questions separately — conflating them inflates the number.**
 
 *Diagnostic sensitivity* — is the planted variant presented as the likely **diagnosis** (primary section)?
-**58/100.** Where the planted variant lands: **58 primary · 36 carrier · 2 incidental P/LP · 4 miss.**
+**91/100** on the faithful cohort. Where the planted variant lands: **91 primary · 2 incidental P/LP · 7 miss**
+(plus recessive carriers routed to the carrier section on the by-design single-allele cases).
 
-That 58 is honest precisely because 36 went to *carrier* instead. The spiker plants every variant as a
-lone **heterozygote**, but 36 of the 100 genes are autosomal-**recessive**-only — where a single allele
-is a healthy **carrier**, not a diagnosis. The engine reaches the (correct) Pathogenic tier on those
-variants and then correctly routes them to a **Carrier findings** section rather than calling them the
-answer. So the fair diagnostic denominator is the **64 biologically-coherent** cases (the rest): **58/64
-≈ 91%**, with only 4 true misses. The 36 lone-het-in-AR cases are a **cohort** limitation — an AR case
-must be planted biallelically (compound-het or homozygous) to test diagnostic recovery — not an engine
-miss. This is the anti-circular counterpart to the isolated harness: no ClinVar read-back, no single
-shared background, and the phenotype earns its keep — a decoy (random) phenotype routes the gene to
-primary only **18%** of the time vs the true phenotype's **37%**.
+**Fidelity matters — and the number earned its way up honestly.** Each planted variant was matched back to
+its GA4GH Phenopacket-Store case to recover the patient's *real* genotype: **22 compound-heterozygous** (both
+true alleles), **35 homozygous** (the real `allelicState`), **43 single-allele** (the source genuinely
+recorded one). An earlier cohort planted every variant as a lone heterozygote, which silently flattened
+every recessive patient into a *carrier* — the engine correctly declined to call those a diagnosis, but the
+cohort couldn't test recessive diagnostic recovery at all. The trajectory, all measured:
 
-*What moved the number.* Two data/logic fixes, each measured, not assumed:
+| cohort / fix | diagnostic (primary) |
+|---|---:|
+| lone-het spike, stale HPO table | 38/100 |
+| + current HPO release (gene→phenotype + inheritance) | 58/100 |
+| + **faithful biallelic genotypes** (phenopacket-matched) | 75/100 |
+| + **homozygous-diagnosis routing fix** | **91/100** |
+
+By genotype: **compound-het 22/22**, **homozygous 32/35**. All **9 non-primary are honest limitations, not
+misses the engine should have made** (each verified): 2 non-coding snRNA (RNU5B-1/RNU4-2 — outside the
+engine's protein-consequence scope), 2 genes the current HPO release *dropped* (U2AF2/MAPK8IP3 — still
+surfaced as P/LP, just not phenotype-elevated), 4 missense **VUS** (RBSN/MOCS3/ELFN1/SETD2 — insufficient
+variant-level evidence; homozygosity does not rescue a VUS), and 1 phenotype scoring just under the 0.6
+routing threshold (TRAF7 at 0.572 — the measured efficient frontier, below). This is the anti-circular
+counterpart to the isolated harness: no ClinVar read-back, no single shared background, and the phenotype
+earns its keep — a decoy (random) phenotype routes the gene to primary only **18%** of the time vs the true
+phenotype's **37%**.
+
+*The homozygous-diagnosis fix.* Making the AR cases faithfully homozygous exposed a real interaction bug: the
+`is_hom_absent_artifact` QC guard — hom + gnomAD-absent = an implausible genotype / calling-artifact
+signature, demoted out of primary — was created for a **healthy** exome, but that is *also* the textbook
+signature of a recessive **diagnosis** in an affected proband. It buried 16 of 35 homozygous diagnoses in
+"other". The fix keeps the guard but lets a **phenotype-matched P/LP** hom-absent variant into primary (with
+the confirm-the-genotype caveat still attached); a hom-absent variant that does *not* match the phenotype
+stays demoted, so calling artifacts still cannot flood a healthy proband's report.
+
+*What else moved the number.* Two data/logic fixes, each measured, not assumed:
 - **PVS1 recognises recessive-LoF disease.** Gating PVS1 on population constraint (pLI/LOEUF) is blind to
   recessive genes — the carrier is healthy, so the gene never looks constrained (see HOW_IT_WORKS). Adding
   an established-AR-phenotype route lets the engine classify recessive LoF as the pathogenic variant it is
