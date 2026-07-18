@@ -84,11 +84,16 @@ def split_findings(classifications):
     primary, secondary, other = [], [], []
     plp_hits = _plp_hits_by_gene(classifications)
     for c in classifications:
+        related = (c.annotation.hpo_match_score or 0) >= HPO_RELATED_MIN
         # QC caution: a homozygous genotype for a variant the store vouches is absent from gnomAD
-        # (AC=0) is implausible for a real allele (a homozygote needs the allele to exist in the
-        # population) and a classic calling-artifact signature in difficult regions. Keep it in the
-        # ranked table with its ACMG tier, but don't present it as a confident primary finding.
-        if is_hom_absent_artifact(c):
+        # (AC=0) is genotype-implausible — a homozygote needs the allele to exist — and a classic
+        # calling-artifact signature in difficult regions. On a HEALTHY exome that is noise. But
+        # hom + gnomAD-absent + P/LP + phenotype-matched is ALSO the textbook signature of a
+        # recessive DIAGNOSIS (a rare pathogenic allele, homozygous in an affected proband). The
+        # discriminator is the phenotype: demote it UNLESS it is a phenotype-matched P/LP finding,
+        # where the imperative to surface the candidate wins and the report carries the
+        # "confirm the genotype" caveat (surfaced via is_hom_absent_artifact) instead of hiding it.
+        if is_hom_absent_artifact(c) and not (related and c.tier in _PLP):
             other.append(c)
             continue
         # Carrier caution: a lone heterozygous null in a recessive-only gene is a PATHOGENIC
@@ -100,11 +105,9 @@ def split_findings(classifications):
         if _is_carrier(c, plp_hits):
             other.append(c)
             continue
-        # Route on the best-match-average (not the single strongest match): a random,
-        # unrelated phenotype clears the max on one broad term far too often, so the max
-        # is not specific. The average requires the phenotype as a whole to fit the gene —
-        # measured 2-3x more discriminative against a decoy control (see config).
-        related = (c.annotation.hpo_match_score or 0) >= HPO_RELATED_MIN
+        # `related` (best-match-average, computed above): a random, unrelated phenotype clears the
+        # max on one broad term far too often, so the max is not specific. The average requires the
+        # phenotype as a whole to fit the gene — measured 2-3x more discriminative vs a decoy.
         is_sf = c.variant.gene in ACMG_SF_GENES
         if related and c.tier not in _BENIGN:
             primary.append(c)
