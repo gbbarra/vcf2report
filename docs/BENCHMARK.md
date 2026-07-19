@@ -275,6 +275,31 @@ which ~60% are heterozygous recessive **carrier** alleles, which every healthy p
 (normal biology, correctly tiered and routed to carrier, not diagnosis). The prior "median 1, no
 flooding" was a pure artifact of the 0%-annotated background and is not comparable.
 
+*Scale check — a second, fully independent 100.* The cohort was doubled to 200: SYN-101..200 are **100
+more distinct 1000G backgrounds** (none reused), **100 new genes**, variants **oversampled toward the
+VUS-producing consequences** (67/100 missense + in-frame, vs 45 before) to stress the cases the engine
+defers on. Diagnostic sensitivity on this independent set is **89/100** — statistically the same as the
+first 100's 91, so the number is a property of the engine, not a fluke of one cohort (**~180/200**
+overall). Every non-primary case is again an honest limitation, not a miss the engine should have made.
+(Building the new 100 also earned its keep as a stress test: the new backgrounds hit a ClinVar record
+whose disease-name field carried a stray newline, which split the spiked VCF record in **14** cases — a
+cohort-construction bug the first 100 never triggered; found, fixed at the root, and re-hardened.)
+
+## Probable-pathogenic VUS — triaged, not reclassified
+
+The conservative engine correctly leaves a variant at **Uncertain Significance** when its evidence is all
+*Supporting* (a strong AlphaMissense score, a phenotype match, and even a ClinVar Pathogenic assertion do
+not, individually, reach Likely-Pathogenic — and PP5 is capped for anti-circularity). But a VUS carrying
+several such signals is not the same as one carrying none. `report/vus_triage.py` ranks the VUS by that
+suggestive evidence, **itemised** (so the operator sees *why*, not a black-box score), and surfaces the
+top ones for expert + model exploration — **the ACMG tier is never changed**. Two gates keep it specific
+to the indication: the gene must be **phenotype-relevant**, and it must carry **molecular support** beyond
+that — which drops the flag rate from 8.9 to **0.9 per exome**. On the oversampled new 100, the planted
+missense variant that the engine held at VUS is correctly prioritised in **4** cases (54/56 missense
+surfaced as diagnosis-or-triaged). This is the tool's stated stance made operational: the deterministic
+engine does the ACMG call; the genuinely uncertain variants are handed forward — with their evidence — for
+the judgement the engine deliberately withholds.
+
 ## Honest limitations
 
 - Single-proband: PS2/PM3/PM6/PP1/BS4 (de novo, in-trans, segregation) are N/A.
