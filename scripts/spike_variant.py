@@ -60,14 +60,21 @@ def main():
     a = ap.parse_args()
 
     cv = find_exact(a.clinvar, a.chrom, a.pos, a.ref, a.alt) or {}
+
+    def _clean(x):
+        # A newline or tab in an INFO value breaks the VCF record into pieces / shifts its columns.
+        # A ClinVar CLNDN can carry a stray one, so strip it. (Spaces are left as-is — CLNREVSTAT
+        # already uses them and the engine parses them.)
+        return str(x).replace("\n", "").replace("\r", "").replace("\t", " ") if x else x
+
     rec = {
         "chrom": str(a.chrom).replace("chr", ""), "pos": a.pos, "ref": a.ref, "alt": a.alt,
         "gene": a.gene, "rs": ".", "vid": cv.get("vid") or ".",
-        "csq": cv.get("csq") or a.consequence or "missense_variant",
+        "csq": _clean(cv.get("csq") or a.consequence or "missense_variant"),
         # exact ClinVar record when the coord matches this release; else a synthetic Pathogenic label
-        "clnsig": cv.get("clnsig") or "Pathogenic",
+        "clnsig": _clean(cv.get("clnsig") or "Pathogenic"),
         "clnrevstat": cv.get("clnrevstat") or ("criteria provided, single submitter" if not cv else ""),
-        "clndn": cv.get("clndn") or a.disease or "",
+        "clndn": _clean(cv.get("clndn") or a.disease or ""),
     }
     src = "exact ClinVar match" if cv else "coord planted; synthetic CLNSIG (not in this ClinVar)"
     print(f"  spike {a.gene} {a.chrom}:{a.pos} {a.ref}>{a.alt} [{rec['csq']}, {rec['clnsig']}] — {src}",

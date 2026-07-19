@@ -42,11 +42,16 @@ def _spike2_line(chrom, pos, ref, alt, gene, sample_cols):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--plan", default=str(REPO / "data" / "synthetic_cohort" / "v2_plan.json"))
+    ap.add_argument("--cohort-tsv", default=str(COHORT / "cohort.tsv"),
+                    help="cohort tsv with the rows to process (default v1 cohort.tsv)")
+    ap.add_argument("--src-dir", default=str(COHORT),
+                    help="dir holding the raw <syn>.synthetic.vcf.gz (default v1 cohort dir)")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
 
     plan = json.load(open(a.plan))          # keyed by syn_id (faithful phenopacket plan)
-    rows = list(csv.DictReader(open(COHORT / "cohort.tsv"), delimiter="\t"))
+    rows = list(csv.DictReader(open(a.cohort_tsv), delimiter="\t"))
+    src_dir = Path(a.src_dir)
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     from spike_pathogenic import _CHROM_ORDER  # noqa
 
@@ -54,7 +59,7 @@ def main():
     v2_manifest = []
     for r in rows:
         gene, syn = r["gene"], r["syn_id"]
-        src = COHORT / f"{syn}.synthetic.vcf.gz"
+        src = src_dir / f"{syn}.synthetic.vcf.gz"
         dst = out / f"{syn}.v2.vcf.gz"
         p = plan.get(syn)
         if p and p["mode"] not in ("hom", "compound_het"):
