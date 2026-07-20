@@ -83,6 +83,7 @@ const annotated = /ANNOTATED=yes/i.test(inspect || '')
 // installed. Annotation is what gives the laudo its gene/consequence/HGVS — only if it genuinely
 // cannot run do we fall back to explaining the coordinate-only limits.
 phase('🖥️ Local · Annotate')
+let isAnnotated = annotated   // updated below when Stage 3 annotates, so the triage reflects reality
 if (annotated) {
   log('🖥️ VCF already annotated — skipping annotation (consequence terms present).')
 } else {
@@ -96,6 +97,7 @@ if (annotated) {
     { label: '🖥️ annotate (bcftools norm + SnpEff MANE)', phase: '🖥️ Local · Annotate' })
   if (/ANNOTATE_EXIT=0/.test(ann || '')) {
     vcf = out
+    isAnnotated = true
     log('🖥️ Annotated — the laudo will carry gene, consequence and HGVS c./p.')
   } else {
     await agent(
@@ -110,40 +112,51 @@ if (annotated) {
 // 4 — 🤖 ANALYSIS TRIAGE — the honesty gate: say what this run can and cannot conclude
 phase('🤖 Claude · Analysis triage')
 const triage = await agent(
-  `From the inspection + capabilities already gathered for ${SAMPLE} (annotated=${annotated}, ` +
-  `reference=${REF ? 'provided' : 'none'}), give a short capability list: which ACMG criteria this run CAN ` +
-  `evaluate vs limited/NA, each with a one-line consequence for the laudo (e.g. 'no gnomAD store → PM2 disabled ` +
-  `→ over-call risk', 'single-proband → segregation N/A'). This gate is stated before running, not after.`,
+  `State the capability gate for ${SAMPLE} as it stands NOW, after annotation: the VCF ` +
+  `${isAnnotated ? 'IS functionally annotated (SnpEff MANE ran in Stage 4) — so PVS1/PM4/PP3/BP4 and HGVS ARE ' +
+    'evaluable' : 'is NOT annotated — PVS1/PM4/PP3/BP4 and HGVS are unavailable (coordinate-only)'}. ` +
+  `The three required Parquet stores (gnomAD · AlphaMissense · ClinVar) PASSED the Stage-1 gate, so PM2/BA1/BS1, ` +
+  `PP3/BP4 and PS1/PM5/PP5 ARE available — do NOT say 'no stores'. (A reference FASTA is optional and only adds ` +
+  `indel left-alignment; its absence does not disable any criterion.) Give a short list: which ACMG criteria ` +
+  `this run CAN evaluate vs limited/NA, each with a one-line consequence (e.g. 'single-proband → PS2/PM3 N/A'). ` +
+  `Be consistent with what the engine will actually do next — do not claim '0 criteria evaluable' when annotation ` +
+  `and the stores are both present.`,
   { label: '🤖 what can we conclude', phase: '🤖 Claude · Analysis triage' })
 
-// 5 — 🤖 PHENOTYPE → HPO — turn the clinician's free-text phenotype into HPO ids (only if no file given)
+// 5 — 🤖 PHENOTYPE → HPO — turn the clinician's free-text phenotype into HPO ids (only if no file given).
+// Claude MAPS the text to ids here; the FILE is written by the deterministic prioritize command below
+// (Stage 6), never by a separate agent — delegating a file write to an LLM lost the file silently before.
 phase('🤖 Claude · Phenotype → HPO')
+let hpoIds = []
 if (!hpoFile && a.phenotypeText) {
   const mapped = await agent(
     `The patient's phenotype, free text: "${a.phenotypeText}". Map it to Human Phenotype ` +
     `Ontology (HPO) ids. Return ONLY the HP: ids, comma-separated (e.g. HP:0001250,HP:0001263). ` +
     `Be precise and conservative — only terms clearly implied by the text.`,
     { label: '🤖 map phenotype→HPO', phase: '🤖 Claude · Phenotype → HPO' })
-  const ids = (mapped || '').match(/HP:\d+/gi) || []
-  if (ids.length) {
-    hpoFile = `${OUT}/hpo.txt`
-    await agent(
-      `cd ${REPO} && mkdir -p ${OUT} && printf '${ids.join('\\n')}\\n' > ${hpoFile} && ` +
-      `echo wrote ${ids.length} HPO terms. Return the count.`,
-      { label: '🖥️ write hpo.txt', phase: '🤖 Claude · Phenotype → HPO' })
-  }
+  hpoIds = (mapped || '').match(/HP:\d+/gi) || []
+  if (hpoIds.length) { hpoFile = `${OUT}/hpo.txt`; log(`🤖 Mapped the phenotype to ${hpoIds.length} HPO term(s).`) }
+  else { log('⚠️ The phenotype text did not map to any HPO id — the run will be genotype-only (no PP4).') }
 } else {
   log(hpoFile ? '🖥️ HPO terms supplied as a file.' : '🤖 No phenotype given — running genotype-only.')
 }
 const HPO = hpoFile ? `--hpo ${hpoFile}` : ''
+// Write the HPO file as part of the SAME command that runs the engine, and `test -s` it, so the
+// phenotype provably reaches the classifier (or the command fails loudly) rather than being dropped.
+const writeHpo = hpoIds.length ? `mkdir -p ${OUT} && printf '${hpoIds.join('\\n')}\\n' > ${hpoFile} && test -s ${hpoFile} && ` : ''
 
 // 6 — 🖥️ PRIORITIZE — the deterministic engine over gnomAD + AlphaMissense + ClinVar + HPO
 phase('🖥️ Local · Prioritize (gnomAD+AM+ClinVar+HPO)')
 const classify = await agent(
-  `cd ${REPO} && python3 scripts/run_headless.py ${vcf} ${HPO} --sample-id ${SAMPLE} ` +
+  `cd ${REPO} && ${writeHpo}python3 scripts/run_headless.py ${vcf} ${HPO} --sample-id ${SAMPLE} ` +
   `--out ${OUT} --timing 2>&1 | tail -40. Return: the RANKED candidate list (gene → tier, the phenotype- and ` +
   `tier-topped rows first), the funnel counts, and the per-stage timings. This runs the engine over gnomAD + ` +
-  `AlphaMissense + ClinVar + HPO — all local + deterministic, no network, no LLM.`,
+  `AlphaMissense + ClinVar + HPO — all local + deterministic, no network, no LLM. ` +
+  (a.phenotypeText
+    ? `A phenotype WAS provided, so the run must show phenotype terms loaded and phenotype-matched ranking — if ` +
+      `it instead reports "no phenotype terms / none provided", FLAG that loudly as a failure: the phenotype did ` +
+      `not reach the engine.`
+    : `No phenotype was provided — this is a genotype-only run.`),
   { label: '🖥️ run engine (gnomAD+AM+ClinVar+HPO)', phase: '🖥️ Local · Prioritize (gnomAD+AM+ClinVar+HPO)' })
 
 // 7 — 🖥️ QC — surface the funnel + sequencing quality + the gnomAD-store safety net as its own gate
