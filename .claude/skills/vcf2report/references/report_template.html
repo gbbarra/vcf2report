@@ -144,11 +144,26 @@
 
     <section class="pad band">
       <h2 class="sec">Findings &amp; auditable ACMG rationale</h2>
+      <!-- Order the cards by bucket: Primary first, then Secondary, then CARRIER, then
+           Probable-pathogenic VUS, then Other. The last two are NEW and must be rendered when the
+           report has them:
+           • CARRIER — a lone heterozygous P/LP allele in a recessive-ONLY gene. Its ACMG tier is real
+             but a single copy is NOT the diagnosis (the patient is a healthy carrier). Label the
+             bucket "Carrier — recessive, heterozygous" and add one line: "reproductive relevance,
+             not a diagnosis". From the report's "Carrier findings" section.
+           • PROBABLE-PATHOGENIC VUS — a VUS the engine held (correctly) but which is phenotype-relevant
+             AND molecularly suggestive (AlphaMissense / ClinVar / constraint). Label it
+             "Probable-pathogenic VUS — for expert review", keep the VUS tier pill, and list the
+             signals from the conclusion; note it is prioritised for exploration (which Claude can help
+             work through), NOT reclassified. From the conclusion's "Probable-pathogenic VUS" bullet.
+           Also: for a met PVS1, the reasoning must carry its mechanism basis (constraint / ClinGen
+           Haploinsufficiency=3 / autosomal-recessive phenotype) so the reader sees WHY it fired. -->
       <div class="cards">
-        <!-- Repeat this .vcard per candidate. class: path | lp | vus. -->
+        <!-- Repeat this .vcard per candidate. The card class is the ACMG TIER (path | lp | vus | ben),
+             independent of the bucket above — a Carrier card keeps its real path/lp tier colour. -->
         <div class="vcard path">
           <div class="vhead">
-            <div><span class="bucket">{{BUCKET: Primary — phenotype-matched | Secondary — ACMG SF v3.2 (actionable) | Other}}</span>
+            <div><span class="bucket">{{BUCKET: Primary — phenotype-matched | Secondary — ACMG SF v3.2 (actionable) | Carrier — recessive, heterozygous | Probable-pathogenic VUS — for expert review | Other}}</span>
               <div class="vgene">{{GENE}}<span class="hgvs">{{HGVS: report's "Variant (c./p.)" — e.g. c.1834C&gt;T (p.Arg612Ter); if none, show the CHR-POS-REF-ALT key}}</span><span class="coord">{{TRANSCRIPT (from the Transcript column; omit this token with its separator if the report shows "—")}} · {{COORD}} · {{CONSEQUENCE}}</span></div></div>
             <span class="tier">{{TIER}}</span>
           </div>

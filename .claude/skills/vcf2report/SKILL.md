@@ -143,6 +143,14 @@ NOT run the analysis. A merely **stale** ClinVar (past its weekly window) warns 
   <SAMPLE> --out <OUT> --timing` · **Desktop** `run_report(vcf_path, hpo_terms, sample_id, out_dir)`.
 - Read back the **ranked candidate list** (gene → tier, phenotype/tier-topped first), the funnel
   (variants → candidates), and the per-stage **timings**. All local + deterministic — no LLM, no network.
+- Surface the engine's **routing**, which is part of the answer, not just the tier:
+  - **Carrier findings** — a lone heterozygous P/LP in a recessive-only gene is a healthy **carrier**,
+    not the diagnosis (kept out of primary; reproductive relevance).
+  - **Probable-pathogenic VUS** — a VUS the engine correctly held but which is phenotype-relevant AND
+    molecularly suggestive (AlphaMissense/ClinVar/constraint), flagged for expert+model exploration
+    (tier unchanged). These are the VUS worth Claude's help to work through.
+  - For a met **PVS1**, name its mechanism basis: population constraint / **ClinGen Haploinsufficiency=3**
+    / established autosomal-recessive phenotype — so the reader sees *why* loss-of-function counts here.
 
 ### 7 · 🖥️ QC — the gate
 Surface QC as its own step: the funnel (total → PASS → QC-passing → candidates), the
@@ -159,7 +167,13 @@ Surface QC as its own step: the funnel (total → PASS → QC-passing → candid
    coordinate, tier pill, the data-fact row, the `rule_path`, and the full ACMG criteria table with
    met / N-A / — states), then Methods + the disclaimer footer. If the VCF was not VEP/SnpEff-
    annotated, HGVS/transcript are blank (show the coordinate) — say so, don't invent HGVS.
-3. Give the Artifact link + a 2–3 line summary (primary vs secondary/ACMG-SF, any ABraOM-dropped).
+   - **Order the cards by bucket** and render every bucket the report has: Primary → Secondary (ACMG
+     SF) → **Carrier findings** (recessive het — "reproductive relevance, not a diagnosis") →
+     **Probable-pathogenic VUS** (VUS tier kept, its signals listed, "prioritised for expert +
+     Claude exploration") → Other. The template's `{{BUCKET}}` lists all five.
+   - In each met **PVS1** row, carry the mechanism basis (constraint / ClinGen HI=3 / AR phenotype).
+3. Give the Artifact link + a 2–3 line summary: the primary finding, any **carrier** or
+   **probable-pathogenic VUS** worth follow-up, secondary/ACMG-SF, any ABraOM-dropped.
 
 ## Guardrails (always)
 - **Compact layout.** Render short values (QC metrics, per-variant facts) **inline** (the template's

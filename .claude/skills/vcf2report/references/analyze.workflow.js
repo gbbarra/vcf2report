@@ -158,9 +158,14 @@ const qc = await agent(
 phase('🤖 Claude · Laudo')
 const report = await agent(
   `Read ${REPO}/${OUT}/${SAMPLE}_report.md and return, as compact structured text for ` +
-  `rendering a laudo: the Conclusion bullets; the Sequencing-quality numbers; the primary ` +
-  `and secondary findings rows (gene, transcript, HGVS, consequence, tier, ACMG criteria); ` +
-  `and the Performance/timing lines. Do NOT re-classify — report the engine's calls faithfully.`,
+  `rendering a laudo: the Conclusion bullets; the Sequencing-quality numbers; and the findings rows ` +
+  `(gene, transcript, HGVS, consequence, tier, ACMG criteria) grouped by BUCKET in this order — ` +
+  `PRIMARY (phenotype-matched), SECONDARY (ACMG SF), **CARRIER** (recessive het — the tier is real but ` +
+  `it is NOT the diagnosis, reproductive relevance only), **PROBABLE-PATHOGENIC VUS** (a VUS the engine ` +
+  `held but that is phenotype-relevant + molecularly suggestive — list its signals, note it is ` +
+  `prioritised for expert+Claude exploration, tier UNCHANGED), then OTHER; plus the Performance/timing ` +
+  `lines. For each met PVS1, carry its mechanism basis (constraint / ClinGen HI=3 / AR phenotype). ` +
+  `Do NOT re-classify — report the engine's calls and routing faithfully.`,
   { label: '🤖 synthesize laudo', phase: '🤖 Claude · Laudo' })
 
 return { sample: SAMPLE, out: OUT, hpo: hpoFile, annotated, deps, inspect, triage, classify, qc, report }
