@@ -257,6 +257,13 @@ stays demoted, so calling artifacts still cannot flood a healthy proband's repor
   recessive genes — the carrier is healthy, so the gene never looks constrained (see HOW_IT_WORKS). Adding
   an established-AR-phenotype route lets the engine classify recessive LoF as the pathogenic variant it is
   (then route lone hets to carrier). This is what produced the 36 correct carrier calls.
+- **PVS1 keys on ClinGen Haploinsufficiency=3** — the curated "LoF causes disease" statement PVS1 actually
+  asks for, added as a third mechanism route. It rescues the late-onset / incompletely-penetrant dominants
+  constraint misses (TP53: LOEUF 0.469, yet HI=3). On the concordance panel this lifted pathogenic
+  sensitivity 63% → 67% (LoF-only 90.9% → **100%**) with **zero** pathogenic↔benign flips and unchanged
+  benign precision. Measured directly on healthy exomes too: P/LP-per-exome median stayed **4** (max 10),
+  and a het LoF landing in an HI gene — the new incidental class — occurred once in 15 exomes (TGFBR1),
+  so opening 418 dominant genes did not flood the background.
 - **The gene→phenotype/inheritance table was stale.** It was a frozen pyhpo snapshot missing 36 of the
   cohort's disease genes entirely — dropping both their phenotype match and their inheritance. Rebuilding
   from the current HPO release covered all 36 (each with inheritance): diagnostic sensitivity 38 → 58,
