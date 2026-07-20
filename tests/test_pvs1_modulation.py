@@ -248,3 +248,23 @@ def test_pvs1_clingen_haploinsufficiency_route(moi):
         assert not criteria.pvs1(v2, _ann(gene_lof_intolerant=False)).met
     finally:
         dosage._hi = monkey
+
+
+def test_clingen_hi_store_data_integrity():
+    """Lock the committed ClinGen HI store against a silent data regression — the wiring test
+    monkeypatches the set, so nothing else reads the real file. A bad fetch/merge that empties it,
+    drops TP53, or leaks a score-30 (recessive) / score-40 (dosage-unlikely) gene would otherwise
+    stay green. Skips cleanly if the file is not installed."""
+    from vcf2report.annotate import dosage
+    if not config.CLINGEN_HI_LOCAL.exists():
+        pytest.skip("ClinGen HI store not installed")
+    dosage._hi = None                       # force a real load from the committed file
+    try:
+        genes = dosage._load()
+        assert len(genes) >= 400, f"HI store shrank to {len(genes)} — suspect a truncated fetch"
+        for canary in ("TP53", "BRCA1", "BRCA2", "NF1", "PTEN"):   # classic HI=3
+            assert dosage.haploinsufficient(canary), f"{canary} missing — HI=3 filter/fetch broke"
+        for leaked in ("A4GALT", "AARS2"):    # ClinGen score 30 (autosomal recessive) — must NOT leak
+            assert not dosage.haploinsufficient(leaked), f"{leaked} (score-30) leaked past the HI=3 filter"
+    finally:
+        dosage._hi = None
