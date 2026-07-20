@@ -23,6 +23,7 @@ from __future__ import annotations
 from typing import Callable
 
 from .. import config
+from ..annotate.dosage import haploinsufficient
 from ..annotate.inheritance import lof_is_disease_mechanism
 from ..config import AF_BA1
 from ..models import Annotation, CriterionResult, Variant
@@ -115,16 +116,22 @@ def pvs1(v: Variant, a: Annotation) -> CriterionResult:
     # null is NOT the mechanism. Both routes are proxies for ClinGen gene-disease/dosage
     # curation and the report names which one fired.
     ar_mechanism = lof_is_disease_mechanism(v.gene)
-    mechanism = bool(a.gene_lof_intolerant) or ar_mechanism
+    clingen_hi = haploinsufficient(v.gene)
+    mechanism = bool(a.gene_lof_intolerant) or clingen_hi or ar_mechanism
     met = bool(v.is_lof and mechanism)
     strength = _pvs1_strength(v) if met else None
-    basis = ("gene is LoF-intolerant (population constraint)" if a.gene_lof_intolerant
+    # ClinGen HI=3 is a curated gene-disease-mechanism statement, so it is named first when present;
+    # constraint and the recessive-phenotype route are the proxies that fill the gaps it leaves.
+    basis = ("gene is ClinGen Haploinsufficiency=3 (curated: LoF causes disease)" if clingen_hi
+             else "gene is LoF-intolerant (population constraint)" if a.gene_lof_intolerant
              else "gene has an established autosomal-recessive phenotype (HPO)" if ar_mechanism
              else None)
     cites = []
+    if clingen_hi:
+        cites.append("ClinGen Dosage Sensitivity (HI=3, local)")
     if a.source.get("gene_lof_intolerant"):
         cites.append(a.source["gene_lof_intolerant"])
-    if ar_mechanism and not a.gene_lof_intolerant:
+    if ar_mechanism and not a.gene_lof_intolerant and not clingen_hi:
         cites.append("HPO gene-to-phenotype inheritance (local)")
     if met and strength != "very_strong":
         reason = (

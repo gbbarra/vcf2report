@@ -227,3 +227,24 @@ def test_pvs1_unannotated_unchanged(monkeypatch):
     c = classify(_v("stop_gained", None), _ann())
     pvs1 = next(x for x in c.criteria if x.code == "PVS1")
     assert pvs1.applied_strength == "very_strong" and c.tier == LIKELY_PATHOGENIC
+
+
+def test_pvs1_clingen_haploinsufficiency_route(moi):
+    """ClinGen Haploinsufficiency=3 is a curated 'LoF causes disease' statement — it opens PVS1 for
+    late-onset / incompletely-penetrant dominants that population constraint misses (TP53: LOEUF
+    0.469, 'not intolerant', yet a textbook haploinsufficient tumour suppressor)."""
+    from vcf2report.annotate import dosage
+    moi({})  # no HPO inheritance
+    monkey = dosage._hi
+    dosage._hi = {"TP53"}
+    try:
+        v = Variant(chrom="17", pos=1, ref="C", alt="A", gene="TP53",
+                    consequence="stop_gained", exon="4/11")
+        r = criteria.pvs1(v, _ann(gene_lof_intolerant=False))
+        assert r.met and "Haploinsufficiency=3" in r.evidence["lof_mechanism_basis"]
+        # a gene that is neither HI, constrained, nor recessive still does not fire
+        v2 = Variant(chrom="1", pos=1, ref="A", alt="T", gene="RANDO",
+                     consequence="stop_gained", exon="2/5")
+        assert not criteria.pvs1(v2, _ann(gene_lof_intolerant=False)).met
+    finally:
+        dosage._hi = monkey

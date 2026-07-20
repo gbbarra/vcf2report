@@ -61,6 +61,7 @@ HPO_GRAPH_LOCAL = DATA_DIR / "hpo" / "hpo_graph.tsv.gz"  # ontology + IC (build_
 # decoy to ~21% (76% true, ~55 pts discriminative). Aligned with the PP4 evidence bar (0.6).
 HPO_RELATED_MIN = 0.6
 CONSTRAINT_LOCAL = DATA_DIR / "constraint" / "gene_constraint.tsv.gz"
+CLINGEN_HI_LOCAL = DATA_DIR / "constraint" / "clingen_haploinsufficiency.tsv"
 INSILICO_LOCAL = DATA_DIR / "insilico" / "insilico.tsv"
 # AlphaMissense hg38 predictions (CC BY 4.0) — tabix-indexed, fetched once via
 # scripts/fetch_alphamissense.sh. Absent by default; the client degrades to None.

@@ -114,13 +114,22 @@ loss of function. Measured on the 100-exome cohort: 24 of 44 misses were null va
 that gate, their genes overwhelmingly recessive (Bardet-Biedl, Omenn, trichothiodystrophy...). The
 same blind spot misfires on late-onset dominants — TP53's LOEUF is 0.469, i.e. "not LoF-intolerant".
 
-So the gate is `constraint OR an established autosomal-recessive phenotype` (inheritance derived
-offline from the HPO gene-to-phenotype table, ~4.7k genes), and the report names which route fired
-(`lof_mechanism_basis`). Dominant genes still require the constraint evidence: a dominant phenotype
-can be gain-of-function or dominant-negative, where a null is *not* the mechanism. Both routes are
-**proxies** for ClinGen gene-disease-validity + dosage curation, which is what a clinical deployment
-should key PVS1 on; the AR route is also gene-level, so a gene with both an AD gain-of-function
-disease and an AR LoF disease is not yet distinguished (see Honest limitations).
+So the gate is `constraint OR ClinGen Haploinsufficiency=3 OR an established autosomal-recessive
+phenotype`, and the report names which route fired (`lof_mechanism_basis`):
+- **ClinGen Haploinsufficiency=3** — the authoritative route: an expert panel's curated statement
+  that losing one copy of the gene causes disease. This is exactly what ClinGen SVI asks PVS1 to key
+  on, and it rescues the late-onset / incompletely-penetrant dominants that population constraint
+  misses (TP53 has LOEUF 0.469, "not intolerant", yet is a textbook haploinsufficient tumour
+  suppressor). 418 genes, refreshed by `scripts/fetch_clingen_hi.sh`.
+- **population constraint** (pLI/LOEUF) — the proxy that fills gaps ClinGen has not curated.
+- **established autosomal-recessive phenotype** (HPO, offline) — for recessive genes, which
+  constraint is structurally blind to.
+
+Dominant genes without HI or constraint evidence still do NOT fire: a dominant phenotype can be
+gain-of-function or dominant-negative, where a null is *not* the mechanism. The constraint and HPO
+routes remain gene-level proxies (a gene with both an AD gain-of-function disease and an AR LoF
+disease is not yet disease-scoped — see Honest limitations); the ClinGen HI route is the curated
+ground truth where it exists.
 
 **Carrier findings.** Opening PVS1 to recessive genes makes the engine call the heterozygous null
 alleles every healthy person carries (2–3 on average). The Pathogenic **tier is correct** — ACMG
