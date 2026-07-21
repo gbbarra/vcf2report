@@ -63,6 +63,19 @@ tests the engine's **classification + prioritisation logic against a known answe
 against a **decoy** (random, mismatched) phenotype (`docs/BENCHMARK.md`), and the "engine-only" rate
 excludes the ClinVar read-back.
 
+**Is the visible `SPIKED` marker a "tell" the engine exploits? No — verified, not assumed.** The
+engine reads none of the plant's markers (`SPIKED`, `GENE`, `CSQ`, `CLNSIG`, …): it reclassifies from
+coordinate + genotype + the SnpEff consequence, joining gnomAD / ClinVar / AlphaMissense / HPO from
+its **own local stores**. Strip *every* marker from a planted record — leaving only `CHROM/POS/REF/ALT`,
+the genotype, and the SnpEff `ANN` any annotated VCF carries — and the classification is
+**byte-identical**: same tier, same criteria, same evidence values. (The ClinVar the engine reports is
+its store's, not the VCF's — proven because stripping the VCF's `CLNSIG` leaves it unchanged; the
+`gnomAD AF` was never in the VCF at all.) The `SPIKED=1` flag is a **build-time** convenience for
+locating the plant; correctness is scored by **coordinate** from the truth TSV, never by the flag. For
+a cohort with no visible marker, `scripts/spike_variant.py --realistic` plants a **tell-free** record
+that borrows a real background call's INFO/FORMAT — indistinguishable from a genuine call, statistically
+as well as visually. It changes no number, precisely because the markers were already ignored.
+
 ## 4. Faithful genotype (v2) — restoring the real zygosity
 
 v1 planted every variant as a lone **heterozygote**. That silently misrepresents recessive cases: a
@@ -104,6 +117,10 @@ bash scripts/fetch_syn_cohort_v2.sh        # or fetch the prebuilt v2 corpus
   identified; **not for clinical use**.
 - **Tests classification, not calling.** A spiked record is perfectly called by construction, so the
   cohort says nothing about upstream variant-calling sensitivity.
+- **The default plant is visually identifiable** (it carries `SPIKED`/`GENE`/`CSQ`/`CLN*` INFO and a
+  minimal FORMAT), but the engine **provably ignores** all of it — strip the markers and the call is
+  byte-identical (§3). `spike_variant.py --realistic` removes them entirely for a plant indistinguishable
+  from a real background call, without changing any result.
 - **Some spikes carry a synthetic ClinVar label** (coordinate not in the ClinVar release) — disclosed
   in §3; the engine's non-ClinVar ("engine-only") metric is reported separately for that reason.
 - **Public sources only:** 1000G DRAGEN (public S3), GA4GH Phenopacket Store (open), ClinVar (public

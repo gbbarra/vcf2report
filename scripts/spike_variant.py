@@ -43,6 +43,60 @@ def find_exact(clinvar_path, chrom, pos, ref, alt):
     return None
 
 
+_ANNOT_KEYS = {"ANN", "EFF", "LOF", "NMD"}
+
+
+def _strip_annot(info: str) -> str:
+    """Drop position-specific functional annotation from a borrowed INFO — SnpEff re-derives it
+    for the spike's real coordinate. Keeps the caller's quality stats (AC/AF/DP/MQ/QD/FS/SOR/…)."""
+    kept = [kv for kv in info.split(";") if kv.split("=", 1)[0] not in _ANNOT_KEYS]
+    return ";".join(kept) or "."
+
+
+def _pick_template(records, zyg):
+    """A REAL background call of the target zygosity whose INFO/FORMAT the spike will borrow, so the
+    planted record is statistically indistinguishable from a genuine call (a different template per
+    spike → values vary). Prefers a PASS SNV with the full DRAGEN FORMAT nearest 44x depth."""
+    best, best_d = None, 1e18
+    for f in records:
+        if len(f) < 10 or len(f[3]) != 1 or len(f[4]) != 1 or f[6] != "PASS":
+            continue
+        fmt = f[8].split(":")
+        if "GT" not in fmt or "F1R2" not in fmt:        # require a full DRAGEN FORMAT template
+            continue
+        smp = f[9].split(":")
+        gt = smp[fmt.index("GT")].replace("|", "/")
+        z = "hom" if gt == "1/1" else "het" if gt in ("0/1", "1/0") else None
+        if z != zyg:
+            continue
+        dp = 44
+        if "DP" in fmt:
+            try:
+                dp = int(smp[fmt.index("DP")])
+            except ValueError:
+                pass
+        d = abs(dp - 44)
+        if d < best_d:
+            best, best_d = f, d
+    return best
+
+
+def spiked_line_realistic(rec, records, style, zyg, col_count):
+    """A tell-free spiked record: a real background call of the same zygosity, relocated to the
+    spike's coordinate/alleles, annotation stripped (SnpEff re-adds it). No GENE/CSQ/CLN*/SPIKED —
+    truth is tracked externally by coordinate (cohort.tsv / truth.tsv). Requires later SnpEff
+    annotation for the engine to derive consequence. Returns None if no suitable template exists."""
+    tmpl = _pick_template(records, zyg)
+    if tmpl is None:
+        return None
+    chrom = ("chr" + rec["chrom"]) if style == "chr" else rec["chrom"]
+    fixed = [chrom, str(rec["pos"]), ".", rec["ref"], rec["alt"],
+             tmpl[5], "PASS", _strip_annot(tmpl[7]), tmpl[8], tmpl[9]]
+    while len(fixed) < col_count:
+        fixed.append(".")
+    return fixed
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--exome", required=True)
@@ -56,6 +110,10 @@ def main():
     ap.add_argument("--disease", default="")
     ap.add_argument("--zygosity", default="het")
     ap.add_argument("--sample-id", default="SYN-001")
+    ap.add_argument("--realistic", action="store_true",
+                    help="Plant a tell-free record indistinguishable from a real call (borrows a "
+                         "background call's INFO/FORMAT; no GENE/CSQ/CLN*/SPIKED). Needs SnpEff "
+                         "annotation before classification; truth is the external cohort/truth TSV.")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
 
@@ -82,23 +140,42 @@ def main():
 
     meta, col_line, records, style = load_exome(a.exome)
     cols = col_line.split("\t")
-    spike = spiked_line(rec, style, a.zygosity, a.sample_id, len(cols))
+    used_realistic = False
+    spike = None
+    if a.realistic:
+        spike = spiked_line_realistic(rec, records, style, a.zygosity, len(cols))
+        if spike is None:
+            print("  WARN: no full-FORMAT background call of matching zygosity to borrow — "
+                  "falling back to the minimal (tell-bearing) record", file=sys.stderr)
+        else:
+            used_realistic = True
+            print("  realistic: borrowed a real background call's INFO/FORMAT; no spike markers "
+                  "(truth = external cohort/truth TSV; annotate with SnpEff before classifying)",
+                  file=sys.stderr)
+    if spike is None:
+        spike = spiked_line(rec, style, a.zygosity, a.sample_id, len(cols))
 
     all_rows = records + [spike]
     all_rows.sort(key=lambda f: (_CHROM_ORDER.get(f[0].replace("chr", ""), 99), int(f[1])))
     new_cols = cols[:9] + [a.sample_id] + ["." for _ in cols[10:]]
 
-    extra_meta = [
-        '##INFO=<ID=GENE,Number=1,Type=String,Description="Gene symbol (spiked)">',
-        '##INFO=<ID=CSQ,Number=1,Type=String,Description="Molecular consequence (spiked)">',
-        '##INFO=<ID=CLNSIG,Number=1,Type=String,Description="ClinVar significance (spiked)">',
-        '##INFO=<ID=CLNREVSTAT,Number=1,Type=String,Description="ClinVar review status (spiked)">',
-        '##INFO=<ID=CLNDN,Number=1,Type=String,Description="ClinVar disease name (spiked)">',
-        '##INFO=<ID=CLNVID,Number=1,Type=String,Description="ClinVar Variation ID (spiked)">',
-        '##INFO=<ID=SPIKED,Number=0,Type=Flag,Description="Synthetically spiked pathogenic variant">',
-        "##comment=SYNTHETIC: real 1000G background with ONE exact ClinVar/phenopacket pathogenic "
-        "variant spiked in. De-identified. Not real patient data. Not for clinical use.",
-    ]
+    comment = ("##comment=SYNTHETIC: real 1000G background with ONE exact ClinVar/phenopacket "
+               "pathogenic variant spiked in. De-identified. Not real patient data. Not for clinical use.")
+    # Realistic records carry no per-variant markers, so they need no extra INFO definitions — only
+    # the file-level provenance comment. The minimal record declares its GENE/CSQ/CLN*/SPIKED tags.
+    if used_realistic:
+        extra_meta = [comment]
+    else:
+        extra_meta = [
+            '##INFO=<ID=GENE,Number=1,Type=String,Description="Gene symbol (spiked)">',
+            '##INFO=<ID=CSQ,Number=1,Type=String,Description="Molecular consequence (spiked)">',
+            '##INFO=<ID=CLNSIG,Number=1,Type=String,Description="ClinVar significance (spiked)">',
+            '##INFO=<ID=CLNREVSTAT,Number=1,Type=String,Description="ClinVar review status (spiked)">',
+            '##INFO=<ID=CLNDN,Number=1,Type=String,Description="ClinVar disease name (spiked)">',
+            '##INFO=<ID=CLNVID,Number=1,Type=String,Description="ClinVar Variation ID (spiked)">',
+            '##INFO=<ID=SPIKED,Number=0,Type=Flag,Description="Synthetically spiked pathogenic variant">',
+            comment,
+        ]
     have = set(meta)
     meta_out = meta + [m for m in extra_meta if m not in have]
 
