@@ -177,7 +177,12 @@ def test_frozen_alphamissense_recovers_missense(monkeypatch):
     e.frozen_alphamissense = {"am_pathogenicity": 0.999, "am_class": "likely_pathogenic"}
     c = concordance.classify_entry(e, withhold_clinvar=True)
     assert "PP3" in c.met_codes and "PM2" in c.met_codes
-    assert collapse_engine_tier(c.tier) == PATH   # VUS -> PATH via calibrated PP3_Strong
+    # Default (PM2 Supporting): a strong predictor + rarity alone is one point short of LP -> VUS.
+    assert collapse_engine_tier(c.tier) == UNCERTAIN
+    # Under the Moderate override the calibrated PP3_Strong recovers it to PATH (LP).
+    monkeypatch.setenv("VCF2REPORT_PM2_STRENGTH", "moderate")
+    c2 = concordance.classify_entry(e, withhold_clinvar=True)
+    assert collapse_engine_tier(c2.tier) == PATH
 
 
 def test_load_panel_attaches_alphamissense(tmp_path):

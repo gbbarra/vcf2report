@@ -89,12 +89,17 @@ def test_ambiguous_band_fires_neither():
 # ---------------------------------------------------------------------------
 # The recovery: a rare missense with a strong AlphaMissense score reaches LP
 # ---------------------------------------------------------------------------
-def test_rare_missense_strong_am_recovered_to_lp():
+def test_rare_missense_strong_am_triaged_not_lp(monkeypatch):
     v = _v()  # missense, non-LoF gene
     a = _ann(gnomad_af=0.0, gnomad_faf95=0.0, am_pathogenicity=0.999)
     c = classify(v, a)
     assert "PM2" in c.met_codes and "PP3" in c.met_codes
-    assert c.tier == LIKELY_PATHOGENIC   # PM2 + PP3_Strong -> LP-2
+    # Default (PM2 Supporting, ClinGen SVI 2020): PP3_Strong + PM2_Supporting is one point short of
+    # LP -> VUS. Surfaced by the probable-pathogenic-VUS triage, not called LP on in-silico alone.
+    assert c.tier == VUS
+    # Legacy Richards-2015 Moderate override still recovers it to LP-2.
+    monkeypatch.setenv("VCF2REPORT_PM2_STRENGTH", "moderate")
+    assert classify(v, a).tier == LIKELY_PATHOGENIC
 
 
 def test_rare_missense_moderate_am_stays_vus():
@@ -107,12 +112,16 @@ def test_rare_missense_moderate_am_stays_vus():
 # Adversarial: a miscalibrated high AM on a rare *benign* variant would flip it
 # to LP — the engine must at least produce that (so the panel can catch it).
 # ---------------------------------------------------------------------------
-def test_high_am_on_rare_variant_produces_path_call():
-    # This is the failure mode the concordance panel guards against: if such a
-    # variant were ClinVar-benign, this LP call would be a gross discordance.
-    c = classify(_v(), _ann(gnomad_af=0.0, gnomad_faf95=0.0, am_pathogenicity=0.9995))
+def test_high_am_on_rare_variant_pm2_strength(monkeypatch):
     from vcf2report.concordance import collapse_engine_tier, PATH
-    assert collapse_engine_tier(c.tier) == PATH
+    a = _ann(gnomad_af=0.0, gnomad_faf95=0.0, am_pathogenicity=0.9995)
+    # Default (PM2 Supporting): rare + a single in-silico predictor no longer reaches LP, so this is
+    # NOT a potential gross discordance — the engine holds it at VUS.
+    assert collapse_engine_tier(classify(_v(), a).tier) != PATH
+    # Under the Moderate override it reaches LP/PATH — the failure mode the panel guards against
+    # (a miscalibrated high AM on a ClinVar-benign variant would then be a gross discordance).
+    monkeypatch.setenv("VCF2REPORT_PM2_STRENGTH", "moderate")
+    assert collapse_engine_tier(classify(_v(), a).tier) == PATH
 
 
 # ---------------------------------------------------------------------------

@@ -53,8 +53,14 @@ def _pathogenic_rule(c: dict[str, int]) -> str | None:
 
 def _likely_pathogenic_rule(c: dict[str, int]) -> str | None:
     pvs, ps, pm, pp = c["PVS"], c["PS"], c["PM"], c["PP"]
-    if pvs >= 1 and pm == 1:
-        return "LP-1 (PVS1 + 1 Moderate)"
+    # PVS1 (very strong) + at least one other criterion -> Likely Pathogenic. On the ClinGen/Tavtigian
+    # scale PVS1(8) + any Supporting(1) = 9 = LP, but the 2015 Table-5 only had "PVS1 + 1 Moderate";
+    # once PM2 is Supporting (the default) a novel truncation (PVS1 + PM2) would wrongly fall to VUS.
+    # This floors it to LP. It requires a SECOND criterion on purpose: PVS1 ALONE (e.g. a null variant
+    # that is present in gnomAD, so PM2 does not fire) stays VUS — which is what keeps incidental het
+    # LoF from flooding a healthy exome.
+    if pvs >= 1 and (pm >= 1 or pp >= 1):
+        return "LP-1 (PVS1 + Moderate)" if pm >= 1 else "LP-1 (PVS1 + Supporting)"
     if ps == 1 and 1 <= pm <= 2:
         return "LP-2 (1 Strong + 1-2 Moderate)"
     if ps == 1 and pp >= 2:

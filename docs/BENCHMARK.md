@@ -78,11 +78,21 @@ a real production bug plus two harness-fidelity issues that had inflated an earl
   still 0 gross discordances / 100% precision / 60% sensitivity. Residual risk (a variant in
   gnomAD genomes but not exomes) was 0/12 empirically; a joint (exomes+genomes) MANE build
   closes it fully.
-- **MEASURED, kept opt-in — ClinGen points model.** With region-aware PM2 in place,
-  `VCF2REPORT_ACMG_MODEL=clingen` gives the *same* benchmark result (6/12 P/LP, 11/12
-  surfaced) but **regresses the concordance panel to 37%** (a no-phenotype artifact: strict
-  ClinGen points call a rare missense-without-phenotype VUS). So Richards stays the default;
-  clingen remains available via the env var for labs that prefer the SVI points scheme.
+- **CALIBRATED — PM2 Supporting is now the default (ClinGen SVI 2020).** A 200-case cohort
+  measured three combining configs (`scripts/model_compare.py`, method validated 15/15 recompute
+  vs the real env): **(A)** Table-5 + PM2 *Moderate* (the old default) — 180/200 diagnostic,
+  over-call median 3, healthy HG00097 3 P/LP incl. the two incidental *missense* calls DISP3 &
+  HSPA12A; **(B)** the ClinGen/Tavtigian *points* combiner — floods over-call to median 13
+  (healthy 10), rejected, stays opt-in; **(C, adopted)** Table-5 + PM2 *Supporting* — a rare
+  missense with only AlphaMissense (PM2+PP3) no longer reaches LP, it is held at **VUS** and
+  surfaced by the probable-pathogenic-VUS triage (DISP3 & HSPA12A on the healthy exome become
+  VUS). A **surgical PVS1 floor** (`PVS1 + ≥1 other criterion → LP`; a genuine novel truncation
+  stays LP, while PVS1-*alone* — a null present in gnomAD, PM2 not firing — stays VUS) keeps the
+  LoF concordance at **100%** and preserves reportable ACMG-SF findings. Net vs (A): same
+  **179/200** diagnostic (the 1 shifted case is VUS-triaged, still surfaced, 187 surfaced either
+  way), the *missense* PM2+PP3 over-call removed, LoF at parity. Knobs:
+  `VCF2REPORT_PM2_STRENGTH=moderate` restores the Richards-2015 default;
+  `VCF2REPORT_ACMG_MODEL=clingen` selects the points combiner.
 
 ## Results
 

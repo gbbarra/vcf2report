@@ -117,10 +117,15 @@ def offline() -> bool:
 
 
 # ---------------------------------------------------------------------------
-# ACMG combining model — Richards 2015 Table 5 (default) vs the ClinGen/Tavtigian
-# naturally-scaled POINTS system (Tavtigian et al., Genet Med 2020) together with
-# the ClinGen SVI 2020 refinement that downgrades PM2 from Moderate to Supporting.
-# Toggle with VCF2REPORT_ACMG_MODEL=clingen. Deterministic either way.
+# ACMG combining model — the Richards 2015 Table-5 combiner (default) vs the
+# ClinGen/Tavtigian naturally-scaled POINTS system (Tavtigian et al., Genet Med 2020).
+# Toggle the combiner with VCF2REPORT_ACMG_MODEL=clingen. Deterministic either way.
+#
+# PM2 strength is a SEPARATE knob (VCF2REPORT_PM2_STRENGTH) and defaults to Supporting
+# (ClinGen SVI 2020) — see pm2_strength(). Default engine = Table-5 combiner + PM2
+# Supporting, which a 200-case cohort measured as the best specificity/sensitivity
+# trade (over-call median 3→1, −75% total, at the same 187 surfaced coverage) vs the
+# legacy Table-5 + PM2 Moderate. The points model floods over-call and is not the default.
 # ---------------------------------------------------------------------------
 def acmg_model() -> str:
     m = (os.environ.get("VCF2REPORT_ACMG_MODEL") or "richards").strip().lower()
@@ -128,8 +133,15 @@ def acmg_model() -> str:
 
 
 def pm2_strength() -> str:
-    """PM2 applied strength: Moderate (Richards) or Supporting (ClinGen SVI 2020)."""
-    return "supporting" if acmg_model() == "clingen" else "moderate"
+    """PM2 applied strength. Default **Supporting** (ClinGen SVI 2020): population absence is weak
+    evidence, so a rare variant with only a computational predictor no longer reaches Likely
+    Pathogenic on PM2+PP3 alone. With the Richards Table-5 combiner this is the configuration the
+    200-case cohort measured best — over-call cut ~75% (median 3→1) for the same surfaced coverage
+    (187). Override with VCF2REPORT_PM2_STRENGTH=moderate to restore the Richards-2015 default."""
+    ov = (os.environ.get("VCF2REPORT_PM2_STRENGTH") or "").strip().lower()
+    if ov in ("moderate", "supporting"):
+        return ov
+    return "supporting"
 
 
 # ---------------------------------------------------------------------------

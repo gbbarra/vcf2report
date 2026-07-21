@@ -17,12 +17,18 @@ def _cr(code, strength):
 # Model toggle
 # ---------------------------------------------------------------------------
 def test_acmg_model_toggle(monkeypatch):
+    # The Table-5-vs-points combiner and the PM2 strength are SEPARATE knobs now.
+    monkeypatch.delenv("VCF2REPORT_PM2_STRENGTH", raising=False)
     monkeypatch.setenv("VCF2REPORT_ACMG_MODEL", "richards")
-    assert config.acmg_model() == "richards" and config.pm2_strength() == "moderate"
+    assert config.acmg_model() == "richards"
+    assert config.pm2_strength() == "supporting"   # default: ClinGen SVI 2020, decoupled from the combiner
     monkeypatch.setenv("VCF2REPORT_ACMG_MODEL", "clingen")
     assert config.acmg_model() == "clingen" and config.pm2_strength() == "supporting"
     monkeypatch.setenv("VCF2REPORT_ACMG_MODEL", "points")
     assert config.acmg_model() == "clingen"
+    # PM2 strength override restores the legacy Richards-2015 Moderate.
+    monkeypatch.setenv("VCF2REPORT_PM2_STRENGTH", "moderate")
+    assert config.pm2_strength() == "moderate"
 
 
 # ---------------------------------------------------------------------------
@@ -67,12 +73,17 @@ def test_clingen_missense_strong_am_is_vus(monkeypatch):
     assert c.tier == VUS
 
 
-def test_richards_missense_strong_am_is_lp(monkeypatch):
-    # Same variant under Richards: PM2(Moderate) + PP3_Strong -> LP-2.
+def test_richards_missense_pm2_strength(monkeypatch):
+    # Richards Table-5 combiner, rare missense + strong AlphaMissense = PM2 + PP3_Strong.
     monkeypatch.setenv("VCF2REPORT_ACMG_MODEL", "richards")
     v = Variant(chrom="1", pos=1, ref="A", alt="T", gene="G", consequence="missense_variant")
-    c = classify(v, _ann(gnomad_af=0.0, gnomad_faf95=0.0, am_pathogenicity=0.999))
-    assert c.tier == LIKELY_PATHOGENIC
+    a = _ann(gnomad_af=0.0, gnomad_faf95=0.0, am_pathogenicity=0.999)
+    # Default PM2 Supporting: one point short of LP -> held at VUS (the probable-pathogenic VUS).
+    monkeypatch.delenv("VCF2REPORT_PM2_STRENGTH", raising=False)
+    assert classify(v, a).tier == VUS
+    # Legacy PM2 Moderate override -> LP-2.
+    monkeypatch.setenv("VCF2REPORT_PM2_STRENGTH", "moderate")
+    assert classify(v, a).tier == LIKELY_PATHOGENIC
 
 
 # ---------------------------------------------------------------------------
