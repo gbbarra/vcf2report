@@ -24,10 +24,15 @@ n="$(find "$V2" -name 'SYN-*.v2.vcf.gz' 2>/dev/null | wc -l | tr -d ' ')"
 [ "$n" -ge 100 ] || { echo "ERROR: only $n/100 v2 VCFs in $V2 — run scripts/build_v2_biallelic.py --out $V2 first." >&2; exit 1; }
 [ -f "$V2/v2_faithful_plan.json" ] || { echo "ERROR: $V2/v2_faithful_plan.json missing." >&2; exit 1; }
 
+echo "Materialising HPO sidecars from cohort.tsv, co-located in v2/ (never ship an empty --hpo file) ..." >&2
+python3 "$REPO_ROOT/scripts/fill_hpo_sidecars.py" "$DIR/cohort.tsv" "$V2"
+empty="$(find "$V2" -name 'SYN-*.hpo.txt' -empty | wc -l | tr -d ' ')"
+[ "$empty" -eq 0 ] || { echo "ERROR: $empty empty HPO sidecars in $V2 after fill — aborting publish." >&2; exit 1; }
+
 echo "Packaging $n faithful biallelic exomes + HPO + truth -> $ASSET ..." >&2
 ( cd "$DIR" && tar --exclude='._*' -cf - \
-    v2/SYN-*.v2.vcf.gz v2/SYN-*.v2.vcf.gz.tbi v2/v2_manifest.json v2/v2_faithful_plan.json \
-    SYN-*.hpo.txt truth.tsv cohort.tsv ) \
+    v2/SYN-*.v2.vcf.gz v2/SYN-*.v2.vcf.gz.tbi v2/SYN-*.hpo.txt \
+    v2/v2_manifest.json v2/v2_faithful_plan.json truth.tsv cohort.tsv ) \
   | zstd -3 -T0 -o "$WORK/$ASSET" -q
 ( cd "$WORK" && shasum -a 256 "$ASSET" > SHA256SUMS )
 echo "  size: $(du -h "$WORK/$ASSET" | cut -f1)" >&2
@@ -48,8 +53,9 @@ Why: v1 planted every variant as a lone heterozygote, which for an autosomal-rec
 healthy CARRIER, not a diagnosis — so v1 could not test recessive diagnostic recovery. v2 fixes that.
 
 Contents: v2/SYN-00N.v2.vcf.gz(+.tbi) (raw, un-annotated — annotate with scripts/annotate_syn_cohort.sh),
+v2/SYN-00N.hpo.txt (the case's HPO terms, one per line, co-located with each VCF),
 v2/v2_manifest.json (per-case genotype mode), v2/v2_faithful_plan.json (the second alleles),
-SYN-00N.hpo.txt, truth.tsv, cohort.tsv.
+truth.tsv, cohort.tsv.
 
 Measured recovery (docs/BENCHMARK.md): diagnostic sensitivity 91/100 (compound-het 22/22, hom 32/35);
 the 9 non-primary are honest limitations (non-coding RNA, HPO-dropped genes, missense VUS, one
