@@ -23,6 +23,11 @@ n="$(find "$V" -name 'SYN-*.synthetic.vcf.gz' 2>/dev/null | wc -l | tr -d ' ')"
 [ "$n" -ge 100 ] || { echo "ERROR: only $n/100 expansion VCFs in $V — run scripts/run_cohort_v2_loop.sh first." >&2; exit 1; }
 [ -f "$V/truth.tsv" ] || { echo "ERROR: $V/truth.tsv missing." >&2; exit 1; }
 
+echo "Materialising HPO sidecars from cohort_v2.tsv (never ship an empty --hpo file) ..." >&2
+python3 "$REPO_ROOT/scripts/fill_hpo_sidecars.py" "$DIR/cohort_v2.tsv" "$V"
+empty="$(find "$V" -name 'SYN-*.hpo.txt' -empty | wc -l | tr -d ' ')"
+[ "$empty" -eq 0 ] || { echo "ERROR: $empty empty HPO sidecars in $V after fill — aborting publish." >&2; exit 1; }
+
 echo "Packaging $n expansion exomes + HPO + truth -> $ASSET ..." >&2
 ( cd "$DIR" && tar --exclude='._*' -cf - \
     v2_build/SYN-*.synthetic.vcf.gz v2_build/SYN-*.synthetic.vcf.gz.tbi v2_build/SYN-*.hpo.txt \
