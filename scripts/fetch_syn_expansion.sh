@@ -25,5 +25,5 @@ echo "Verifying checksum ..." >&2
 ( cd "$WORK" && shasum -a 256 -c SHA256SUMS )
 echo "Extracting -> $DIR ..." >&2
 mkdir -p "$DIR"
-zstd -dc "$WORK/$ASSET" | tar -C "$DIR" -xf -
+zstd -dc "$WORK/$ASSET" | tar --exclude='._*' -C "$DIR" -xf -
 echo "OK: $(find "$DIR/v2_build" -name 'SYN-*.synthetic.vcf.gz' | wc -l | tr -d ' ') expansion exomes ready in $DIR/v2_build." >&2
