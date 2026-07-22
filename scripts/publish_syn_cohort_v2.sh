@@ -10,6 +10,7 @@
 #
 #   scripts/publish_syn_cohort_v2.sh
 set -euo pipefail
+export COPYFILE_DISABLE=1  # macOS: don't let tar synthesize ._* AppleDouble sidecars
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIR="$REPO_ROOT/data/synthetic_cohort"

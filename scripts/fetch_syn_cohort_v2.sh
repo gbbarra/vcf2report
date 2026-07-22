@@ -25,6 +25,6 @@ echo "Verifying checksum ..." >&2
 ( cd "$WORK" && shasum -a 256 -c SHA256SUMS )
 echo "Extracting -> $DIR ..." >&2
 mkdir -p "$DIR"
-zstd -dc "$WORK/$ASSET" | tar -C "$DIR" -xf -
+zstd -dc "$WORK/$ASSET" | tar --exclude='._*' -C "$DIR" -xf -
 echo "OK: $(find "$DIR/v2" -name 'SYN-*.v2.vcf.gz' | wc -l | tr -d ' ') faithful exomes ready in $DIR/v2." >&2
 echo "Annotate: bash scripts/annotate_syn_cohort.sh   (point it at the v2 dir)" >&2

@@ -7,6 +7,7 @@
 #   scripts/publish_realistic_cohort.sh            # build + verify only (no upload)
 #   scripts/publish_realistic_cohort.sh --upload   # also upload to GitHub
 set -euo pipefail
+export COPYFILE_DISABLE=1  # macOS: don't let tar synthesize ._* AppleDouble sidecars
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 R="$REPO_ROOT/data/synthetic_cohort/realistic"
 UPLOAD=0; [ "${1:-}" = "--upload" ] && UPLOAD=1
