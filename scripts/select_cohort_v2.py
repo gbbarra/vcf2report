@@ -35,11 +35,10 @@ for fp in glob.glob(f"{SP}/pp/**/*.json", recursive=True):
         key=(norm(pv["chrom"]),str(pv["pos"]),pv["ref"].upper(),pv["alt"].upper())
         if key in used_coords: continue
         cons=classify(pv.get("hgvs_p"), pv["ref"], pv["alt"])
-        # disease
-        dis=d.get("disease") or (d.get("diseases") or [{}])
-        disname=""
+        # disease: the phenopacket's diagnosis label (load_phenopacket now extracts it);
+        # store it so it reaches cohort_v2.tsv's `disease` column instead of a blank.
         cases.setdefault(g, {"gene":g,"chrom":"chr"+norm(pv["chrom"]),"pos":pv["pos"],"ref":pv["ref"].upper(),"alt":pv["alt"].upper(),
-                             "cons":cons,"hpo":hpo,"vs":vs,"pv":pv})
+                             "cons":cons,"hpo":hpo,"vs":vs,"pv":pv,"disease":d.get("disease","")})
         break
 
 print(f"genes candidatos NOVOS (nao-usados, >=3 HPO): {len(cases)}")

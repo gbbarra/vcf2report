@@ -17,6 +17,8 @@ def test_load_extracts_hpo_and_variant():
     assert v["gene"] == "SCN1A"
     assert v["hgvs_p"] == "p.Arg612Ter"
     assert v["zygosity"] == "het"
+    # the diagnosis label must be captured (it lives in interpretations, not vcfRecord)
+    assert data["disease"] == "Developmental and epileptic encephalopathy 6 (Dravet)"
 
 
 def test_phenopacket_end_to_end_and_annotation_dependency(tmp_path):
