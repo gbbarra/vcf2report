@@ -78,13 +78,32 @@ def _variants(pkt: dict) -> tuple[list[dict], int]:
     return out, skipped
 
 
+def _disease(pkt: dict) -> str:
+    """The case diagnosis label. Prefer an interpretation's ``diagnosis.disease``;
+    fall back to a top-level ``diseases[]`` term. Empty string if none is recorded.
+    (Phenopackets carry the diagnosis here — it is NOT part of ``vcfRecord`` — so a
+    cohort builder must read it from the packet, not re-derive it from the variant.)"""
+    for interp in pkt.get("interpretations", []) or []:
+        label = ((interp.get("diagnosis") or {}).get("disease") or {}).get("label")
+        if label:
+            return label
+    for dz in pkt.get("diseases", []) or []:
+        if dz.get("excluded"):
+            continue
+        label = (dz.get("term") or {}).get("label")
+        if label:
+            return label
+    return ""
+
+
 def load_phenopacket(path: str | Path) -> dict[str, Any]:
-    """Return {'subject_id', 'hpo_terms', 'variants', 'skipped_variants'}."""
+    """Return {'subject_id', 'hpo_terms', 'disease', 'variants', 'skipped_variants'}."""
     pkt = json.loads(Path(path).read_text())
     variants, skipped = _variants(pkt)
     return {
         "subject_id": (pkt.get("subject") or {}).get("id") or "PHENOPACKET",
         "hpo_terms": _hpo_terms(pkt),
+        "disease": _disease(pkt),
         "variants": variants,
         "skipped_variants": skipped,
     }
