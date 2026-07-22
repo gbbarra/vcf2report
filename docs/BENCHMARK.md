@@ -341,3 +341,48 @@ the judgement the engine deliberately withholds.
 
 The harness (survey phenopackets → curate a balanced set → spike into NA12878 → run + score)
 is deterministic given the three public inputs above; see `scripts/` and this doc.
+
+## Published benchmark — `hpo-spiked-exomes` (200 distinct exomes)
+
+The SYN cohort above is published as a standalone, versioned benchmark:
+**[gbbarra/hpo-spiked-exomes](https://github.com/gbbarra/hpo-spiked-exomes)** — 200 distinct 1000G
+DRAGEN exomes, one HPO-linked pathogenic variant planted **tell-free** in each (raw + SnpEff-MANE
+annotated release assets; the answer key + per-case sidecars live in git). vcf2report scores against
+it with:
+
+- `scripts/fetch_benchmark.sh` — clone the benchmark + pull its release assets.
+- `scripts/run_benchmark.py` — primary (diagnostic) recovery of the planted gene, `X/200`, with an
+  honest miss-breakdown (secondary / carrier / probable-VUS / other / absent). Run it where the data
+  stores are present — the tell-free VCFs carry no baked gnomAD/ClinVar INFO, so the engine must look
+  them up. Published reference: **178/200**.
+
+**Reproduced (this session) — 177/200 (88.5%),** identical on borrowed and freshly-fetched stores.
+Breakdown: primary 177 · carrier 1 · probable-VUS 5 · other 10 · absent 7. All 23 non-primary are
+honest limitations: 2 non-coding RNA (RNU5B-1/RNU4-2, outside protein scope); 3 splice-region /
+low-impact where the plant's *real* consequence is not coding (ADA/BBS1/BNIP1 — the same
+de-circularization the [consequence audit](#published-benchmark--hpo-spiked-exomes-200-distinct-exomes)
+exposed); 2 LP surfaced as "other" (not phenotype-matched); 7 held at VUS (missense / HPO-dropped
+genes); 1 recessive carrier. The 1-case gap vs the earlier 178 is engine/store drift; both runs this
+session reproduce 177.
+
+**Store provenance for this number** (each store's `_manifest.json`):
+
+| store | release | rows | built | subset method |
+|---|---|---:|---|---|
+| gnomAD | v4.1 (exomes, MANE-sliced) | 69,898,057 | frozen | AF fields only, MANE exome BED — `data/gnomad/NOTICE.md` |
+| AlphaMissense | hg38 2023 (CC BY-NC-SA 4.0) | 71,034,269 | 2026-07-22 | complete |
+| ClinVar | GRCh38 weekly | 4,195,020 | 2026-07-14 | complete (ftp.ncbi ClinVar) |
+
+Reproduce: `bash scripts/fetch_benchmark.sh` → `bash scripts/setup_stores.sh` →
+`python3 scripts/run_benchmark.py --annotated <bench>/realistic_annotated --bench <bench> --jobs 4`.
+
+**Answer-key audit — consequence field (done).** Auditing that benchmark with this engine (compare the
+manifest `consequence` against what SnpEff `GRCh38.mane.1.5.refseq` actually calls at each planted
+coordinate) found the coordinates/alleles/genes/zygosities all correct (0 mismatches) but the
+**consequence label wrong** at 26 loci in `cohort.tsv` / 12 in `planted_variants.tsv` — naive/source
+labels such as `frameshift_variant` on the non-coding RNAs *RNU5B-1* / *RNU4-2*, or `missense_variant`
+for variants that are really at a splice site. Reconciled to the real annotator in
+**[hpo-spiked-exomes#3](https://github.com/gbbarra/hpo-spiked-exomes/pull/3)**. This does **not** change
+the gene-level recovery number — the engine classifies from its own SnpEff annotation of the VCF, not
+from the answer-key label — but it makes the key usable for scoring an *annotator*, not just a report
+generator.

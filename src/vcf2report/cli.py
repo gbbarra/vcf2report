@@ -74,7 +74,10 @@ def main(argv: list[str] | None = None) -> int:
 
     out_dir = Path(args.out) if args.out else config.OUTPUT_DIR
     fp = write_report(report, out_dir)
+    from .report.explore import write_explore
+    jp = write_explore(report, str(fp).replace("_report.md", "_results.json"))
     print(f"Report written to {fp}")
+    print(f"  explorable data: {jp}")
     print(f"  candidates classified: {report.qc.candidates}")
     for c in report.classifications:
         print(f"  - {c.variant.gene}: {c.tier}")

@@ -510,6 +510,37 @@ def bp4(v: Variant, a: Annotation) -> CriterionResult:
     )
 
 
+@criterion("BP6")
+def bp6(v: Variant, a: Annotation) -> CriterionResult:
+    name = "Reputable source (ClinVar) classifies the variant as benign"
+    sig = (a.clinvar_significance or "").lower()
+    # Mirror of PP5: a criteria-based ClinVar Benign / Likely benign assertion. "conflicting"
+    # is deliberately excluded (it starts with neither token) — a conflicted record is not a
+    # reputable benign call. The variant's OWN assertion, not a residue cross-match.
+    is_blp = sig.startswith("benign") or sig.startswith("likely benign")
+    # ClinVar review status arrives space- (E-utilities) or underscore-delimited (VCF); normalize,
+    # then require a criteria-based (>=1 star) assertion — same gate as PP5, so 0-star
+    # "no assertion criteria provided" is excluded despite containing "criteria provided".
+    review = (a.clinvar_review_status or "").lower().replace("_", " ").strip()
+    reviewed = (review.startswith("criteria provided")
+                or "reviewed by expert" in review
+                or "practice guideline" in review)
+    met = bool(is_blp and reviewed)
+    # BP6 was deprecated by the ClinGen SVI (like PP5); retained here as a transparent, gated
+    # SUPPORTING benign line so a reviewed ClinVar benign assertion contributes symmetrically to
+    # PP5 without over-weighting. PP5 and BP6 are mutually exclusive (a record is P or B, not both),
+    # so no double-count; if benign evidence conflicts with pathogenic criteria the combiner reports VUS.
+    return CriterionResult(
+        "BP6", name, "supporting", applies=True, met=met,
+        applied_strength="supporting" if met else None,
+        evidence={"clinvar": a.clinvar_significance, "review_status": a.clinvar_review_status},
+        citation=[a.clinvar_accession] if (met and a.clinvar_accession) else [],
+        confidence="moderate",
+        reasoning=(f"ClinVar {a.clinvar_significance} ({a.clinvar_review_status})"
+                   if met else "no reviewed ClinVar benign assertion (or 0-star)"),
+    )
+
+
 @criterion("BP7")
 def bp7(v: Variant, a: Annotation) -> CriterionResult:
     name = "Synonymous variant with no predicted splice impact"

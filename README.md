@@ -22,6 +22,29 @@ for expert review**, with the full ACMG reasoning shown for every variant.
 
 ---
 
+## 🧬 Worked examples — real cases, real results
+
+Six cases from the **[hpo-spiked-exomes](https://github.com/gbbarra/hpo-spiked-exomes)** benchmark
+(200 real 1000 Genomes exomes, each with one known pathogenic variant planted **tell-free** + the
+patient's HPO). The engine is scored **blind** — the plant carries no marker. What vcf2report returns:
+
+| Case | Gene | Disease | Variant | vcf2report finding |
+|---|---|---|---|---|
+| SYN-004 | **NIPBL** | Cornelia de Lange 1 | `p.Arg1837*` (stop-gain) | 🟥 **Pathogenic** — primary diagnosis |
+| SYN-073 | **BBS2** | Bardet-Biedl 2 | splice-acceptor | 🟥 **Pathogenic** — primary diagnosis |
+| SYN-051 | **PIGA** | Congenital anomalies-hypotonia-seizures | missense | 🟦 Ranked #1 (phenotype-matched) — honestly held at **VUS** |
+| SYN-093 | **TGFBR1** | Loeys-Dietz 1 | in-frame deletion | 🟦 Ranked #1 (phenotype-matched) — honestly held at **VUS** |
+| SYN-197 | **SPINT2** | Congenital secretory diarrhea | frameshift (het) | 🟨 **Carrier** — recessive, reproductive relevance (not a diagnosis) |
+| SYN-070 | **RBSN** | Congenital myelofibrosis | missense | 🟪 **VUS — flagged** for expert review (probable-pathogenic triage) |
+
+Two confident diagnoses, two phenotype-matched candidates the engine **honestly holds at VUS**, a
+recessive **carrier** it refuses to over-call, and a VUS **triaged** for review — the range, and the
+restraint. Across the full 200: **177 / 200 primary recovery (88.5%)** — see
+[docs/BENCHMARK.md](docs/BENCHMARK.md). Annotated example VCFs live in
+[`data/example/`](data/example/); drop one into `scripts/run_headless.py` and read the laudo.
+
+---
+
 ## What it does
 
 Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report with:

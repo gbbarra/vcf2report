@@ -174,6 +174,14 @@ Surface QC as its own step: the funnel (total → PASS → QC-passing → candid
    - In each met **PVS1** row, carry the mechanism basis (constraint / ClinGen HI=3 / AR phenotype).
 3. Give the Artifact link + a 2–3 line summary: the primary finding, any **carrier** or
    **probable-pathogenic VUS** worth follow-up, secondary/ACMG-SF, any ABraOM-dropped.
+4. **Persisted for conversational follow-up.** The run also writes `<OUT>/<name>_results.json` — the
+   whole report (every variant + its full ACMG criterion trail, the routed buckets, the conclusion,
+   the ClinVar do-not-dismiss list). After the laudo, answer follow-up questions **off this file, no
+   re-run**: load it with `vcf2report.report.explore.load_explore` and use the read helpers —
+   `overview` (case digest), `findings_for_gene` / `explain` ("show / tell me about gene X"),
+   `criterion_basis(data, gene, code)` ("why did Y get PM2"), `variants_in_bucket` (e.g. the
+   probable-pathogenic VUS), `findings_citing_clinvar`. Terminal: `python3 -m vcf2report.report.explore
+   <OUT>/<name>_results.json [--gene G] [--criterion PM2] [--bucket …] [--clinvar]`.
 
 ## Guardrails (always)
 - **Compact layout.** Render short values (QC metrics, per-variant facts) **inline** (the template's

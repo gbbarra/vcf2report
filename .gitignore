@@ -27,6 +27,11 @@ annotation_data/
 # Bundled *synthetic* demo exomes (de-identified; real 1000G background + spiked
 # ClinVar pathogenics) — the realistic inputs the e2e tests and demo run on.
 !data/example/*.synthetic.vcf.gz
+# Fully-annotated worked examples (SnpEff ANN + gnomAD/ClinVar/AM baked; scripts/
+# make_annotated_example.py) + their HPO sidecars — run standalone, no stores.
+!data/example/*.annotated.vcf.gz
+!data/example/*.annotated.vcf.gz.tbi
+!data/example/*.hpo.txt
 
 # OS
 .DS_Store
