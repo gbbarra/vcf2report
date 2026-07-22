@@ -56,7 +56,11 @@ def _strip_annot(info: str) -> str:
 def _pick_template(records, zyg):
     """A REAL background call of the target zygosity whose INFO/FORMAT the spike will borrow, so the
     planted record is statistically indistinguishable from a genuine call (a different template per
-    spike → values vary). Prefers a PASS SNV with the full DRAGEN FORMAT nearest 44x depth."""
+    spike → values vary). Prefers a PASS SNV with the full DRAGEN FORMAT nearest 44x depth.
+
+    The borrowed call must ITSELF pass the engine's QC comfortably (GQ>=30, DP>=25, well-balanced het) —
+    otherwise the planted variant inherits a QC-failing GQ/AB and is silently dropped before
+    classification (the original minimal spike hard-coded GQ=99, so this never mattered before)."""
     best, best_d = None, 1e18
     for f in records:
         if len(f) < 10 or len(f[3]) != 1 or len(f[4]) != 1 or f[6] != "PASS":
@@ -69,12 +73,20 @@ def _pick_template(records, zyg):
         z = "hom" if gt == "1/1" else "het" if gt in ("0/1", "1/0") else None
         if z != zyg:
             continue
-        dp = 44
-        if "DP" in fmt:
+        try:
+            gq = int(smp[fmt.index("GQ")]) if "GQ" in fmt else 0
+            dp = int(smp[fmt.index("DP")]) if "DP" in fmt else 0
+        except (ValueError, IndexError):
+            continue
+        if gq < 30 or dp < 25:                           # comfortably above QC (GQ>=20, DP>=10)
+            continue
+        if zyg == "het" and "AD" in fmt:                 # a well-balanced het (QC AB is 0.25-0.75)
             try:
-                dp = int(smp[fmt.index("DP")])
-            except ValueError:
-                pass
+                ad = [int(x) for x in smp[fmt.index("AD")].split(",")]
+                if not (0.35 <= ad[1] / max(1, sum(ad)) <= 0.65):
+                    continue
+            except (ValueError, IndexError):
+                continue
         d = abs(dp - 44)
         if d < best_d:
             best, best_d = f, d

@@ -52,3 +52,18 @@ def test_realistic_returns_none_without_a_matching_template():
 def test_plain_style_has_no_chr_prefix():
     out = spiked_line_realistic(_rec(), [_HET, _HOM], "plain", "het", 10)
     assert out[0] == "7"
+
+
+# A low-GQ background call must NOT be borrowed — the planted variant would inherit its GQ and be
+# dropped at the engine's QC (this caused ~17 cohort cases to silently miss until fixed).
+_HET_LOWGQ = ["chr3", "333", ".", "T", "C", "20", "PASS",
+              "AC=1;AF=0.5;AN=2;DP=40;FS=0;MQ=250;QD=0.5;SOR=1.0;ANN=C|x|LOW|Z|z",
+              _FMT, "0/1:20,20:0.5:40:10,10:10,10:8:60,0,60:1,2,3:0,34,37:10,10,10,10:10,10,10,10"]
+
+
+def test_realistic_rejects_low_gq_template():
+    # Only a low-GQ het available → no usable template (borrowing it would fail the plant's QC).
+    assert spiked_line_realistic(_rec(), [_HET_LOWGQ], "chr", "het", 10) is None
+    # With a QC-passing het also present, it borrows THAT one, not the low-GQ call.
+    out = spiked_line_realistic(_rec(), [_HET_LOWGQ, _HET], "chr", "het", 10)
+    assert out is not None and out[9] == _HET[9]
