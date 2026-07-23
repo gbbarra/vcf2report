@@ -23,6 +23,7 @@ from __future__ import annotations
 from typing import Callable
 
 from .. import config
+from ..annotate import extra
 from ..annotate.dosage import haploinsufficient
 from ..annotate.inheritance import lof_is_disease_mechanism
 from ..config import AF_BA1
@@ -296,11 +297,34 @@ def pm6(v: Variant, a: Annotation) -> CriterionResult:
 
 @criterion("PP2")
 def pp2(v: Variant, a: Annotation) -> CriterionResult:
+    name = "Missense in a gene with a low rate of benign missense and where missense is a mechanism"
+    # Engine-decided from gnomAD gene-level missense constraint: a gene significantly
+    # depleted of missense variation (mis_z >= 3.09, the ClinGen SVI cut) has a low
+    # benign-missense rate, so a missense variant there earns PP2 (Supporting). Only
+    # missense variants qualify; the metric is absent for many genes -> not met.
+    is_missense = (v.consequence or "") == "missense_variant"
+    constrained = bool(a.gene_missense_constrained)
+    met = is_missense and constrained
+    cites = [a.source["gene_constraint"]] if a.source.get("gene_constraint") else []
+    mz = a.gene_mis_z
+    if met:
+        reason = (f"missense in {v.gene}, a missense-constrained gene "
+                  f"(gnomAD mis_z={mz:.2f} ≥ {extra.MIS_Z_CONSTRAINED})")
+    elif not is_missense:
+        reason = f"{v.consequence or 'variant'} is not a missense variant"
+    elif mz is not None:
+        reason = (f"{v.gene} missense z-score {mz:.2f} is below the "
+                  f"{extra.MIS_Z_CONSTRAINED} missense-constraint threshold")
+    else:
+        reason = f"no gnomAD missense-constraint metric for {v.gene or 'variant'}"
     return CriterionResult(
-        "PP2", "Missense in a gene with a low rate of benign missense and where missense is a mechanism",
-        "supporting", applies=True, met=False, adjudicated_by="model", confidence="moderate",
-        evidence={"consequence": v.consequence, "gene": v.gene},
-        reasoning="Gene-level missense constraint requires curated metric — model adjudication",
+        "PP2", name, "supporting", applies=True, met=met,
+        applied_strength="supporting" if met else None,
+        adjudicated_by="engine", confidence="high",
+        evidence={"consequence": v.consequence, "gene": v.gene, "mis_z": mz,
+                  "mis_z_cutoff": extra.MIS_Z_CONSTRAINED,
+                  "missense_constrained": a.gene_missense_constrained},
+        citation=cites, reasoning=reason,
     )
 
 
@@ -473,6 +497,43 @@ def bs2(v: Variant, a: Annotation) -> CriterionResult:
         citation=[c for c in [a.source.get("gnomad")] if c],
         reasoning=(f"{homs} homozygotes in gnomAD" if met
                    else f"{homs} homozygotes (below {BS2_HOM_MIN})"),
+    )
+
+
+@criterion("BP1")
+def bp1(v: Variant, a: Annotation) -> CriterionResult:
+    name = "Missense variant in a gene where primarily truncating variants cause disease"
+    # Engine proxy for BP1 (no curated gene list): a missense variant in a gene that is
+    # LoF-intolerant (truncating variants are the disease mechanism) yet shows NO missense
+    # depletion (gnomAD oe_mis_upper >= 1.0 — missense is tolerated). Both conditions
+    # together mean missense is unlikely to be pathogenic in that gene. Deliberately
+    # conservative and mutually exclusive with PP2 (a gene cannot be both missense-
+    # constrained and missense-tolerant), so no variant earns PP2 and BP1 at once.
+    is_missense = (v.consequence or "") == "missense_variant"
+    lof_mech = bool(a.gene_lof_intolerant)
+    tolerant = bool(a.gene_missense_tolerant) and not a.gene_missense_constrained
+    met = is_missense and lof_mech and tolerant
+    cites = [a.source["gene_constraint"]] if a.source.get("gene_constraint") else []
+    if met:
+        reason = (f"missense in {v.gene}: LoF-intolerant gene (truncating is the mechanism) "
+                  f"that tolerates missense (gnomAD oe_mis upper ≥ {extra.OE_MIS_TOLERANT})")
+    elif not is_missense:
+        reason = f"{v.consequence or 'variant'} is not a missense variant"
+    elif not lof_mech:
+        reason = f"{v.gene or 'gene'} is not LoF-intolerant — truncating-only mechanism not established"
+    else:
+        reason = f"{v.gene or 'gene'} does not tolerate missense (not depleted-free) — BP1 not supported"
+    return CriterionResult(
+        "BP1", name, "supporting", applies=True, met=met,
+        applied_strength="supporting" if met else None,
+        adjudicated_by="engine", confidence="moderate",
+        evidence={"consequence": v.consequence, "gene": v.gene,
+                  "gene_lof_intolerant": a.gene_lof_intolerant,
+                  "oe_mis_upper": a.gene_oe_mis_upper,
+                  "oe_mis_cutoff": extra.OE_MIS_TOLERANT,
+                  "missense_tolerant": a.gene_missense_tolerant,
+                  "missense_constrained": a.gene_missense_constrained},
+        citation=cites, reasoning=reason,
     )
 
 

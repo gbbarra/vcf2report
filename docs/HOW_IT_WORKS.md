@@ -90,16 +90,22 @@ ships only a 2-variant demo stub (`data/abraom/abraom_sabe.tsv`) that demonstrat
 population coverage is not yet loaded.
 
 **Gene constraint & pre-annotated INFO.** gnomAD LoF constraint (pLI ≥0.9 / LOEUF <0.35) drives
-**PVS1**. When a VCF is already annotated (SnpEff/VEP + vcfanno), the engine reads gnomAD/ClinVar/
-REVEL/CADD/AlphaMissense straight from the INFO column — a zero-lookup offline path.
+**PVS1**; the same per-gene table's *missense* constraint drives the two missense criteria. **PP2**
+fires for a missense variant in a gene significantly depleted of missense variation (missense
+z-score ≥ 3.09, the ClinGen SVI cut). **BP1** fires for a missense variant in a gene that is
+LoF-intolerant (truncating is the mechanism) yet *tolerates* missense (obs/exp missense upper CI
+≥ 1.0) — the constraint-based proxy for "primarily truncating variants cause disease." The two are
+mutually exclusive: no gene is both missense-depleted and missense-tolerant. When a VCF is already
+annotated (SnpEff/VEP + vcfanno), the engine reads gnomAD/ClinVar/REVEL/CADD/AlphaMissense straight
+from the INFO column — a zero-lookup offline path.
 
 ### The ACMG classification engine
 
 `classify(variant, annotation)` runs every registered criterion in a fixed, inspectable order and
 combines them into a 5-tier call plus an auditable `rule_path`. Deterministic criteria are
-evaluated met/not-met (PVS1, PM2, PM4, PP3, PP4, PP5, BA1, BS1, BS2, BP4, BP7); criteria that
-need wet-lab or case data are *surfaced as evidence but not auto-applied* (PS1/PS3/PS4/PM1/PM5/
-PP2); single-proband-inapplicable criteria (PS2/PM3/PM6, de novo / in-trans / segregation) are
+evaluated met/not-met (PVS1, PM2, PM4, PP2, PP3, PP4, PP5, BA1, BS1, BS2, BP1, BP4, BP6, BP7);
+criteria that need wet-lab or case data are *surfaced as evidence but not auto-applied* (PS1/PS3/
+PS4/PM1/PM5); single-proband-inapplicable criteria (PS2/PM3/PM6, de novo / in-trans / segregation) are
 marked N/A. **PVS1 strength** is modulated by the ClinGen SVI decision tree (start-loss →
 Moderate; last-exon NMD-escaping → Strong; else Very Strong). Two combining models are available:
 **Richards 2015 Table 5** (the conservative default) and the **ClinGen/Tavtigian 2020 points**
