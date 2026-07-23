@@ -16,6 +16,15 @@ from ..models import Variant
 _constraint: Optional[dict] = None
 _insilico: Optional[dict] = None
 
+# gnomAD missense-constraint thresholds.
+#   PP2 fires when a gene is significantly depleted of missense variation
+#   (missense z-score >= 3.09, the ClinGen SVI cut used across variant tools).
+#   BP1's proxy for "primarily truncating variants cause disease" is a gene that
+#   is LoF-intolerant yet shows NO missense depletion — its observed/expected
+#   missense upper CI sits at/above 1.0 (missense is tolerated).
+MIS_Z_CONSTRAINED = 3.09
+OE_MIS_TOLERANT = 1.0
+
 
 def _read_lines(fp):
     """Yield lines from a plain or gzip-compressed text file."""
@@ -41,10 +50,19 @@ def _load_constraint() -> dict:
                 gene = parts[0]
                 pli = float(parts[1]) if len(parts) > 1 and parts[1] else None
                 loeuf = float(parts[2]) if len(parts) > 2 and parts[2] else None
+                mis_z = float(parts[3]) if len(parts) > 3 and parts[3] else None
+                oe_mis_upper = float(parts[4]) if len(parts) > 4 and parts[4] else None
                 # LoF-intolerant per gnomAD convention: pLI>=0.9 or LOEUF<0.35.
                 lof_intolerant = (pli is not None and pli >= 0.9) or (
                     loeuf is not None and loeuf < 0.35)
-                d[gene] = {"pli": pli, "loeuf": loeuf, "lof_intolerant": lof_intolerant}
+                # Missense-constrained (PP2): significantly depleted of missense.
+                missense_constrained = mis_z is not None and mis_z >= MIS_Z_CONSTRAINED
+                # Missense-tolerant (BP1): no missense depletion (obs/exp CI >= 1).
+                missense_tolerant = oe_mis_upper is not None and oe_mis_upper >= OE_MIS_TOLERANT
+                d[gene] = {"pli": pli, "loeuf": loeuf, "lof_intolerant": lof_intolerant,
+                           "mis_z": mis_z, "oe_mis_upper": oe_mis_upper,
+                           "missense_constrained": missense_constrained,
+                           "missense_tolerant": missense_tolerant}
         _constraint = d  # publish only when fully built
     return _constraint
 
@@ -68,15 +86,18 @@ def _load_insilico() -> dict:
     return _insilico
 
 
+_CONSTRAINT_NULL = {"pli": None, "loeuf": None, "lof_intolerant": None,
+                    "mis_z": None, "oe_mis_upper": None,
+                    "missense_constrained": None, "missense_tolerant": None}
+
+
 def gene_constraint(gene: Optional[str]) -> dict:
     if not gene:
-        return {"pli": None, "loeuf": None, "lof_intolerant": None,
-                "_source": "gnomAD constraint (no gene)"}
+        return {**_CONSTRAINT_NULL, "_source": "gnomAD constraint (no gene)"}
     row = _load_constraint().get(gene)
     if row is None:
-        return {"pli": None, "loeuf": None, "lof_intolerant": None,
-                "_source": "gnomAD constraint (gene not found)"}
-    return {**row, "_source": "gnomAD v2.1.1 LoF constraint (local)"}
+        return {**_CONSTRAINT_NULL, "_source": "gnomAD constraint (gene not found)"}
+    return {**row, "_source": "gnomAD v2.1.1 constraint (local)"}
 
 
 def insilico(variant: Variant) -> dict:

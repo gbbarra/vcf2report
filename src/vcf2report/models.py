@@ -85,6 +85,10 @@ class Annotation:
 
     # gene-level constraint (for PVS1/PP2/BP1 judgment)
     gene_lof_intolerant: Optional[bool] = None  # e.g. pLI>=0.9 / low LOEUF
+    gene_mis_z: Optional[float] = None            # gnomAD missense z-score (higher = more constrained)
+    gene_oe_mis_upper: Optional[float] = None     # gnomAD obs/exp missense upper CI (>=1 = tolerated)
+    gene_missense_constrained: Optional[bool] = None  # mis_z >= 3.09 -> PP2
+    gene_missense_tolerant: Optional[bool] = None     # oe_mis_upper >= 1.0 -> BP1 (with LoF intolerance)
 
     # in-silico
     revel: Optional[float] = None
