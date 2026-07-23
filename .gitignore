@@ -72,6 +72,10 @@ data/clinvar/clinvar_grch38.tsv.gz
 data/clinvar/clinvar_grch38.tsv.gz.tbi
 # ClinVar Parquet store — built by scripts/build_clinvar_parquet.py (weekly, ~69 MB, not committed)
 data/clinvar/clinvar_parquet/
+# ClinVar residue index for PS1/PM5 — the full genome-wide table is built locally
+# (scripts/fetch_clinvar_residue.py) and git-ignored; the small frozen slice is committed.
+data/clinvar/clinvar_residue.tsv.gz
+!data/clinvar/clinvar_residue_frozen.tsv.gz
 
 # SYN validation cohort — generated outputs (rebuild from data/synthetic_cohort/cohort.tsv)
 data/synthetic_cohort/*.vcf.gz

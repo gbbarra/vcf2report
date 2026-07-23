@@ -74,6 +74,13 @@ class Annotation:
     clinvar_condition: Optional[str] = None
     clinvar_date: Optional[str] = None
 
+    # Residue-level ClinVar cross-match (for PS1/PM5). Each is a dict describing the
+    # matched pathogenic missense, or None. clinvar_residue_available flags whether the
+    # residue index was loaded at all (so PS1/PM5 can say "unavailable" vs "no match").
+    clinvar_ps1: Optional[dict] = None
+    clinvar_pm5: Optional[dict] = None
+    clinvar_residue_available: Optional[bool] = None
+
     gnomad_af: Optional[float] = None       # popmax AF
     gnomad_ac: Optional[int] = None
     gnomad_an: Optional[int] = None

@@ -244,7 +244,7 @@ def _render_markdown_builtin(report: ReportModel) -> str:
     L.append("")
     L.append("- Single-proband analysis: criteria requiring parental/segregation/"
              "phasing data (PS2, PM3, PM6, PP1, BS4) are reported as N/A.")
-    L.append("- Judgment criteria (PS3, PS4, PM1, PM5) are surfaced for expert/model "
+    L.append("- Judgment criteria (PS3, PS4, PM1) are surfaced for expert/model "
              "adjudication and default to not-met unless explicitly supported.")
     L.append("- Population and clinical databases are versioned snapshots; re-check "
              "before sign-out.")
