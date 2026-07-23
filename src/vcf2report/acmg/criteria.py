@@ -158,20 +158,35 @@ def pvs1(v: Variant, a: Annotation) -> CriterionResult:
     )
 
 
+def _own_clinvar_plp(a: Annotation) -> bool:
+    """True when the variant's OWN ClinVar record is Pathogenic / Likely pathogenic.
+
+    Such a variant is already covered by PP5 (its direct reputable-source assertion), so
+    the residue-index criteria PS1/PM5 are withheld: firing them would double-count the
+    same ClinVar evidence (the concern behind the SVI's PP5 deprecation). PS1/PM5 are thus
+    reserved for their real purpose — elevating missense ClinVar has NOT directly classified.
+    """
+    return (a.clinvar_significance or "").lower().startswith(("pathogenic", "likely pathogenic"))
+
+
 @criterion("PS1")
 def ps1(v: Variant, a: Annotation) -> CriterionResult:
     name = "Same amino-acid change as a DIFFERENT established pathogenic variant"
     # Engine-decided from the ClinVar residue index: a P/LP (>=1-star) missense with the
     # SAME amino-acid change at a DIFFERENT genomic locus. The variant's OWN ClinVar
-    # assertion is PP5, not PS1 (the index excludes the query's own key), so the two do
-    # not double-count reputable-source evidence.
+    # assertion is PP5, not PS1 (the index excludes the query's own key AND a variant already
+    # called P/LP is withheld here), so the two never double-count reputable-source evidence.
     m = a.clinvar_ps1
-    met = m is not None
+    own_plp = _own_clinvar_plp(a)
+    met = m is not None and not own_plp
     if met:
         acc = m.get("accession")
-        reason = (f"same amino-acid change ({a.clinvar_ps1.get('ref_aa','')}"
+        reason = (f"same amino-acid change ({m.get('ref_aa','')}"
                   f"{'→' + m['alt_aa'] if m.get('alt_aa') else ''}) as an established ClinVar "
                   f"pathogenic variant {acc or ''} ({m.get('stars')}★) at a different locus")
+    elif m is not None and own_plp:
+        reason = ("variant's own ClinVar assertion is pathogenic — captured by PP5; "
+                  "PS1 withheld to avoid double-counting the same ClinVar evidence")
     elif not a.clinvar_residue_available:
         reason = "ClinVar residue index unavailable — PS1 not assessed (build it: scripts/fetch_clinvar_residue.py)"
     elif not v.hgvs_p:
@@ -182,7 +197,7 @@ def ps1(v: Variant, a: Annotation) -> CriterionResult:
         "PS1", name, "strong", applies=True, met=met,
         applied_strength="strong" if met else None,
         adjudicated_by="engine", confidence="high" if a.clinvar_residue_available else "low",
-        evidence={"hgvs_p": v.hgvs_p, "ps1_match": m},
+        evidence={"hgvs_p": v.hgvs_p, "ps1_match": m, "own_clinvar_plp": own_plp},
         citation=[m["accession"]] if (met and m.get("accession")) else [],
         reasoning=reason,
     )
@@ -300,11 +315,15 @@ def pm5(v: Variant, a: Annotation) -> CriterionResult:
     # change is not itself established (that case is PS1/PP5). PS1 and PM5 are therefore
     # mutually exclusive — the index sets pm5 to None whenever the same change is known.
     m = a.clinvar_pm5
-    met = m is not None and a.clinvar_ps1 is None
+    own_plp = _own_clinvar_plp(a)
+    met = m is not None and a.clinvar_ps1 is None and not own_plp
     if met:
         acc = m.get("accession")
         reason = (f"a different pathogenic missense at the same residue is established in "
                   f"ClinVar (→{m['alt_aa']}, {acc or ''}, {m.get('stars')}★); this change is novel")
+    elif m is not None and own_plp:
+        reason = ("variant's own ClinVar assertion is pathogenic — captured by PP5; "
+                  "PM5 withheld to avoid double-counting the same ClinVar evidence")
     elif a.clinvar_ps1 is not None:
         reason = "same amino-acid change is itself established — captured by PS1, not PM5"
     elif not a.clinvar_residue_available:
@@ -317,7 +336,7 @@ def pm5(v: Variant, a: Annotation) -> CriterionResult:
         "PM5", name, "moderate", applies=True, met=met,
         applied_strength="moderate" if met else None,
         adjudicated_by="engine", confidence="high" if a.clinvar_residue_available else "low",
-        evidence={"hgvs_p": v.hgvs_p, "pm5_match": m},
+        evidence={"hgvs_p": v.hgvs_p, "pm5_match": m, "own_clinvar_plp": own_plp},
         citation=[m["accession"]] if (met and m.get("accession")) else [],
         reasoning=reason,
     )

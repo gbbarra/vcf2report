@@ -76,6 +76,33 @@ def test_ps1_pm5_not_applicable_for_non_missense():
     assert not _pm5(v, _ann()).met
 
 
+def test_ps1_suppressed_when_own_clinvar_is_pathogenic():
+    # A variant ClinVar already calls Pathogenic is covered by PP5; PS1 (which would also fire
+    # from a same-AA different-locus entry) is withheld so the ClinVar evidence isn't double-counted.
+    m = {"alt_aa": "Cys", "ref_aa": "Arg", "stars": 2, "genomic_key": "1-101-G-A",
+         "accession": "VCV000012345"}
+    cr = _ps1(_v(), _ann(clinvar_ps1=m, clinvar_significance="Pathogenic"))
+    assert not cr.met
+    assert "PP5" in cr.reasoning and "double-count" in cr.reasoning
+
+
+def test_pm5_suppressed_when_own_clinvar_is_pathogenic():
+    m = {"alt_aa": "His", "ref_aa": "Arg", "stars": 1, "genomic_key": "1-101-G-A",
+         "accession": "VCV000067890"}
+    cr = _pm5(_v(), _ann(clinvar_pm5=m, clinvar_ps1=None, clinvar_significance="Likely pathogenic"))
+    assert not cr.met
+    assert "PP5" in cr.reasoning
+
+
+def test_ps1_still_fires_when_own_clinvar_is_vus():
+    # A variant ClinVar calls VUS (not P/LP) still earns PS1 from a same-AA pathogenic elsewhere —
+    # PP5 does not fire for a VUS, so there is nothing to double-count.
+    m = {"alt_aa": "Cys", "ref_aa": "Arg", "stars": 2, "genomic_key": "1-101-G-A",
+         "accession": "VCV000012345"}
+    cr = _ps1(_v(), _ann(clinvar_ps1=m, clinvar_significance="Uncertain significance"))
+    assert cr.met
+
+
 # --- loader + lookup (real table format) ------------------------------------
 def _write_index(path, rows):
     with gzip.open(path, "wt") as w:
