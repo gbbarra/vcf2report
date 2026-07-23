@@ -7,7 +7,7 @@ from so the ACMG criteria and the report can cite provenance.
 from __future__ import annotations
 
 from ..models import Annotation, Variant
-from . import abraom, alphamissense, clinvar, extra, from_vcf, gnomad, hpo
+from . import abraom, alphamissense, clinvar, clinvar_residue, extra, from_vcf, gnomad, hpo
 
 
 def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
@@ -73,6 +73,11 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         am = {"am_pathogenicity": None, "am_class": None, "_source": note}
     con = extra.gene_constraint(variant.gene)
     ph = hpo.match(variant.gene, patient_hpo)
+    # Residue-level ClinVar cross-match (PS1/PM5). Needs the GRCh38 genomic key to prove a
+    # PS1 hit is a *different* variant, so it is gated on a trusted build like the other
+    # coordinate-keyed lookups; a build mismatch leaves the matches unpopulated (None).
+    res = (clinvar_residue.lookup(variant.gene, variant.hgvs_p, variant.key)
+           if build_trusted else {"ps1": None, "pm5": None, "available": None})
 
     return Annotation(
         clinvar_significance=cv.get("significance"),
@@ -80,6 +85,9 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         clinvar_accession=cv.get("accession"),
         clinvar_condition=cv.get("condition"),
         clinvar_date=cv.get("date"),
+        clinvar_ps1=res.get("ps1"),
+        clinvar_pm5=res.get("pm5"),
+        clinvar_residue_available=res.get("available"),
         gnomad_af=g.get("af"),
         gnomad_ac=g.get("ac"),
         gnomad_an=g.get("an"),
@@ -102,6 +110,7 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         source={
             "gnomad": g.get("_source", ""),
             "clinvar": cv.get("_source", ""),
+            "clinvar_residue": "ClinVar residue index (PS1/PM5, local)",
             "abraom": ab.get("_source", ""),
             "gene_lof_intolerant": con.get("_source", ""),
             "gene_constraint": con.get("_source", ""),

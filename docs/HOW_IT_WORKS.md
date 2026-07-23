@@ -75,6 +75,17 @@ no network call is needed for a real ClinVar lookup — and only a positive chr+
 accepted. Feeds the deprecated-gated **PP5** (+1 supporting) and, independently of the ACMG math,
 the **ClinVar safety flag** (below).
 
+**ClinVar residue index — PS1 / PM5.** The per-variant store carries no protein change, so a second,
+residue-level view of ClinVar drives the two amino-acid-substitution criteria. `scripts/fetch_clinvar_residue.py`
+distils `variant_summary.txt.gz` into one compact row per distinct `(gene, protein_position, alt_aa)`
+pathogenic/likely-pathogenic missense with a criteria-based (≥1★) review. Against that index a query
+missense earns **PS1** (Strong) when the *same* amino-acid change is an established pathogenic variant at
+a *different* genomic locus (the query's own record is PP5, never PS1), and **PM5** (Moderate) when a
+*different* pathogenic missense sits at the *same* residue and the query's exact change is itself novel —
+so PS1 and PM5 are mutually exclusive. The full index is built locally (git-ignored like the ClinVar
+store); a small committed **frozen slice** (`scripts/freeze_clinvar_residue.py`) keeps the shipped examples
+firing offline. With neither present, PS1/PM5 report *index unavailable* rather than a fabricated match.
+
 **HPO phenotype matching — PP4 & routing.** Gene↔phenotype similarity uses the HPO `is_a` graph
 with **Lin/Information-Content semantic similarity** (best-match-average) when the ontology graph
 is present, falling back to exact term overlap. The average match feeds **PP4** (≥0.60); the
@@ -103,9 +114,9 @@ from the INFO column — a zero-lookup offline path.
 
 `classify(variant, annotation)` runs every registered criterion in a fixed, inspectable order and
 combines them into a 5-tier call plus an auditable `rule_path`. Deterministic criteria are
-evaluated met/not-met (PVS1, PM2, PM4, PP2, PP3, PP4, PP5, BA1, BS1, BS2, BP1, BP4, BP6, BP7);
-criteria that need wet-lab or case data are *surfaced as evidence but not auto-applied* (PS1/PS3/
-PS4/PM1/PM5); single-proband-inapplicable criteria (PS2/PM3/PM6, de novo / in-trans / segregation) are
+evaluated met/not-met (PVS1, PS1, PM2, PM4, PM5, PP2, PP3, PP4, PP5, BA1, BS1, BS2, BP1, BP4,
+BP6, BP7); criteria that need wet-lab or case data are *surfaced as evidence but not auto-applied*
+(PS3/PS4/PM1); single-proband-inapplicable criteria (PS2/PM3/PM6, de novo / in-trans / segregation) are
 marked N/A. **PVS1 strength** is modulated by the ClinGen SVI decision tree (start-loss →
 Moderate; last-exon NMD-escaping → Strong; else Very Strong). Two combining models are available:
 **Richards 2015 Table 5** (the conservative default) and the **ClinGen/Tavtigian 2020 points**
