@@ -146,7 +146,9 @@ def test_clinvar_is_pp5_supporting_not_ps1_strong():
                    hpo_match_score=0.7, hpo_matched_terms=["x"])
     result = classify(v, a)
     codes = {c.code: c for c in result.criteria}
-    assert codes["PS1"].met is False and codes["PS1"].adjudicated_by == "model"
+    # PS1 is now engine-decided from the ClinVar residue index; the variant's OWN
+    # assertion is PP5, never PS1, so PS1 must NOT fire here (no residue index in this test).
+    assert codes["PS1"].met is False and codes["PS1"].adjudicated_by == "engine"
     assert codes["PP5"].met is True and codes["PP5"].applied_strength == "supporting"
     # 1 PM (PM2) + 3 PP (PP3, PP4, PP5) is insufficient for Likely Pathogenic.
     assert "VUS" in result.tier

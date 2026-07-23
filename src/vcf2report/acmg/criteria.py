@@ -158,20 +158,48 @@ def pvs1(v: Variant, a: Annotation) -> CriterionResult:
     )
 
 
+def _own_clinvar_plp(a: Annotation) -> bool:
+    """True when the variant's OWN ClinVar record is Pathogenic / Likely pathogenic.
+
+    Such a variant is already covered by PP5 (its direct reputable-source assertion), so
+    the residue-index criteria PS1/PM5 are withheld: firing them would double-count the
+    same ClinVar evidence (the concern behind the SVI's PP5 deprecation). PS1/PM5 are thus
+    reserved for their real purpose — elevating missense ClinVar has NOT directly classified.
+    """
+    return (a.clinvar_significance or "").lower().startswith(("pathogenic", "likely pathogenic"))
+
+
 @criterion("PS1")
 def ps1(v: Variant, a: Annotation) -> CriterionResult:
     name = "Same amino-acid change as a DIFFERENT established pathogenic variant"
-    # PS1 requires a residue-level cross-match to a *distinct* pathogenic variant
-    # (a different nucleotide change giving the same amino-acid change). That needs
-    # a residue-indexed ClinVar lookup we don't have, so it is surfaced for expert/
-    # model adjudication. The variant's OWN ClinVar assertion is captured by PP5,
-    # not PS1 (using it here would double-count reputable-source evidence at Strong).
+    # Engine-decided from the ClinVar residue index: a P/LP (>=1-star) missense with the
+    # SAME amino-acid change at a DIFFERENT genomic locus. The variant's OWN ClinVar
+    # assertion is PP5, not PS1 (the index excludes the query's own key AND a variant already
+    # called P/LP is withheld here), so the two never double-count reputable-source evidence.
+    m = a.clinvar_ps1
+    own_plp = _own_clinvar_plp(a)
+    met = m is not None and not own_plp
+    if met:
+        acc = m.get("accession")
+        reason = (f"same amino-acid change ({m.get('ref_aa','')}"
+                  f"{'→' + m['alt_aa'] if m.get('alt_aa') else ''}) as an established ClinVar "
+                  f"pathogenic variant {acc or ''} ({m.get('stars')}★) at a different locus")
+    elif m is not None and own_plp:
+        reason = ("variant's own ClinVar assertion is pathogenic — captured by PP5; "
+                  "PS1 withheld to avoid double-counting the same ClinVar evidence")
+    elif not a.clinvar_residue_available:
+        reason = "ClinVar residue index unavailable — PS1 not assessed (build it: scripts/fetch_clinvar_residue.py)"
+    elif not v.hgvs_p:
+        reason = "no protein change (not a missense) — PS1 not applicable"
+    else:
+        reason = "no distinct ClinVar pathogenic variant with the same amino-acid change"
     return CriterionResult(
-        "PS1", name, "strong", applies=True, met=False, adjudicated_by="model",
-        confidence="moderate",
-        evidence={"hgvs_p": v.hgvs_p},
-        reasoning="Requires a residue-level cross-match to a distinct ClinVar "
-                  "pathogenic variant — model adjudication (own ClinVar record is PP5)",
+        "PS1", name, "strong", applies=True, met=met,
+        applied_strength="strong" if met else None,
+        adjudicated_by="engine", confidence="high" if a.clinvar_residue_available else "low",
+        evidence={"hgvs_p": v.hgvs_p, "ps1_match": m, "own_clinvar_plp": own_plp},
+        citation=[m["accession"]] if (met and m.get("accession")) else [],
+        reasoning=reason,
     )
 
 
@@ -281,11 +309,36 @@ def pm4(v: Variant, a: Annotation) -> CriterionResult:
 
 @criterion("PM5")
 def pm5(v: Variant, a: Annotation) -> CriterionResult:
+    name = "Novel missense at a residue where a different pathogenic missense is known"
+    # Engine-decided from the ClinVar residue index: a P/LP (>=1-star) missense with a
+    # DIFFERENT amino-acid change at the SAME residue, applied only when the query's exact
+    # change is not itself established (that case is PS1/PP5). PS1 and PM5 are therefore
+    # mutually exclusive — the index sets pm5 to None whenever the same change is known.
+    m = a.clinvar_pm5
+    own_plp = _own_clinvar_plp(a)
+    met = m is not None and a.clinvar_ps1 is None and not own_plp
+    if met:
+        acc = m.get("accession")
+        reason = (f"a different pathogenic missense at the same residue is established in "
+                  f"ClinVar (→{m['alt_aa']}, {acc or ''}, {m.get('stars')}★); this change is novel")
+    elif m is not None and own_plp:
+        reason = ("variant's own ClinVar assertion is pathogenic — captured by PP5; "
+                  "PM5 withheld to avoid double-counting the same ClinVar evidence")
+    elif a.clinvar_ps1 is not None:
+        reason = "same amino-acid change is itself established — captured by PS1, not PM5"
+    elif not a.clinvar_residue_available:
+        reason = "ClinVar residue index unavailable — PM5 not assessed (build it: scripts/fetch_clinvar_residue.py)"
+    elif not v.hgvs_p:
+        reason = "no protein change (not a missense) — PM5 not applicable"
+    else:
+        reason = "no other ClinVar pathogenic missense at this residue"
     return CriterionResult(
-        "PM5", "Novel missense at a residue where a different pathogenic missense is known",
-        "moderate", applies=True, met=False, adjudicated_by="model", confidence="moderate",
-        evidence={"hgvs_p": v.hgvs_p},
-        reasoning="Requires residue-level ClinVar cross-check — model adjudication",
+        "PM5", name, "moderate", applies=True, met=met,
+        applied_strength="moderate" if met else None,
+        adjudicated_by="engine", confidence="high" if a.clinvar_residue_available else "low",
+        evidence={"hgvs_p": v.hgvs_p, "pm5_match": m, "own_clinvar_plp": own_plp},
+        citation=[m["accession"]] if (met and m.get("accession")) else [],
+        reasoning=reason,
     )
 
 

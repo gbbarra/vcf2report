@@ -63,6 +63,14 @@ HPO_RELATED_MIN = 0.6
 CONSTRAINT_LOCAL = DATA_DIR / "constraint" / "gene_constraint.tsv.gz"
 CLINGEN_HI_LOCAL = DATA_DIR / "constraint" / "clingen_haploinsufficiency.tsv"
 INSILICO_LOCAL = DATA_DIR / "insilico" / "insilico.tsv"
+# ClinVar residue index for PS1/PM5 (gene, aa_pos, alt_aa -> pathogenic missense).
+# The committed FROZEN slice ships a small demo/test subset; the full genome-wide index
+# is built locally by scripts/fetch_clinvar_residue.py (git-ignored, like the ClinVar
+# store) and, when present, augments the frozen slice. Both absent -> PS1/PM5 degrade to
+# "index unavailable" (surfaced, not-met), never a fabricated match.
+CLINVAR_RESIDUE_FROZEN = DATA_DIR / "clinvar" / "clinvar_residue_frozen.tsv.gz"
+CLINVAR_RESIDUE_LOCAL = Path(os.environ.get(
+    "VCF2REPORT_CLINVAR_RESIDUE", DATA_DIR / "clinvar" / "clinvar_residue.tsv.gz"))
 # AlphaMissense hg38 predictions (CC BY 4.0) — tabix-indexed, fetched once via
 # scripts/fetch_alphamissense.sh. Absent by default; the client degrades to None.
 ALPHAMISSENSE_LOCAL = Path(os.environ.get(
