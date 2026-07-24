@@ -32,25 +32,32 @@ def main(argv=None) -> int:
     ap.add_argument("--in", dest="src", default=str(DEFAULT_IN), help="full residue index (.tsv.gz)")
     ap.add_argument("--out", default=str(OUT), help="frozen slice output (.tsv.gz)")
     ap.add_argument("--genes", nargs="+", default=DEMO_GENES, help="gene symbols to keep")
+    ap.add_argument("--all", action="store_true",
+                    help="keep EVERY gene (ship the residue index genome-wide, ~1 MB) instead of "
+                         "the demo subset — PS1/PM5 then fire for all genes out-of-the-box")
     args = ap.parse_args(argv)
 
     src = Path(args.src)
     if not src.exists():
         raise SystemExit(f"missing {src} — run scripts/fetch_clinvar_residue.py first")
-    keep = set(args.genes)
+    keep = None if args.all else set(args.genes)
 
-    kept = 0
+    kept = genes_seen = 0
+    seen = set()
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    label = "genome-wide" if args.all else "FROZEN demo slice"
     with gzip.open(src, "rt") as fh, gzip.open(args.out, "wt") as w:
-        w.write("# ClinVar residue index (PS1/PM5) — FROZEN demo slice.\n")
+        w.write(f"# ClinVar residue index (PS1/PM5) — {label}.\n")
         w.write("# Columns: gene\taa_pos\tref_aa\talt_aa\tstars\tgenomic_key\taccession\n")
         for line in fh:
             if line.startswith("#") or not line.strip():
                 continue
-            if line.split("\t", 1)[0] in keep:
+            gene = line.split("\t", 1)[0]
+            if keep is None or gene in keep:
                 w.write(line)
                 kept += 1
-    print(f"wrote {kept:,} rows for {len(keep)} genes -> {args.out}")
+                seen.add(gene)
+    print(f"wrote {kept:,} rows for {len(seen)} genes -> {args.out}")
     return 0
 
 
