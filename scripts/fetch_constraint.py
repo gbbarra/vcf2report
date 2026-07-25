@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""Build the real gnomAD gene-constraint table used for PVS1's LoF-intolerance gate.
+"""Build the real gnomAD gene-constraint table used for PVS1's LoF-intolerance gate
+and for the missense-constraint criteria PP2 / BP1.
 
-Downloads gnomAD's published per-gene LoF constraint metrics (v2.1.1, the standard
-pLI / LOEUF table) from the public GCS bucket and exports the two columns the
-engine needs — ``gene<TAB>pLI<TAB>LOEUF`` — replacing the tiny hand-curated subset
-previously bundled. Real, public data; ships gzipped.
+Downloads gnomAD's published per-gene constraint metrics (v2.1.1, the standard
+pLI / LOEUF table) from the public GCS bucket and exports the columns the engine
+needs — ``gene<TAB>pLI<TAB>LOEUF<TAB>mis_z<TAB>oe_mis_upper`` — replacing the tiny
+hand-curated subset previously bundled. Real, public data; ships gzipped.
+
+The two missense columns drive PP2 (missense-constrained gene: ``mis_z`` high) and
+BP1 (missense-tolerant gene where truncating variants are the mechanism:
+``oe_mis_upper`` at/above expectation).
 
     VCF2REPORT_ALLOW_NETWORK=1 python scripts/fetch_constraint.py
 """
@@ -40,18 +45,20 @@ def main() -> int:
         hdr = fh.readline().rstrip("\n").split("\t")
         idx = {h: i for i, h in enumerate(hdr)}
         gi, pi, li = idx["gene"], idx["pLI"], idx["oe_lof_upper"]
-        w.write("# gnomAD v2.1.1 LoF constraint (by gene). "
-                "Columns: gene\tpLI\tLOEUF(oe_lof_upper)\n")
+        mzi, omi = idx["mis_z"], idx["oe_mis_upper"]
+        maxi = max(gi, pi, li, mzi, omi)
+        w.write("# gnomAD v2.1.1 constraint (by gene). "
+                "Columns: gene\tpLI\tLOEUF(oe_lof_upper)\tmis_z\toe_mis_upper\n")
         seen = set()
         for line in fh:
             p = line.rstrip("\n").split("\t")
-            if len(p) <= li:
+            if len(p) <= maxi:
                 continue
             gene = p[gi]
             if not gene or gene in seen:
                 continue      # keep the first (canonical) row per gene symbol
             seen.add(gene)
-            w.write(f"{gene}\t{_f(p[pi])}\t{_f(p[li])}\n")
+            w.write(f"{gene}\t{_f(p[pi])}\t{_f(p[li])}\t{_f(p[mzi])}\t{_f(p[omi])}\n")
             n += 1
     print(f"Wrote {n} genes to {OUT}")
     return 0
