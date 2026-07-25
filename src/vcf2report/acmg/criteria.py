@@ -441,6 +441,13 @@ def pm6(v: Variant, a: Annotation) -> CriterionResult:
                "Requires parental data — not available from a single proband VCF")
 
 
+@criterion("PP1")
+def pp1(v: Variant, a: Annotation) -> CriterionResult:
+    return _na("PP1", "Co-segregation with disease in multiple affected family members",
+               "supporting",
+               "Requires genotypes for affected relatives — not available from a single proband VCF")
+
+
 @criterion("PP2")
 def pp2(v: Variant, a: Annotation) -> CriterionResult:
     name = "Missense in a gene with a low rate of benign missense and where missense is a mechanism"
@@ -653,6 +660,23 @@ def bs2(v: Variant, a: Annotation) -> CriterionResult:
     )
 
 
+@criterion("BS3")
+def bs3(v: Variant, a: Annotation) -> CriterionResult:
+    # The benign mirror of PS3: same evidence class (published functional assays), same reason it
+    # cannot be automated — it needs a literature judgement, not a lookup.
+    return CriterionResult(
+        "BS3", "Well-established functional studies show NO damaging effect",
+        "strong", applies=True, met=False, adjudicated_by="model", confidence="low",
+        reasoning="Requires literature review of functional assays — left for expert/model adjudication",
+    )
+
+
+@criterion("BS4")
+def bs4(v: Variant, a: Annotation) -> CriterionResult:
+    return _na("BS4", "Lack of segregation in affected members of a family", "strong",
+               "Requires genotypes for affected relatives — not available from a single proband VCF")
+
+
 @criterion("BP1")
 def bp1(v: Variant, a: Annotation) -> CriterionResult:
     name = "Missense variant in a gene where primarily truncating variants cause disease"
@@ -690,6 +714,28 @@ def bp1(v: Variant, a: Annotation) -> CriterionResult:
     )
 
 
+@criterion("BP2")
+def bp2(v: Variant, a: Annotation) -> CriterionResult:
+    return _na("BP2",
+               "Observed in trans with a pathogenic variant (dominant gene), or in cis with one",
+               "supporting",
+               "Requires phasing / parental data to establish trans or cis — not available from a "
+               "single proband VCF")
+
+
+@criterion("BP3")
+def bp3(v: Variant, a: Annotation) -> CriterionResult:
+    # Needs a repeat/low-complexity track AND a "no known function" domain call. The engine carries
+    # neither, and inferring "repetitive" from the sequence alone would be a guess dressed as a fact,
+    # so the in-frame consequence is surfaced and the decision left explicit.
+    return CriterionResult(
+        "BP3", "In-frame indel in a repetitive region without a known function",
+        "supporting", applies=True, met=False, adjudicated_by="model", confidence="low",
+        evidence={"consequence": v.consequence, "hgvs_p": v.hgvs_p},
+        reasoning="Requires a repeat/domain annotation the engine does not carry — model adjudication",
+    )
+
+
 @criterion("BP4")
 def bp4(v: Variant, a: Annotation) -> CriterionResult:
     name = "Multiple in-silico lines of evidence suggest no impact"
@@ -721,6 +767,21 @@ def bp4(v: Variant, a: Annotation) -> CriterionResult:
                    if met else ("in-silico predictors conflict — neither PP3 nor BP4 applied"
                                 if direction == "conflicting"
                                 else "in-silico predictors not benign / unavailable")),
+    )
+
+
+@criterion("BP5")
+def bp5(v: Variant, a: Annotation) -> CriterionResult:
+    # Whether ANOTHER finding already explains the phenotype is a report-level, cross-variant
+    # judgement (and a clinical one — an alternate basis does not always exclude a second hit).
+    # A per-variant evaluator cannot see the rest of the case, so this stays explicit rather than
+    # being silently inferred from the candidate list.
+    return CriterionResult(
+        "BP5", "Variant found in a case with an alternate molecular basis for disease",
+        "supporting", applies=True, met=False, adjudicated_by="model", confidence="low",
+        evidence={"gene": v.gene},
+        reasoning="Requires whole-case context (another finding explaining the phenotype) plus "
+                  "clinical judgement — left for expert/model adjudication",
     )
 
 

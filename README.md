@@ -55,10 +55,10 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
   het-allele-balance and PASS rate — a quick read on how the run sequenced;
 - **primary findings** (candidates in genes overlapping the patient's phenotype);
 - **secondary findings** (P/LP variants in the ACMG SF v3.2 actionable-gene list);
-- a **per-variant, fully auditable ACMG trail** — all 28 ACMG/AMP criteria shown,
-  each with the concrete evidence value, its source (DB + accession + date), a
-  one-line reason, and whether the **engine** decided it or it is left for
-  **model/expert** adjudication;
+- a **per-variant, fully auditable ACMG trail** — all 28 ACMG/AMP criteria shown
+  ([17 engine · 5 model · 6 N/A](docs/ACMG_CRITERIA.md)), each with the concrete
+  evidence value, its source (DB + accession + date), a one-line reason, and whether
+  the **engine** decided it or it is left for **model/expert** adjudication;
 - the exact **combining-rule path** to the tier (e.g. `PVS1 + PM2 → Likely Pathogenic`).
 
 ### What makes it different
