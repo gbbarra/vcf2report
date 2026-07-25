@@ -230,6 +230,24 @@ def ps4(v: Variant, a: Annotation) -> CriterionResult:
     )
 
 
+def _pm1_fires(v: Variant, a: Annotation) -> bool:
+    """The PM1 decision, shared so PP2 can stand down when the more specific PM1 applies.
+
+    A missense whose NEIGHBOURHOOD is dense with pathogenic missense — and materially denser than
+    the gene's own baseline — sits in a mutational hot spot. Withheld when the variant's own residue
+    already carries pathogenic evidence (that is PS1/PM5) or when the gene tolerates missense.
+    """
+    hot = a.clinvar_hotspot or {}
+    if (v.consequence or "") != "missense_variant":
+        return False
+    if a.clinvar_ps1 is not None or a.clinvar_pm5 is not None:
+        return False
+    if a.gene_missense_tolerant:
+        return False
+    return (hot.get("n_residues", 0) >= extra_residue.HOTSPOT_MIN_RESIDUES
+            and hot.get("enrichment", 0.0) >= extra_residue.HOTSPOT_MIN_ENRICHMENT)
+
+
 @criterion("PM1")
 def pm1(v: Variant, a: Annotation) -> CriterionResult:
     name = "Located in a mutational hotspot / critical functional domain"
@@ -251,7 +269,7 @@ def pm1(v: Variant, a: Annotation) -> CriterionResult:
     tolerant = bool(a.gene_missense_tolerant)
     dense = n_res >= extra_residue.HOTSPOT_MIN_RESIDUES
     enriched = enrich >= extra_residue.HOTSPOT_MIN_ENRICHMENT
-    met = bool(is_missense and dense and enriched and not same_residue_evidence and not tolerant)
+    met = _pm1_fires(v, a)
     if met:
         reason = (f"{n_res} distinct pathogenic-missense residues within ±{hot.get('window')} aa "
                   f"({n_chg} pathogenic changes), {enrich}× denser than {v.gene}'s own baseline — "
@@ -358,16 +376,22 @@ def _pm5_strength(m: Optional[dict]) -> Optional[str]:
     """Grade PM5 by how well-established the residue is (ClinGen SVI allows PM5 at a variable
     strength rather than a flat Moderate):
 
-      * **Strong**   — >=2 DISTINCT pathogenic amino-acid changes at the residue: the position,
-                       not a single substitution, is what is established as intolerant.
-      * **Moderate** — the default: one other pathogenic change with a well-reviewed (>=2*) record.
-      * **Supporting** — one other pathogenic change resting on a single 1* submitter.
+    Strength needs BOTH breadth (how many distinct changes at the position) and quality (how well
+    reviewed they are) — two single-submitter 1* records at one residue are suggestive, not Strong:
+
+      * **Strong**   — >=2 DISTINCT pathogenic amino-acid changes AND a well-reviewed (>=2*) record:
+                       the position, not one substitution, is established as intolerant.
+      * **Moderate** — the default: >=2 changes at 1*, or one change with a >=2* record.
+      * **Supporting** — a single other pathogenic change resting on one 1* submitter.
     """
     if not m:
         return None
-    if (m.get("n_other") or 1) >= 2:
+    n_other, stars = (m.get("n_other") or 1), (m.get("stars") or 0)
+    if n_other >= 2 and stars >= 2:
         return "strong"
-    return "moderate" if (m.get("stars") or 0) >= 2 else "supporting"
+    if n_other >= 2 or stars >= 2:
+        return "moderate"
+    return "supporting"
 
 
 @criterion("PM5")
@@ -426,12 +450,19 @@ def pp2(v: Variant, a: Annotation) -> CriterionResult:
     # missense variants qualify; the metric is absent for many genes -> not met.
     is_missense = (v.consequence or "") == "missense_variant"
     constrained = bool(a.gene_missense_constrained)
-    met = is_missense and constrained
+    # PP2 and PM1 make the same claim — "missense matters here" — at two granularities (whole gene
+    # vs. this region). ClinGen VCEP specifications generally direct that they not both be applied,
+    # so the more specific, stronger evidence wins: when PM1 fires, PP2 stands down.
+    pm1_fires = _pm1_fires(v, a)
+    met = is_missense and constrained and not pm1_fires
     cites = [a.source["gene_constraint"]] if a.source.get("gene_constraint") else []
     mz = a.gene_mis_z
     if met:
         reason = (f"missense in {v.gene}, a missense-constrained gene "
                   f"(gnomAD mis_z={mz:.2f} ≥ {extra.MIS_Z_CONSTRAINED})")
+    elif pm1_fires:
+        reason = ("regional hotspot evidence applies (PM1, Moderate) — PP2 stands down so the "
+                  "same missense-intolerance signal is not counted at two granularities")
     elif not is_missense:
         reason = f"{v.consequence or 'variant'} is not a missense variant"
     elif mz is not None:

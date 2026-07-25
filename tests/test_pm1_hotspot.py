@@ -86,15 +86,19 @@ def test_pm1_honest_when_index_unavailable():
 
 
 # --- PM5 variable strength --------------------------------------------------
-def test_pm5_strength_scales_with_the_residue_evidence():
-    assert _pm5_strength({"n_other": 3, "stars": 1}) == "strong"      # >=2 distinct changes
-    assert _pm5_strength({"n_other": 1, "stars": 2}) == "moderate"    # one, well reviewed
-    assert _pm5_strength({"n_other": 1, "stars": 1}) == "supporting"  # one, single submitter
+def test_pm5_strength_needs_both_breadth_and_review_quality():
+    # Strong requires >=2 distinct changes AND a well-reviewed record. Breadth alone is not enough:
+    # two single-submitter 1* records at one residue are suggestive, not Strong (that combination
+    # otherwise carried a variant to Likely Pathogenic on two unreviewed submissions).
+    assert _pm5_strength({"n_other": 3, "stars": 3}) == "strong"
+    assert _pm5_strength({"n_other": 2, "stars": 1}) == "moderate"    # breadth, no quality
+    assert _pm5_strength({"n_other": 1, "stars": 2}) == "moderate"    # quality, no breadth
+    assert _pm5_strength({"n_other": 1, "stars": 1}) == "supporting"  # neither
     assert _pm5_strength(None) is None
 
 
 def test_pm5_applies_the_graded_strength():
-    strong = {"alt_aa": "His", "ref_aa": "Arg", "stars": 1, "n_other": 2,
+    strong = {"alt_aa": "His", "ref_aa": "Arg", "stars": 2, "n_other": 2,
               "accession": "VCV000001"}
     cr = _pm5(_v(), _ann(clinvar_pm5=strong))
     assert cr.met and cr.applied_strength == "strong"
@@ -104,6 +108,25 @@ def test_pm5_applies_the_graded_strength():
             "accession": "VCV000002"}
     cr = _pm5(_v(), _ann(clinvar_pm5=weak))
     assert cr.met and cr.applied_strength == "supporting"
+
+
+def test_pp2_stands_down_when_pm1_fires():
+    # PP2 and PM1 assert the same thing ("missense matters here") at gene vs. region granularity;
+    # ClinGen VCEPs direct that they not both apply, so the more specific PM1 wins.
+    _pp2 = all_criteria()["PP2"]
+    a = _ann(clinvar_hotspot=_hot(), gene_mis_z=5.5, gene_missense_constrained=True)
+    assert _pm1(_v(), a).met
+    cr = _pp2(_v(), a)
+    assert not cr.met
+    assert "PM1" in cr.reasoning and "stands down" in cr.reasoning
+
+
+def test_pp2_still_fires_without_a_hotspot():
+    _pp2 = all_criteria()["PP2"]
+    a = _ann(clinvar_hotspot=_hot(n_residues=0, enrichment=0.0),
+             gene_mis_z=5.5, gene_missense_constrained=True)
+    assert not _pm1(_v(), a).met
+    assert _pp2(_v(), a).met
 
 
 # --- hotspot() over a real-format table -------------------------------------
