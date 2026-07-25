@@ -24,6 +24,13 @@ from .vus_triage import probable_pathogenic_vus
 # The routed buckets, in report order. Also the valid names for ``variants_in_bucket``.
 BUCKETS = ("primary", "secondary", "carrier", "probable_pathogenic_vus", "other")
 
+# Criteria that rest on a ClinVar assertion: the variant's OWN record (PP5/BP6) or a
+# residue-level cross-match to a different ClinVar record (PS1/PM5).
+_CLINVAR_CODES = {"PP5", "BP6", "PS1", "PM5"}
+# Gene/residue-level missense criteria — the ones decided from gnomAD missense constraint
+# (PP2/BP1) and the ClinVar residue index (PS1/PM5).
+MISSENSE_CODES = ("PP2", "BP1", "PS1", "PM5")
+
 
 # ---------------------------------------------------------------------------
 # Write side — persist the run
@@ -154,11 +161,12 @@ def criterion_basis(data: dict[str, Any], gene: str, code: str) -> list[dict[str
 
 
 def _cites_clinvar(cr: dict[str, Any]) -> bool:
-    """Does a criterion rest on a ClinVar assertion? PP5/BP6 are the ClinVar-assertion criteria by
+    """Does a criterion rest on a ClinVar assertion? PP5/BP6 (the variant's own assertion) and
+    PS1/PM5 (a residue-level cross-match to another ClinVar record) are ClinVar-derived by
     definition; otherwise look for a ClinVar accession in the citation — the trail cites the ``VCV…``
     accession (or the word ClinVar), NOT necessarily the literal string "ClinVar", so matching text
     alone would miss PP5."""
-    if (cr.get("code") or "").upper() in {"PP5", "BP6"}:
+    if (cr.get("code") or "").upper() in _CLINVAR_CODES:
         return True
     for s in (cr.get("citation") or []):
         s = (s or "").lower()
@@ -186,6 +194,37 @@ def findings_citing_clinvar(data: dict[str, Any]) -> list[dict[str, Any]]:
             "criteria": [{"code": cr.get("code"), "met": cr.get("met"),
                           "reasoning": cr.get("reasoning"), "citation": cr.get("citation")}
                          for cr in cites],
+        })
+    return out
+
+
+def missense_evidence(data: dict[str, Any], met_only: bool = True) -> list[dict[str, Any]]:
+    """Which findings carry gene/residue-level missense evidence — PP2/BP1 (gnomAD missense
+    constraint) and PS1/PM5 (ClinVar residue index).
+
+    These four are the criteria that decide a missense variant from *gene* and *residue* context
+    rather than the variant's own record, so they are what moves a novel missense off VUS. With
+    ``met_only`` (the default) only fired criteria are listed; set it False to also see why they did
+    NOT fire (the index/metric may simply be unavailable), which is the honest audit view."""
+    out: list[dict[str, Any]] = []
+    for c in data.get("classifications", []):
+        hits = [cr for cr in c.get("criteria", [])
+                if (cr.get("code") or "").upper() in MISSENSE_CODES
+                and (cr.get("met") if met_only else True)]
+        if not hits:
+            continue
+        v, a = c.get("variant", {}), c.get("annotation", {})
+        out.append({
+            "gene": v.get("gene"),
+            "variant": v.get("key"),
+            "hgvs_p": v.get("hgvs_p"),
+            "consequence": v.get("consequence"),
+            "tier": c.get("tier"),
+            "gene_mis_z": a.get("gene_mis_z"),
+            "criteria": [{"code": cr.get("code"), "met": cr.get("met"),
+                          "strength": cr.get("applied_strength") or cr.get("default_strength"),
+                          "reasoning": cr.get("reasoning"), "citation": cr.get("citation")}
+                         for cr in hits],
         })
     return out
 
@@ -230,6 +269,10 @@ def _cli(argv: list[str] | None = None) -> int:  # pragma: no cover - thin arg p
     p.add_argument("--criterion", help="With --gene: why the gene got this ACMG code (e.g. PM2).")
     p.add_argument("--bucket", choices=BUCKETS, help="Show the variants routed into this bucket.")
     p.add_argument("--clinvar", action="store_true", help="Show findings that rest on ClinVar.")
+    p.add_argument("--missense", action="store_true",
+                   help="Show findings carrying gene/residue missense evidence (PP2/BP1/PS1/PM5).")
+    p.add_argument("--all-criteria", action="store_true",
+                   help="With --missense: also show the criteria that did NOT fire, and why.")
     args = p.parse_args(argv)
 
     data = load_explore(args.results_json)
@@ -243,6 +286,8 @@ def _cli(argv: list[str] | None = None) -> int:  # pragma: no cover - thin arg p
         result = variants_in_bucket(data, args.bucket)
     elif args.clinvar:
         result = findings_citing_clinvar(data)
+    elif args.missense:
+        result = missense_evidence(data, met_only=not args.all_criteria)
     else:
         result = overview(data)
     print(json.dumps(result, indent=2, default=str))

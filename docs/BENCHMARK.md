@@ -386,3 +386,33 @@ for variants that are really at a splice site. Reconciled to the real annotator 
 the gene-level recovery number — the engine classifies from its own SnpEff annotation of the VCF, not
 from the answer-key label — but it makes the key usable for scoring an *annotator*, not just a report
 generator.
+
+### Missense-criteria round (PP2/BP1, PS1/PM5) — no regression, and what it does *not* prove
+
+Turning the four gene/residue-level missense criteria from "model adjudication" placeholders into
+engine-decided lines (gnomAD missense constraint for **PP2**/**BP1**; a ClinVar residue index for
+**PS1**/**PM5**) was scored against this benchmark, before and after, on the full stores:
+
+**177/200 primary — unchanged (+0), missense subset 61/72 — unchanged.** No case regressed.
+
+Two things came out of that run worth recording:
+
+**1. A real double-count, found and fixed.** The first pass moved 5 cases VUS→Likely Pathogenic
+(U2AF2, TRAF7, ADA2, CALM1, KRT9). All five are variants ClinVar *already* classifies Pathogenic —
+so they were earning **PP5** for their own assertion **and PS1** for a same-amino-acid pathogenic
+entry at a different locus: the same ClinVar evidence counted twice. That is precisely what the SVI's
+PP5 deprecation (and this repo's audit fix #13) guard against. PS1/PM5 are now **withheld when the
+variant's own ClinVar record is P/LP**, so they contribute only for missense ClinVar has *not*
+directly classified. The 5 cases revert; the headline stays 177/200.
+
+**2. This benchmark structurally cannot measure these criteria.** Its plants are *known ClinVar
+pathogenics*, which PP5 and the ClinVar safety flag recover regardless of what PP2/BP1/PS1/PM5 do.
+Their unique value is on missense ClinVar has **not** catalogued — the novel-variant case a real
+patient presents — which this cohort never exercises. So "+0" here is evidence of *no regression*,
+not evidence of *no value*, and it should not be read as the latter.
+
+To measure the value directly, `run_benchmark.py --withhold-clinvar` re-classifies each planted
+variant with its **own** ClinVar assertion nulled (`dataclasses.replace`): PP5/BP6 drop out, PS1/PM5
+re-engage, and the reported P/LP recovery rests on the residue index + constraint + in-silico +
+rarity alone. That is the novel-variant scenario these criteria exist for. A future cohort that
+plants variants *absent from ClinVar* would measure it end-to-end without the withholding trick.

@@ -10,7 +10,8 @@ from vcf2report.models import Annotation, Classification, CriterionResult, QCSum
 from vcf2report.report.assemble import build_report
 from vcf2report.report.explore import (BUCKETS, build_explore, criterion_basis, explain,
                                        findings_citing_clinvar, findings_for_gene, load_explore,
-                                       overview, variants_in_bucket, write_explore)
+                                       missense_evidence, overview, variants_in_bucket,
+                                       write_explore)
 
 _VUS = "Uncertain Significance (VUS)"
 
@@ -121,3 +122,46 @@ def test_overview_counts_buckets_and_carries_the_conclusion():
     assert o["bucket_counts"]["primary"] == 1
     assert len(o["clinvar_do_not_dismiss"]) == 1
     assert isinstance(o["conclusion"], list) and o["conclusion"]
+
+
+# --- gene/residue missense evidence (PP2/BP1/PS1/PM5) ---------------------------------
+def _missense_report():
+    # HOT: a novel missense elevated by residue + constraint evidence (PM5 + PP2), no ClinVar
+    # record of its own. COLD: a missense where neither fired (the metric/index said no).
+    hot = _c("HOT", tier="Likely Pathogenic", hpo=1.0,
+             criteria=[_crit("PM5", strength="moderate", citation=["VCV000067890"]),
+                       _crit("PP2"),
+                       _crit("PS1", met=False, strength="strong"),
+                       _crit("BP1", met=False)])
+    cold = _c("COLD", tier=_VUS, hpo=0.9,
+              criteria=[_crit("PP2", met=False), _crit("PM5", met=False), _crit("PM2")])
+    return build_report("CASE-2", ["HP:0001250"], QCSummary(candidates=2), [hot, cold])
+
+
+def test_missense_evidence_lists_only_fired_criteria_by_default():
+    d = build_explore(_missense_report())
+    ev = missense_evidence(d)
+    assert [f["gene"] for f in ev] == ["HOT"]          # COLD has none met -> omitted
+    codes = {cr["code"] for cr in ev[0]["criteria"]}
+    assert codes == {"PM5", "PP2"}
+    assert ev[0]["tier"] == "Likely Pathogenic"
+    assert ev[0]["hgvs_p"] == "p.Gly97Arg"
+
+
+def test_missense_evidence_all_criteria_shows_the_not_met_audit_view():
+    d = build_explore(_missense_report())
+    ev = missense_evidence(d, met_only=False)
+    genes = {f["gene"] for f in ev}
+    assert genes == {"HOT", "COLD"}                     # COLD now visible, with its not-met trail
+    cold = next(f for f in ev if f["gene"] == "COLD")
+    assert {cr["code"] for cr in cold["criteria"]} == {"PP2", "PM5"}
+    assert all(cr["met"] is False for cr in cold["criteria"])
+
+
+def test_ps1_pm5_count_as_clinvar_citing_criteria():
+    # PS1/PM5 rest on a residue-level cross-match to a ClinVar record, so a "what rests on ClinVar?"
+    # question must surface them alongside PP5/BP6.
+    d = build_explore(_missense_report())
+    cv = findings_citing_clinvar(d)
+    hot = next(f for f in cv if f["gene"] == "HOT")
+    assert "PM5" in {cr["code"] for cr in hot["criteria"]}
