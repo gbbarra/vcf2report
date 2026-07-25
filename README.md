@@ -64,9 +64,10 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
 ### What makes it different
 
 - **Auditable ACMG, not a black box.** You see *why* a variant is Pathogenic — the
-  ~20 criteria determinable from a single-proband VCF are evaluated deterministically;
-  the trio/segregation/phasing ones (PS2/PM3/PM6/…) are honestly marked **N/A**;
-  genuine judgment calls are tagged for expert/model review.
+  ~20 criteria determinable from a single-proband VCF are evaluated deterministically
+  (including the missense criteria **PP2/BP1** and **PS1/PM5**, now data-driven — see
+  below); the trio/segregation/phasing ones (PS2/PM3/PM6/…) are honestly marked **N/A**;
+  the residual judgment calls (PS3/PS4/PM1) are tagged for expert/model review.
 - **Brazilian population frequencies (ABraOM).** Alongside gnomAD it checks the
   ABraOM (SABE) admixed-Brazilian cohort, so a variant *absent from gnomAD but
   common in Brazilians* is correctly dropped — the report names the spurious
@@ -85,6 +86,13 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
   NMD-triggering, **downgraded to Strong** for last-exon (NMD-escaping) nonsense/
   frameshift and **Moderate** for start-loss (Abou Tayoun 2018). Un-annotated VCFs
   stay Very Strong, so nothing is silently over-called.
+- **Data-driven missense criteria.** The gnomAD per-gene constraint table drives **PP2**
+  (missense-depleted gene, `mis_z ≥ 3.09`) and **BP1** (LoF-intolerant gene that tolerates
+  missense — truncating is the mechanism); a ClinVar **residue index** drives **PS1** (same
+  amino-acid change as a *different* established pathogenic variant) and **PM5** (a *different*
+  pathogenic missense at the same residue). All four are engine-decided from local data, mutually
+  consistent (PP2⊥BP1, PS1⊥PM5), and withheld when they would double-count a variant's own ClinVar
+  assertion (PP5) — so they add signal for missense ClinVar has *not* directly classified.
 - **Ontology-aware phenotype matching (HPO).** PP4 and the primary-vs-secondary
   routing use a Lin/Information-Content similarity over the HPO `is_a` graph, so a
   patient term matches a *related* gene term (parent/child) weighted by specificity —

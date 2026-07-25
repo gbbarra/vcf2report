@@ -20,9 +20,10 @@ reason, so the output is honest instead of silently incomplete.
 """
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Optional
 
 from .. import config
+from ..annotate import clinvar_residue as extra_residue
 from ..annotate import extra
 from ..annotate.dosage import haploinsufficient
 from ..annotate.inheritance import lof_is_disease_mechanism
@@ -158,20 +159,48 @@ def pvs1(v: Variant, a: Annotation) -> CriterionResult:
     )
 
 
+def _own_clinvar_plp(a: Annotation) -> bool:
+    """True when the variant's OWN ClinVar record is Pathogenic / Likely pathogenic.
+
+    Such a variant is already covered by PP5 (its direct reputable-source assertion), so
+    the residue-index criteria PS1/PM5 are withheld: firing them would double-count the
+    same ClinVar evidence (the concern behind the SVI's PP5 deprecation). PS1/PM5 are thus
+    reserved for their real purpose — elevating missense ClinVar has NOT directly classified.
+    """
+    return (a.clinvar_significance or "").lower().startswith(("pathogenic", "likely pathogenic"))
+
+
 @criterion("PS1")
 def ps1(v: Variant, a: Annotation) -> CriterionResult:
     name = "Same amino-acid change as a DIFFERENT established pathogenic variant"
-    # PS1 requires a residue-level cross-match to a *distinct* pathogenic variant
-    # (a different nucleotide change giving the same amino-acid change). That needs
-    # a residue-indexed ClinVar lookup we don't have, so it is surfaced for expert/
-    # model adjudication. The variant's OWN ClinVar assertion is captured by PP5,
-    # not PS1 (using it here would double-count reputable-source evidence at Strong).
+    # Engine-decided from the ClinVar residue index: a P/LP (>=1-star) missense with the
+    # SAME amino-acid change at a DIFFERENT genomic locus. The variant's OWN ClinVar
+    # assertion is PP5, not PS1 (the index excludes the query's own key AND a variant already
+    # called P/LP is withheld here), so the two never double-count reputable-source evidence.
+    m = a.clinvar_ps1
+    own_plp = _own_clinvar_plp(a)
+    met = m is not None and not own_plp
+    if met:
+        acc = m.get("accession")
+        reason = (f"same amino-acid change ({m.get('ref_aa','')}"
+                  f"{'→' + m['alt_aa'] if m.get('alt_aa') else ''}) as an established ClinVar "
+                  f"pathogenic variant {acc or ''} ({m.get('stars')}★) at a different locus")
+    elif m is not None and own_plp:
+        reason = ("variant's own ClinVar assertion is pathogenic — captured by PP5; "
+                  "PS1 withheld to avoid double-counting the same ClinVar evidence")
+    elif not a.clinvar_residue_available:
+        reason = "ClinVar residue index unavailable — PS1 not assessed (build it: scripts/fetch_clinvar_residue.py)"
+    elif not v.hgvs_p:
+        reason = "no protein change (not a missense) — PS1 not applicable"
+    else:
+        reason = "no distinct ClinVar pathogenic variant with the same amino-acid change"
     return CriterionResult(
-        "PS1", name, "strong", applies=True, met=False, adjudicated_by="model",
-        confidence="moderate",
-        evidence={"hgvs_p": v.hgvs_p},
-        reasoning="Requires a residue-level cross-match to a distinct ClinVar "
-                  "pathogenic variant — model adjudication (own ClinVar record is PP5)",
+        "PS1", name, "strong", applies=True, met=met,
+        applied_strength="strong" if met else None,
+        adjudicated_by="engine", confidence="high" if a.clinvar_residue_available else "low",
+        evidence={"hgvs_p": v.hgvs_p, "ps1_match": m, "own_clinvar_plp": own_plp},
+        citation=[m["accession"]] if (met and m.get("accession")) else [],
+        reasoning=reason,
     )
 
 
@@ -201,13 +230,77 @@ def ps4(v: Variant, a: Annotation) -> CriterionResult:
     )
 
 
+def _pm1_fires(v: Variant, a: Annotation) -> bool:
+    """The PM1 decision, shared so PP2 can stand down when the more specific PM1 applies.
+
+    A missense whose NEIGHBOURHOOD is dense with pathogenic missense — and materially denser than
+    the gene's own baseline — sits in a mutational hot spot. Withheld when the variant's own residue
+    already carries pathogenic evidence (that is PS1/PM5) or when the gene tolerates missense.
+    """
+    hot = a.clinvar_hotspot or {}
+    if (v.consequence or "") != "missense_variant":
+        return False
+    if a.clinvar_ps1 is not None or a.clinvar_pm5 is not None:
+        return False
+    if a.gene_missense_tolerant:
+        return False
+    return (hot.get("n_residues", 0) >= extra_residue.HOTSPOT_MIN_RESIDUES
+            and hot.get("enrichment", 0.0) >= extra_residue.HOTSPOT_MIN_ENRICHMENT)
+
+
 @criterion("PM1")
 def pm1(v: Variant, a: Annotation) -> CriterionResult:
+    name = "Located in a mutational hotspot / critical functional domain"
+    # Engine-decided from the ClinVar residue index: a missense whose NEIGHBOURHOOD (+/- a few
+    # residues, the query's own residue excluded) is dense with pathogenic missense is, empirically,
+    # in a mutational hot spot. Three guards keep it conservative and non-overlapping:
+    #   * PS1/PM5 take precedence — they already carry the SAME-residue evidence, and ACMG warns
+    #     against counting PM1 together with PM5. PM1 therefore covers only the residue that is
+    #     itself unremarkable but sits inside a pathogenic-dense region.
+    #   * "without benign variation" (the second half of the ACMG wording) has no residue-level
+    #     benign index here, so it is approximated at gene level: a gene that TOLERATES missense
+    #     (BP1's flag) is excluded.
+    #   * a high residue count is required (not a single neighbour), so isolated pairs don't fire.
+    hot = a.clinvar_hotspot or {}
+    n_res, n_chg = hot.get("n_residues", 0), hot.get("n_changes", 0)
+    enrich = hot.get("enrichment", 0.0)
+    is_missense = (v.consequence or "") == "missense_variant"
+    same_residue_evidence = a.clinvar_ps1 is not None or a.clinvar_pm5 is not None
+    tolerant = bool(a.gene_missense_tolerant)
+    dense = n_res >= extra_residue.HOTSPOT_MIN_RESIDUES
+    enriched = enrich >= extra_residue.HOTSPOT_MIN_ENRICHMENT
+    met = _pm1_fires(v, a)
+    if met:
+        reason = (f"{n_res} distinct pathogenic-missense residues within ±{hot.get('window')} aa "
+                  f"({n_chg} pathogenic changes), {enrich}× denser than {v.gene}'s own baseline — "
+                  f"mutational hotspot by ClinVar density")
+    elif not is_missense:
+        reason = f"{v.consequence or 'variant'} is not a missense variant"
+    elif not a.clinvar_residue_available:
+        reason = "ClinVar residue index unavailable — PM1 not assessed (build it: scripts/fetch_clinvar_residue.py)"
+    elif same_residue_evidence:
+        reason = ("pathogenic missense at this exact residue — carried by PS1/PM5; "
+                  "PM1 withheld so the same residue evidence is not counted twice")
+    elif tolerant:
+        reason = f"{v.gene} tolerates missense (gnomAD obs/exp) — not a constrained hotspot"
+    elif dense and not enriched:
+        reason = (f"{n_res} pathogenic-missense residues nearby, but only {enrich}× {v.gene}'s "
+                  f"baseline density (needs {extra_residue.HOTSPOT_MIN_ENRICHMENT}×) — a "
+                  f"well-catalogued gene, not a local hotspot")
+    else:
+        reason = (f"only {n_res} pathogenic-missense residue(s) within ±{hot.get('window', 0)} aa "
+                  f"(needs {extra_residue.HOTSPOT_MIN_RESIDUES})")
     return CriterionResult(
-        "PM1", "Located in a mutational hotspot / critical functional domain",
-        "moderate", applies=True, met=False, adjudicated_by="model", confidence="moderate",
-        evidence={"consequence": v.consequence, "hgvs_p": v.hgvs_p},
-        reasoning="Domain/hotspot membership requires curated annotation — model adjudication",
+        "PM1", name, "moderate", applies=True, met=met,
+        applied_strength="moderate" if met else None,
+        adjudicated_by="engine", confidence="moderate",
+        evidence={"consequence": v.consequence, "hgvs_p": v.hgvs_p,
+                  "hotspot_residues": n_res, "hotspot_changes": n_chg,
+                  "enrichment": enrich, "gene_baseline": hot.get("gene_baseline"),
+                  "window": hot.get("window"), "cutoff": extra_residue.HOTSPOT_MIN_RESIDUES,
+                  "enrichment_cutoff": extra_residue.HOTSPOT_MIN_ENRICHMENT},
+        citation=["ClinVar residue index (local)"] if met else [],
+        reasoning=reason,
     )
 
 
@@ -279,13 +372,66 @@ def pm4(v: Variant, a: Annotation) -> CriterionResult:
     )
 
 
+def _pm5_strength(m: Optional[dict]) -> Optional[str]:
+    """Grade PM5 by how well-established the residue is (ClinGen SVI allows PM5 at a variable
+    strength rather than a flat Moderate):
+
+    Strength needs BOTH breadth (how many distinct changes at the position) and quality (how well
+    reviewed they are) — two single-submitter 1* records at one residue are suggestive, not Strong:
+
+      * **Strong**   — >=2 DISTINCT pathogenic amino-acid changes AND a well-reviewed (>=2*) record:
+                       the position, not one substitution, is established as intolerant.
+      * **Moderate** — the default: >=2 changes at 1*, or one change with a >=2* record.
+      * **Supporting** — a single other pathogenic change resting on one 1* submitter.
+    """
+    if not m:
+        return None
+    n_other, stars = (m.get("n_other") or 1), (m.get("stars") or 0)
+    if n_other >= 2 and stars >= 2:
+        return "strong"
+    if n_other >= 2 or stars >= 2:
+        return "moderate"
+    return "supporting"
+
+
 @criterion("PM5")
 def pm5(v: Variant, a: Annotation) -> CriterionResult:
+    name = "Novel missense at a residue where a different pathogenic missense is known"
+    # Engine-decided from the ClinVar residue index: a P/LP (>=1-star) missense with a
+    # DIFFERENT amino-acid change at the SAME residue, applied only when the query's exact
+    # change is not itself established (that case is PS1/PP5). PS1 and PM5 are therefore
+    # mutually exclusive — the index sets pm5 to None whenever the same change is known.
+    m = a.clinvar_pm5
+    own_plp = _own_clinvar_plp(a)
+    met = m is not None and a.clinvar_ps1 is None and not own_plp
+    strength = _pm5_strength(m) if met else None
+    if met:
+        acc = m.get("accession")
+        n_other = m.get("n_other") or 1
+        extra_note = (f"; {n_other} distinct pathogenic changes at this residue → PM5_{strength}"
+                      if strength != "moderate" else "")
+        reason = (f"a different pathogenic missense at the same residue is established in "
+                  f"ClinVar (→{m['alt_aa']}, {acc or ''}, {m.get('stars')}★); this change is novel"
+                  f"{extra_note}")
+    elif m is not None and own_plp:
+        reason = ("variant's own ClinVar assertion is pathogenic — captured by PP5; "
+                  "PM5 withheld to avoid double-counting the same ClinVar evidence")
+    elif a.clinvar_ps1 is not None:
+        reason = "same amino-acid change is itself established — captured by PS1, not PM5"
+    elif not a.clinvar_residue_available:
+        reason = "ClinVar residue index unavailable — PM5 not assessed (build it: scripts/fetch_clinvar_residue.py)"
+    elif not v.hgvs_p:
+        reason = "no protein change (not a missense) — PM5 not applicable"
+    else:
+        reason = "no other ClinVar pathogenic missense at this residue"
     return CriterionResult(
-        "PM5", "Novel missense at a residue where a different pathogenic missense is known",
-        "moderate", applies=True, met=False, adjudicated_by="model", confidence="moderate",
-        evidence={"hgvs_p": v.hgvs_p},
-        reasoning="Requires residue-level ClinVar cross-check — model adjudication",
+        "PM5", name, "moderate", applies=True, met=met,
+        applied_strength=strength,
+        adjudicated_by="engine", confidence="high" if a.clinvar_residue_available else "low",
+        evidence={"hgvs_p": v.hgvs_p, "pm5_match": m, "own_clinvar_plp": own_plp,
+                  "pm5_strength": strength},
+        citation=[m["accession"]] if (met and m.get("accession")) else [],
+        reasoning=reason,
     )
 
 
@@ -304,12 +450,19 @@ def pp2(v: Variant, a: Annotation) -> CriterionResult:
     # missense variants qualify; the metric is absent for many genes -> not met.
     is_missense = (v.consequence or "") == "missense_variant"
     constrained = bool(a.gene_missense_constrained)
-    met = is_missense and constrained
+    # PP2 and PM1 make the same claim — "missense matters here" — at two granularities (whole gene
+    # vs. this region). ClinGen VCEP specifications generally direct that they not both be applied,
+    # so the more specific, stronger evidence wins: when PM1 fires, PP2 stands down.
+    pm1_fires = _pm1_fires(v, a)
+    met = is_missense and constrained and not pm1_fires
     cites = [a.source["gene_constraint"]] if a.source.get("gene_constraint") else []
     mz = a.gene_mis_z
     if met:
         reason = (f"missense in {v.gene}, a missense-constrained gene "
                   f"(gnomAD mis_z={mz:.2f} ≥ {extra.MIS_Z_CONSTRAINED})")
+    elif pm1_fires:
+        reason = ("regional hotspot evidence applies (PM1, Moderate) — PP2 stands down so the "
+                  "same missense-intolerance signal is not counted at two granularities")
     elif not is_missense:
         reason = f"{v.consequence or 'variant'} is not a missense variant"
     elif mz is not None:

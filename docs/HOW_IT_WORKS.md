@@ -75,6 +75,32 @@ no network call is needed for a real ClinVar lookup — and only a positive chr+
 accepted. Feeds the deprecated-gated **PP5** (+1 supporting) and, independently of the ACMG math,
 the **ClinVar safety flag** (below).
 
+**ClinVar residue index — PS1 / PM5.** The per-variant store carries no protein change, so a second,
+residue-level view of ClinVar drives the two amino-acid-substitution criteria. `scripts/fetch_clinvar_residue.py`
+distils `variant_summary.txt.gz` into one compact row per distinct `(gene, protein_position, alt_aa)`
+pathogenic/likely-pathogenic missense with a criteria-based (≥1★) review. Against that index a query
+missense earns **PS1** (Strong) when the *same* amino-acid change is an established pathogenic variant at
+a *different* genomic locus (the query's own record is PP5, never PS1), and **PM5** (Moderate) when a
+*different* pathogenic missense sits at the *same* residue and the query's exact change is itself novel —
+so PS1 and PM5 are mutually exclusive. **PM5's strength is graded** by how established the residue is
+(ClinGen SVI allows a variable strength): ≥2 distinct pathogenic changes at the position → *Strong*;
+one well-reviewed (≥2★) → *Moderate*; one 1★ submitter → *Supporting*.
+
+The same index also drives **PM1** (mutational hot spot) from the residue's **neighbourhood**, giving a
+clean, non-overlapping hierarchy — same residue + same change → PS1, same residue + different change →
+PM5, *neighbouring* residues → PM1 — so the ACMG rule against counting PM1 together with PM5 holds by
+construction. PM1 needs the window (±7 aa) to hold ≥3 distinct pathogenic residues **and** to be ≥2×
+denser than the gene's own baseline. That second gate matters: raw density measures how thoroughly a
+gene has been *studied*, not where its hot spots are — on the committed slice a count-only rule fired on
+**61% of FBN1** and **49% of SCN1A** novel residues; requiring local enrichment brings it to 1.5% / 6.8%
+(4.3% overall), which is what "hot spot" should mean. ACMG's "without benign variation" clause has no
+residue-level benign index here, so it is approximated at gene level (a missense-*tolerant* gene is
+excluded) — a documented approximation, not a silent one.
+
+The full index is built locally (git-ignored like the ClinVar store); a small committed **frozen slice**
+(`scripts/freeze_clinvar_residue.py`) keeps the shipped examples firing offline. With neither present,
+PS1/PM5/PM1 report *index unavailable* rather than a fabricated match.
+
 **HPO phenotype matching — PP4 & routing.** Gene↔phenotype similarity uses the HPO `is_a` graph
 with **Lin/Information-Content semantic similarity** (best-match-average) when the ontology graph
 is present, falling back to exact term overlap. The average match feeds **PP4** (≥0.60); the
@@ -103,9 +129,9 @@ from the INFO column — a zero-lookup offline path.
 
 `classify(variant, annotation)` runs every registered criterion in a fixed, inspectable order and
 combines them into a 5-tier call plus an auditable `rule_path`. Deterministic criteria are
-evaluated met/not-met (PVS1, PM2, PM4, PP2, PP3, PP4, PP5, BA1, BS1, BS2, BP1, BP4, BP6, BP7);
-criteria that need wet-lab or case data are *surfaced as evidence but not auto-applied* (PS1/PS3/
-PS4/PM1/PM5); single-proband-inapplicable criteria (PS2/PM3/PM6, de novo / in-trans / segregation) are
+evaluated met/not-met (PVS1, PS1, PM1, PM2, PM4, PM5, PP2, PP3, PP4, PP5, BA1, BS1, BS2, BP1, BP4,
+BP6, BP7); criteria that need wet-lab or case data are *surfaced as evidence but not auto-applied*
+(PS3/PS4); single-proband-inapplicable criteria (PS2/PM3/PM6, de novo / in-trans / segregation) are
 marked N/A. **PVS1 strength** is modulated by the ClinGen SVI decision tree (start-loss →
 Moderate; last-exon NMD-escaping → Strong; else Very Strong). Two combining models are available:
 **Richards 2015 Table 5** (the conservative default) and the **ClinGen/Tavtigian 2020 points**
