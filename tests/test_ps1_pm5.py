@@ -53,8 +53,10 @@ def test_ps1_unavailable_index_is_honest():
 
 
 def test_pm5_met_on_different_aa_same_residue():
-    m = {"alt_aa": "His", "ref_aa": "Arg", "stars": 1, "genomic_key": "1-101-G-A",
-         "accession": "VCV000067890"}
+    # One other pathogenic change, well-reviewed (>=2*) -> PM5 at its default Moderate.
+    # (The graded Strong/Supporting variants are covered in tests/test_pm1_hotspot.py.)
+    m = {"alt_aa": "His", "ref_aa": "Arg", "stars": 2, "n_other": 1,
+         "genomic_key": "1-101-G-A", "accession": "VCV000067890"}
     cr = _pm5(_v(), _ann(clinvar_pm5=m, clinvar_ps1=None))
     assert cr.applies and cr.met
     assert cr.applied_strength == "moderate"

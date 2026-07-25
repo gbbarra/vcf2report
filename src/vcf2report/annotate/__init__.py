@@ -78,6 +78,8 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
     # coordinate-keyed lookups; a build mismatch leaves the matches unpopulated (None).
     res = (clinvar_residue.lookup(variant.gene, variant.hgvs_p, variant.key)
            if build_trusted else {"ps1": None, "pm5": None, "available": None})
+    _parsed = clinvar_residue.parse_hgvs_p(variant.hgvs_p) if build_trusted else None
+    hot = clinvar_residue.hotspot(variant.gene, _parsed[1]) if _parsed else None
 
     return Annotation(
         clinvar_significance=cv.get("significance"),
@@ -88,6 +90,7 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         clinvar_ps1=res.get("ps1"),
         clinvar_pm5=res.get("pm5"),
         clinvar_residue_available=res.get("available"),
+        clinvar_hotspot=hot,
         gnomad_af=g.get("af"),
         gnomad_ac=g.get("ac"),
         gnomad_an=g.get("an"),

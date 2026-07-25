@@ -88,6 +88,52 @@ def available() -> bool:
     return bool(_load())
 
 
+# PM1 hotspot window: distinct pathogenic-missense RESIDUES within +/- this many residues of the
+# query (the query's own residue excluded — that is PS1/PM5 territory, never PM1).
+HOTSPOT_WINDOW = 7
+HOTSPOT_MIN_RESIDUES = 3
+# ...AND the window must be this many times denser than the gene's OWN baseline density.
+# Raw density alone measures how thoroughly a gene has been STUDIED, not where its hot spots are:
+# on the committed slice a bare >=3-residue rule fired on 61% of FBN1 and 49% of SCN1A — exhaustively
+# catalogued genes where almost every position has three pathogenic neighbours. Requiring local
+# enrichment over the gene's own average restores the actual meaning of "hot spot": a local
+# CONCENTRATION, not a well-covered gene.
+HOTSPOT_MIN_ENRICHMENT = 2.0
+
+
+def hotspot(gene: Optional[str], aa_pos: Optional[int], window: int = HOTSPOT_WINDOW) -> dict:
+    """Local density of pathogenic missense around a residue — the PM1 signal.
+
+    Counts DISTINCT neighbouring residues (excluding ``aa_pos`` itself) that carry at least one
+    P/LP missense in the ClinVar residue index, plus the total pathogenic amino-acid changes across
+    them, and expresses that as an ``enrichment`` over the gene's own baseline density (catalogued
+    pathogenic residues per residue of its catalogued span). The query residue is excluded so PM1
+    never double-counts the same-residue evidence PS1 and PM5 already carry.
+    """
+    idx = _load()
+    out = {"n_residues": 0, "n_changes": 0, "window": window, "residues": [],
+           "enrichment": 0.0, "gene_baseline": 0.0, "available": bool(idx)}
+    if not gene or aa_pos is None:
+        return out
+    residues = idx.get(gene)
+    if not residues:
+        return out
+    near = [p for p in residues
+            if p != aa_pos and abs(p - aa_pos) <= window and residues[p]]
+    out["n_residues"] = len(near)
+    out["n_changes"] = sum(len(residues[p]) for p in near)
+    out["residues"] = sorted(near)
+
+    # gene baseline: catalogued pathogenic residues per residue across the catalogued span.
+    lo, hi = min(residues), max(residues)
+    span = max(hi - lo + 1, 1)
+    baseline = len(residues) / span
+    local = len(near) / float(2 * window + 1)
+    out["gene_baseline"] = round(baseline, 4)
+    out["enrichment"] = round(local / baseline, 2) if baseline else 0.0
+    return out
+
+
 def lookup(gene: Optional[str], hgvs_p: Optional[str], variant_key: Optional[str]) -> dict:
     """Residue matches for PS1 / PM5.
 
@@ -124,14 +170,18 @@ def lookup(gene: Optional[str], hgvs_p: Optional[str], variant_key: Optional[str
                       "genomic_key": same[2], "accession": same[3]}
 
     # PM5: a DIFFERENT pathogenic AA change at this residue — only when the query's exact
-    # change is not itself established (else it is PS1/PP5 territory, never PM5).
+    # change is not itself established (else it is PS1/PP5 territory, never PM5). ``n_other``
+    # counts the distinct pathogenic changes at the residue, which grades PM5's strength.
     if not known_same:
-        best = None
+        best, n_other = None, 0
         for other_alt, (o_ref, o_stars, o_key, o_acc) in residues.items():
             if other_alt == alt_aa:
                 continue
+            n_other += 1
             if best is None or o_stars > best["stars"]:
                 best = {"alt_aa": other_alt, "ref_aa": o_ref, "stars": o_stars,
                         "genomic_key": o_key, "accession": o_acc}
+        if best is not None:
+            best["n_other"] = n_other
         out["pm5"] = best
     return out

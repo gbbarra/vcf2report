@@ -80,6 +80,9 @@ class Annotation:
     clinvar_ps1: Optional[dict] = None
     clinvar_pm5: Optional[dict] = None
     clinvar_residue_available: Optional[bool] = None
+    # Local density of pathogenic missense AROUND the residue (PM1 hotspot signal); the query's
+    # own residue is excluded, so this never overlaps the PS1/PM5 same-residue evidence.
+    clinvar_hotspot: Optional[dict] = None
 
     gnomad_af: Optional[float] = None       # popmax AF
     gnomad_ac: Optional[int] = None
