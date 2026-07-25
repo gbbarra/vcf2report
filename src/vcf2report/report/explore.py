@@ -229,6 +229,110 @@ def missense_evidence(data: dict[str, Any], met_only: bool = True) -> list[dict[
     return out
 
 
+# What each still-unavailable criterion would need in order to be assessable. Keyed by code, so the
+# answer to "what would move this off VUS?" names a concrete next step (order a trio, commission an
+# assay) instead of an abstract strength.
+_UNLOCKS = {
+    "PS2": "confirmed de novo — parental (trio) sequencing",
+    "PM6": "assumed de novo — parental sequencing without confirmed parentage",
+    "PM3": "in trans with a pathogenic variant — phasing or parental data (recessive)",
+    "PP1": "co-segregation — genotypes for affected relatives",
+    "BS4": "lack of segregation — genotypes for affected relatives",
+    "BP2": "in trans/cis with a pathogenic variant — phasing or parental data",
+    "PS3": "functional studies showing a damaging effect — literature or assay",
+    "BS3": "functional studies showing no damaging effect — literature or assay",
+    "PS4": "case-control prevalence data",
+    "PM1": "hotspot/domain membership — not established for this residue",
+    "BP3": "repeat/domain annotation the engine does not carry",
+    "BP5": "an alternate molecular basis for the phenotype — whole-case review",
+}
+# Strength ladders differ by side: Richards Table 5 has no benign "moderate" bucket, and no
+# pathogenic "stand alone". Escalating a strength the combiner cannot score would silently produce
+# a no-op step, so each side is walked over only the strengths it actually has.
+_PATHOGENIC_LADDER = ("supporting", "moderate", "strong", "very_strong")
+_BENIGN_LADDER = ("supporting", "strong", "stand_alone")
+_TIER_RANK = {"Benign": 0, "Likely Benign": 1, "Uncertain Significance (VUS)": 2,
+              "Likely Pathogenic": 3, "Pathogenic": 4}
+
+
+def _as_criteria(c: dict[str, Any]):
+    """Rebuild met CriterionResult objects from the persisted trail, for re-combining."""
+    from ..models import CriterionResult
+    out = []
+    for cr in c.get("criteria", []):
+        if not cr.get("met"):
+            continue
+        strength = cr.get("applied_strength") or cr.get("default_strength")
+        out.append(CriterionResult(code=cr.get("code"), name=cr.get("code"),
+                                   default_strength=strength, applies=True, met=True,
+                                   applied_strength=strength))
+    return out
+
+
+def missing_evidence(data: dict[str, Any], gene: str | None = None) -> list[dict[str, Any]]:
+    """"What would it take to move this variant off VUS?" — the question a conservative engine
+    invites, answered deterministically instead of guessed.
+
+    For each classified variant, re-runs the ACMG combining rules with ONE hypothetical extra line
+    of evidence at each strength, and reports the WEAKEST addition that would change the tier (up or
+    down) — then names the criteria that could supply it and what each would require (a trio, an
+    assay, segregation data). Nothing here re-classifies anything: it reads the persisted trail and
+    reports what the published combining rules would do.
+    """
+    from ..acmg import rules
+    from ..models import CriterionResult
+
+    out: list[dict[str, Any]] = []
+    targets = findings_for_gene(data, gene) if gene else data.get("classifications", [])
+    for c in targets:
+        met = _as_criteria(c)
+        current = c.get("tier")
+        met_codes = {cr.get("code") for cr in c.get("criteria", []) if cr.get("met")}
+        # unavailable criteria (N/A or awaiting judgement) that could plausibly supply evidence
+        pending = [{"code": cr.get("code"), "strength": cr.get("default_strength"),
+                    "needs": _UNLOCKS.get(cr.get("code"), cr.get("reasoning")),
+                    "applies": cr.get("applies")}
+                   for cr in c.get("criteria", [])
+                   if not cr.get("met") and cr.get("code") in _UNLOCKS]
+
+        # The hypothetical must carry a code the combiner routes to the intended side: rules.combine
+        # decides pathogenic-vs-benign by CODE membership, not by any flag, so a made-up benign code
+        # would be scored as pathogenic. Borrow a real code from each side that this variant has not
+        # already met, so the simulated line is additive rather than a double count.
+        free_benign = sorted(rules._BENIGN_CODES - met_codes)
+        steps = []
+        for side, ladder in (("pathogenic", _PATHOGENIC_LADDER), ("benign", _BENIGN_LADDER)):
+            if side == "benign" and not free_benign:
+                continue
+            code = "PP_HYPOTHETICAL" if side == "pathogenic" else free_benign[0]
+            for strength in ladder:
+                hyp = CriterionResult(code=code, name=code, default_strength=strength,
+                                      applies=True, met=True, applied_strength=strength)
+                tier, path = rules.combine(met + [hyp])
+                if tier == current:
+                    continue
+                moved = _TIER_RANK.get(tier, 2) - _TIER_RANK.get(current, 2)
+                steps.append({"add": f"one {strength.replace('_', ' ')} {side} criterion",
+                              "strength": strength, "side": side,
+                              "would_become": tier, "direction": "up" if moved > 0 else "down",
+                              "rule": path,
+                              "candidates": [p for p in pending
+                                             if p["strength"] == strength
+                                             and (p["code"][0] == "P") == (side == "pathogenic")]})
+                break     # weakest addition on this side that changes anything — stop escalating
+
+        v = c.get("variant", {})
+        out.append({
+            "gene": v.get("gene"), "variant": v.get("key"),
+            "hgvs_p": v.get("hgvs_p"), "tier": current,
+            "rule_path": c.get("rule_path"),
+            "met_codes": sorted(met_codes),
+            "would_change_with": steps,
+            "pending_criteria": pending,
+        })
+    return out
+
+
 def explain(data: dict[str, Any], gene: str) -> dict[str, Any]:
     """A gene-level digest — "tell me about gene X". Per classified variant: tier, the combining-rule
     path, the met criteria, HGVS/coordinate, the headline clinical annotation, and which routed
@@ -273,13 +377,17 @@ def _cli(argv: list[str] | None = None) -> int:  # pragma: no cover - thin arg p
                    help="Show findings carrying gene/residue missense evidence (PP2/BP1/PS1/PM5).")
     p.add_argument("--all-criteria", action="store_true",
                    help="With --missense: also show the criteria that did NOT fire, and why.")
+    p.add_argument("--missing", action="store_true",
+                   help="What evidence would change each tier (optionally narrowed by --gene).")
     args = p.parse_args(argv)
 
     data = load_explore(args.results_json)
-    if args.criterion:
+    if args.missing:
+        result: Any = missing_evidence(data, args.gene)
+    elif args.criterion:
         if not args.gene:
             p.error("--criterion requires --gene")
-        result: Any = criterion_basis(data, args.gene, args.criterion)
+        result = criterion_basis(data, args.gene, args.criterion)
     elif args.gene:
         result = explain(data, args.gene)
     elif args.bucket:

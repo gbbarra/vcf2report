@@ -10,8 +10,8 @@ from vcf2report.models import Annotation, Classification, CriterionResult, QCSum
 from vcf2report.report.assemble import build_report
 from vcf2report.report.explore import (BUCKETS, build_explore, criterion_basis, explain,
                                        findings_citing_clinvar, findings_for_gene, load_explore,
-                                       missense_evidence, overview, variants_in_bucket,
-                                       write_explore)
+                                       missense_evidence, missing_evidence, overview,
+                                       variants_in_bucket, write_explore)
 
 _VUS = "Uncertain Significance (VUS)"
 
@@ -165,3 +165,74 @@ def test_ps1_pm5_count_as_clinvar_citing_criteria():
     cv = findings_citing_clinvar(d)
     hot = next(f for f in cv if f["gene"] == "HOT")
     assert "PM5" in {cr["code"] for cr in hot["criteria"]}
+
+
+# --- "what would move this off VUS?" ---------------------------------------
+def _na_crit(code, strength):
+    return CriterionResult(code=code, name=f"{code} criterion", default_strength=strength,
+                           applies=False, met=False, reasoning="needs family data")
+
+
+def _gap_report():
+    # A VUS resting on one Moderate + two Supporting: one more Moderate reaches Likely Pathogenic
+    # (Richards LP-5). PM6 is carried as N/A so it can be named as the concrete way to get there.
+    vus = _c("GAPG", tier=_VUS, hpo=0.9,
+             criteria=[_crit("PM2", strength="moderate"), _crit("PP3"), _crit("PP4"),
+                       _na_crit("PM6", "moderate"), _na_crit("PS2", "strong")])
+    # A Pathogenic call that no single supporting/strong line can move.
+    path = _c("SOLID", tier="Pathogenic", hpo=1.0,
+              criteria=[_crit("PVS1", strength="very_strong"), _crit("PM2", strength="moderate"),
+                        _crit("PP5")])
+    return build_report("CASE-3", ["HP:0001250"], QCSummary(candidates=2), [vus, path])
+
+
+def test_missing_evidence_names_the_weakest_addition_that_would_change_the_tier():
+    d = build_explore(_gap_report())
+    gap = missing_evidence(d, "GAPG")[0]
+    assert gap["tier"] == _VUS
+    up = [s for s in gap["would_change_with"] if s["direction"] == "up"]
+    assert len(up) == 1, "should report exactly one (weakest) upgrade step"
+    assert up[0]["strength"] == "moderate" and up[0]["side"] == "pathogenic"
+    assert up[0]["would_become"] == "Likely Pathogenic"
+
+
+def test_missing_evidence_names_the_concrete_next_step():
+    # The answer must be actionable — "order a trio" — not just an abstract strength.
+    d = build_explore(_gap_report())
+    up = [s for s in missing_evidence(d, "GAPG")[0]["would_change_with"] if s["direction"] == "up"]
+    codes = {c["code"] for c in up[0]["candidates"]}
+    assert "PM6" in codes
+    needs = next(c["needs"] for c in up[0]["candidates"] if c["code"] == "PM6")
+    assert "parental" in needs
+
+
+def test_missing_evidence_routes_the_benign_hypothetical_to_the_benign_side():
+    # Regression: rules.combine decides the side by CODE membership, so a made-up benign code was
+    # scored as PATHOGENIC — reporting that a benign criterion would make a VUS Likely Pathogenic.
+    d = build_explore(_gap_report())
+    for r in missing_evidence(d):
+        for s in r["would_change_with"]:
+            if s["side"] == "benign":
+                assert s["direction"] == "down", f"benign line raised the tier: {s}"
+
+
+def test_missing_evidence_skips_the_nonexistent_benign_moderate_bucket():
+    # Richards Table 5 has no benign Moderate; escalating one would be a silent no-op step.
+    d = build_explore(_gap_report())
+    for r in missing_evidence(d):
+        assert not [s for s in r["would_change_with"]
+                    if s["side"] == "benign" and s["strength"] == "moderate"]
+
+
+def test_missing_evidence_shows_a_robust_pathogenic_call_as_hard_to_move():
+    d = build_explore(_gap_report())
+    solid = next(r for r in missing_evidence(d) if r["gene"] == "SOLID")
+    assert solid["tier"] == "Pathogenic"
+    assert not [s for s in solid["would_change_with"] if s["direction"] == "up"]
+    down = [s for s in solid["would_change_with"] if s["direction"] == "down"]
+    assert down and down[0]["strength"] == "stand_alone"
+
+
+def test_missing_evidence_covers_every_variant_when_no_gene_given():
+    d = build_explore(_gap_report())
+    assert {r["gene"] for r in missing_evidence(d)} == {"GAPG", "SOLID"}
