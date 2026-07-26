@@ -116,7 +116,7 @@ def run_pipeline(
     # filter, so we skip the (per-variant, ~1 GB tabix) lookup across the whole
     # post-QC set and query just the surviving candidates below.
     annotated = [(v, annotate_variant(v, hpo_terms, build_trusted=build_trusted,
-                                      with_alphamissense=False))
+                                      with_alphamissense=False, with_clinvar_residue=False))
                  for v in kept]
     _mark("annotate_s")
     candidates, funnel = filter_variants(annotated, max_af=max_af)

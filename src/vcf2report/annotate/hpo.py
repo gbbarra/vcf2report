@@ -157,8 +157,13 @@ def match(gene: Optional[str], patient_hpo: list[str]) -> dict:
     similarity (specificity-weighted, credits related terms); without it, the exact
     fraction of the patient's terms the gene is directly annotated with.
     """
+    # score=None means NO COMPARISON WAS POSSIBLE, which is not the same as a comparison that
+    # scored zero. Returning 0.0 here made PP4 report "phenotype match 0.00 below 0.6" — a
+    # measurement arguing against the variant — for runs where no HPO terms were supplied at all.
+    # Callers that rank or route already coalesce with `or 0`; only the evidence line needs the
+    # distinction.
     if not gene or not patient_hpo:
-        return {"score": 0.0, "best": 0.0, "matched_terms": [], "_source": "HPO (no gene/terms)"}
+        return {"score": None, "best": None, "matched_terms": [], "_source": "HPO (no gene/terms)"}
     _load()          # loaders clear _match_cache on a (re)load, so hits are never stale
     _load_graph()
     ck = (gene, tuple(patient_hpo))
@@ -173,8 +178,9 @@ def match(gene: Optional[str], patient_hpo: list[str]) -> dict:
 def _match_compute(gene: str, patient_hpo: list[str]) -> dict:
     gene_terms = _load().get(gene, set())
     if not gene_terms:
-        return {"score": 0.0, "best": 0.0, "matched_terms": [],
-                "_source": "HPO genes_to_phenotype (local)"}
+        # The gene carries no HPO annotation — again "not comparable", not "compared and scored 0".
+        return {"score": None, "best": None, "matched_terms": [],
+                "_source": "HPO genes_to_phenotype (gene not annotated)"}
     sem = _semantic_match(gene_terms, patient_hpo)
     if sem is not None:
         return sem

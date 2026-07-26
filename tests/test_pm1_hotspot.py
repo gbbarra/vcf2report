@@ -29,6 +29,10 @@ def _hot(n_residues=4, n_changes=9, window=7, enrichment=3.5):
 
 def _ann(**kw):
     kw.setdefault("clinvar_residue_available", True)
+    # Known-and-not-tolerant is the normal case: the shipped constraint table covers 19,658 genes.
+    # PM1 now requires the metric to be ANSWERABLE, so a fixture that omits it models an
+    # uncatalogued gene, which is a different test (below).
+    kw.setdefault("gene_missense_tolerant", False)
     return Annotation(**kw)
 
 
@@ -149,7 +153,10 @@ def test_hotspot_counts_neighbours_and_excludes_the_query_residue(tmp_path, monk
     ])
     monkeypatch.setattr(config, "CLINVAR_RESIDUE_FROZEN", fp)
     monkeypatch.setattr(config, "CLINVAR_RESIDUE_LOCAL", None)
-    clinvar_residue._index = None
+    # via monkeypatch so the cached index/baselines are restored at teardown — a plain assignment
+    # leaks the test table into every later test in the session.
+    monkeypatch.setattr(clinvar_residue, "_index", None)
+    monkeypatch.setattr(clinvar_residue, "_baselines", {})
 
     h = clinvar_residue.hotspot("HOTG", 100)
     assert h["n_residues"] == 3          # 102/104/105 — 100 itself excluded, 130 out of window
@@ -176,7 +183,10 @@ def test_hotspot_enrichment_is_relative_to_the_genes_own_density(tmp_path, monke
     _write_index(fp, rows)
     monkeypatch.setattr(config, "CLINVAR_RESIDUE_FROZEN", fp)
     monkeypatch.setattr(config, "CLINVAR_RESIDUE_LOCAL", None)
-    clinvar_residue._index = None
+    # via monkeypatch so the cached index/baselines are restored at teardown — a plain assignment
+    # leaks the test table into every later test in the session.
+    monkeypatch.setattr(clinvar_residue, "_index", None)
+    monkeypatch.setattr(clinvar_residue, "_baselines", {})
 
     tight = clinvar_residue.hotspot("CLUSTER", 303)
     spread = clinvar_residue.hotspot("DENSE", 303)

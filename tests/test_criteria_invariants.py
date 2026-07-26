@@ -27,6 +27,9 @@ def _missense(gene="TESTG", hgvs_p="p.Arg123Cys"):
 
 _HOTSPOT = {"n_residues": 5, "n_changes": 12, "window": 7, "enrichment": 4.0,
             "gene_baseline": 0.05, "available": True}
+# PM1 requires the missense-tolerance metric to be answerable, so annotations that expect PM1 to
+# fire must carry it (False = gene known NOT to tolerate missense).
+_CONSTRAINED = {"gene_missense_tolerant": False}
 _PM5 = {"alt_aa": "His", "ref_aa": "Arg", "stars": 2, "n_other": 1, "accession": "VCV2"}
 _PS1 = {"alt_aa": "Cys", "ref_aa": "Arg", "stars": 2, "genomic_key": "1-999-A-T",
         "accession": "VCV1"}
@@ -72,7 +75,7 @@ def test_pvs1_and_pm4_never_both_fire(consequence):
     ({"clinvar_hotspot": _HOTSPOT}, "PM1"),              # neighbouring residues only
 ])
 def test_residue_evidence_fires_exactly_one_criterion(ann_kw, expected):
-    a = Annotation(clinvar_residue_available=True, **ann_kw)
+    a = Annotation(clinvar_residue_available=True, **_CONSTRAINED, **ann_kw)
     fired = _fired(_missense(), a) & {"PS1", "PM5", "PM1"}
     assert fired == {expected}, f"{ann_kw} fired {fired}"
 
@@ -81,14 +84,14 @@ def test_residue_hierarchy_holds_when_every_signal_is_present():
     # All three signals at once: PS1 (most specific) wins, PM5 and PM1 both stand down, so the same
     # residue evidence is never counted two or three times.
     a = Annotation(clinvar_residue_available=True, clinvar_ps1=_PS1, clinvar_pm5=_PM5,
-                   clinvar_hotspot=_HOTSPOT)
+                   clinvar_hotspot=_HOTSPOT, **_CONSTRAINED)
     assert _fired(_missense(), a) & {"PS1", "PM5", "PM1"} == {"PS1"}
 
 
 # --- gene-level vs region-level missense intolerance ------------------------
 def test_pp2_and_pm1_never_both_fire():
     a = Annotation(clinvar_residue_available=True, clinvar_hotspot=_HOTSPOT,
-                   gene_mis_z=5.5, gene_missense_constrained=True)
+                   gene_mis_z=5.5, gene_missense_constrained=True, **_CONSTRAINED)
     fired = _fired(_missense(), a)
     assert "PM1" in fired and "PP2" not in fired
 

@@ -184,7 +184,10 @@ def pvs1(v: Variant, a: Annotation) -> CriterionResult:
         evidence={"consequence": v.consequence, "gene_lof_intolerant": a.gene_lof_intolerant,
                   "lof_mechanism_basis": basis, "gene_moi": config.gene_inheritance(v.gene),
                   "exon": v.exon, "pvs1_strength": strength},
-        citation=cites, reasoning=reason,
+        # Only cite when the criterion fired: an unmet PVS1 was still printing "ClinGen Dosage
+        # Sensitivity (HI=3)" in the Source column of a row whose reasoning is about consequence
+        # type, asserting a curated lookup as the basis of a decision that never used it.
+        citation=cites if met else [], reasoning=reason,
     )
 
 
@@ -294,13 +297,29 @@ def _pm1_signals(v: Variant, a: Annotation) -> dict:
         "n_changes": hot.get("n_changes", 0),
         "enrichment": hot.get("enrichment", 0.0),
         "is_missense": (v.consequence or "") == "missense_variant",
-        "same_residue": a.clinvar_ps1 is not None or a.clinvar_pm5 is not None,
-        "tolerant": bool(a.gene_missense_tolerant),
+        # PM1 stands down only when PS1/PM5 ACTUALLY FIRE, not merely when the index holds a
+        # same-residue match. Both are themselves withheld when the variant's own ClinVar record is
+        # a reviewed P/LP, so testing raw presence made all three stand down together — and ADDING
+        # a pathogenic ClinVar assertion LOWERED the tier (LP -> VUS), which no reading defends.
+        # PM1's evidence is the NEIGHBOURING residues (hotspot() excludes the query residue), so it
+        # is independent of PP5 and cannot double-count it.
+        "same_residue": ((a.clinvar_ps1 is not None or a.clinvar_pm5 is not None)
+                         and not _own_clinvar_plp(a)),
+        # None (gene absent from the constraint table, or the caller never populated it) is NOT the
+        # same as False. `bool(None)` made "unknown" behave exactly like "proven constrained", so
+        # PM1's stand-in for ACMG's "without benign variation" silently vanished — the criterion
+        # fired with one of its three stated guards inoperative and said nothing about it.
+        "tolerant": a.gene_missense_tolerant,
+        "tolerance_known": a.gene_missense_tolerant is not None,
     }
     s["dense"] = s["n_residues"] >= extra_residue.HOTSPOT_MIN_RESIDUES
     s["enriched"] = s["enrichment"] >= extra_residue.HOTSPOT_MIN_ENRICHMENT
+    # Require the tolerance guard to be ANSWERABLE, not merely non-True: firing PM1 while the
+    # constraint metric is unknown means asserting a hotspot with the "without benign variation"
+    # half of the criterion never evaluated.
     s["fires"] = bool(s["is_missense"] and s["dense"] and s["enriched"]
-                      and not s["same_residue"] and not s["tolerant"])
+                      and not s["same_residue"]
+                      and s["tolerance_known"] and not s["tolerant"])
     return s
 
 
@@ -340,6 +359,9 @@ def pm1(v: Variant, a: Annotation) -> CriterionResult:
                   "PM1 withheld so the same residue evidence is not counted twice")
     elif tolerant:
         reason = f"{v.gene} tolerates missense (gnomAD obs/exp) — not a constrained hotspot"
+    elif not s["tolerance_known"]:
+        reason = (f"no gnomAD missense-constraint metric for {v.gene or 'this gene'} — PM1 needs it "
+                  f"to stand in for ACMG's 'without benign variation' clause, so it is not assessed")
     elif dense and not enriched:
         reason = (f"{n_res} pathogenic-missense residues nearby, but only {enrich}× {v.gene}'s "
                   f"baseline density (needs {extra_residue.HOTSPOT_MIN_ENRICHMENT}×) — a "
@@ -470,7 +492,10 @@ def pm5(v: Variant, a: Annotation) -> CriterionResult:
         reason = (f"a different pathogenic missense at the same residue is established in "
                   f"ClinVar (→{m['alt_aa']}, {acc or ''}, {m.get('stars')}★); this change is novel"
                   f"{extra_note}")
-    elif m is not None and own_plp:
+    # own_plp is tested BEFORE the PS1 branch: when the variant's own record is a reviewed P/LP,
+    # PS1 is itself withheld, so crediting it would point the reviewer at a criterion that reads
+    # "—". Ordering the other way made PM5 say "captured by PS1" while PS1.met was False.
+    elif own_plp:
         reason = _OWN_PLP_WITHHELD.format(code="PM5")
     elif a.clinvar_ps1 is not None:
         reason = "same amino-acid change is itself established — captured by PS1, not PM5"
@@ -544,6 +569,18 @@ def pp2(v: Variant, a: Annotation) -> CriterionResult:
     )
 
 
+def _insilico_names(a: Annotation) -> str:
+    """Name only the predictors that actually returned a value.
+
+    The reason strings printed "REVEL=None, CADD=32.0" whenever one predictor was absent — and
+    REVEL is missense-only, so that is the norm for every LoF/synonymous variant. `None` reads as
+    a rendering failure rather than "not computed", and it hid how many lines of evidence the
+    criterion really rested on.
+    """
+    parts = [f"{n}={x}" for n, x in (("REVEL", a.revel), ("CADD", a.cadd_phred)) if x is not None]
+    return ", ".join(parts) if parts else "no in-silico predictor available"
+
+
 def _insilico_direction(a: Annotation) -> Optional[str]:
     """'pathogenic' | 'benign' | 'conflicting' | None from REVEL/CADD.
 
@@ -593,7 +630,7 @@ def pp3(v: Variant, a: Annotation) -> CriterionResult:
         evidence={"revel": a.revel, "cadd_phred": a.cadd_phred,
                   "revel_cutoff": REVEL_PATHOGENIC, "cadd_cutoff": CADD_PATHOGENIC},
         citation=[c for c in [a.source.get("insilico")] if c],
-        reasoning=(f"REVEL={a.revel}, CADD={a.cadd_phred} above deleterious cutoffs"
+        reasoning=(f"{_insilico_names(a)} above deleterious cutoffs"
                    if met else ("in-silico predictors conflict — neither PP3 nor BP4 applied"
                                 if _insilico_direction(a) == "conflicting"
                                 else "in-silico predictors below deleterious cutoffs / unavailable")),
@@ -603,15 +640,22 @@ def pp3(v: Variant, a: Annotation) -> CriterionResult:
 @criterion("PP4")
 def pp4(v: Variant, a: Annotation) -> CriterionResult:
     name = "Patient phenotype highly specific for the gene (HPO match)"
-    score = a.hpo_match_score if a.hpo_match_score is not None else 0.0
-    met = score >= HPO_PP4_MIN
+    # A score of None means no comparison happened — no HPO terms were supplied, or the gene has no
+    # HPO curation. Rendering that as "phenotype match 0.00 below 0.6" reads as a MEASUREMENT that
+    # argues against the variant, when nothing was ever compared. `run_pipeline(..., hpo_terms=[])`
+    # is a supported call, so a whole report could carry that fabricated line on every candidate.
+    score = a.hpo_match_score
+    met = score is not None and score >= HPO_PP4_MIN
     return CriterionResult(
         "PP4", name, "supporting", applies=True, met=met,
         applied_strength="supporting" if met else None,
-        evidence={"hpo_match_score": a.hpo_match_score, "matched_terms": a.hpo_matched_terms,
+        confidence="high" if score is not None else "low",
+        evidence={"hpo_match_score": score, "matched_terms": a.hpo_matched_terms,
                   "cutoff": HPO_PP4_MIN},
-        citation=[c for c in [a.source.get("hpo")] if c],
-        reasoning=(f"phenotype match {score:.2f} (terms: {', '.join(a.hpo_matched_terms) or 'n/a'})"
+        citation=[c for c in [a.source.get("hpo")] if c] if score is not None else [],
+        reasoning=("no phenotype comparison — no HPO terms supplied, or the gene has no HPO "
+                   "annotation" if score is None
+                   else f"phenotype match {score:.2f} (terms: {', '.join(a.hpo_matched_terms) or 'n/a'})"
                    if met else f"phenotype match {score:.2f} below {HPO_PP4_MIN}"),
     )
 
@@ -641,14 +685,26 @@ def _benign_af(a: Annotation) -> tuple[float, str]:
 
     Prefers gnomAD's filtering AF (faf95, grpmax) — the 95%-CI-bounded value
     ClinGen/Whiffin recommend for frequency-based benign criteria, robust to a
-    single small subpopulation inflating a raw popmax. Falls back to the popmax
-    AF (max of gnomAD grpmax and ABraOM) when faf95 is not available.
+    single small subpopulation inflating a raw popmax.
+
+    But it takes the MAXIMUM of that and ABraOM, never faf95 alone. gnomAD has almost no
+    admixed-Brazilian representation, and all three gnomAD backends report an absent variant as
+    ``faf95 = 0.0`` rather than None — so returning faf95 the moment it exists discarded the
+    Brazilian frequency entirely. A variant carried by 20% of Brazilians and absent from gnomAD
+    earned neither BA1 nor BS1, while the trail asserted "= 0.0000 below 0.05". Installing the
+    local gnomAD store made classification strictly WORSE, which is the opposite of the intent.
+    PM2 already reads ABraOM this way; the benign criteria were the inconsistent ones.
     """
-    if a.gnomad_faf95 is not None:
-        return a.gnomad_faf95, "gnomAD filtering AF (faf95, grpmax)"
     # None (not 0.0) when NOTHING was looked up -> BA1/BS1 report 'unavailable' rather
     # than a fabricated 0.0 that reads as a checked value (matches PM2's honesty).
-    vals = [x for x in (a.gnomad_af, a.abraom_af) if x is not None]
+    faf, braz = a.gnomad_faf95, a.abraom_af
+    if faf is not None and braz is not None:
+        if braz > faf:
+            return braz, "ABraOM (SABE) AF — above the gnomAD filtering AF"
+        return faf, "gnomAD filtering AF (faf95, grpmax)"
+    if faf is not None:
+        return faf, "gnomAD filtering AF (faf95, grpmax)"
+    vals = [x for x in (a.gnomad_af, braz) if x is not None]
     if not vals:
         return None, "no gnomAD/ABraOM frequency available"
     return max(vals), "gnomAD/ABraOM popmax AF (no faf95 available)"
@@ -658,10 +714,13 @@ def _benign_af(a: Annotation) -> tuple[float, str]:
 def ba1(v: Variant, a: Annotation) -> CriterionResult:
     name = "Allele frequency > 5% in a population database (stand-alone benign)"
     af, basis = _benign_af(a)
-    met = af is not None and af >= AF_BA1
+    # Strictly greater: Richards 2015 BA1 is "allele frequency is >5%", and this criterion's own
+    # name and met-wording both say "exceeds". At exactly 5.00% `>=` awarded stand-alone Benign —
+    # the strongest possible under-call — on a boundary the guideline does not authorise.
+    met = af is not None and af > AF_BA1
     reasoning = (f"{basis} — cannot assess" if af is None
                  else f"{basis} = {af:.4f} exceeds {AF_BA1:g}" if met
-                 else f"{basis} = {af:.4f} below {AF_BA1:g}")
+                 else f"{basis} = {af:.4f} at or below {AF_BA1:g}")
     return CriterionResult(
         "BA1", name, "stand_alone", applies=True, met=met,
         applied_strength="stand_alone" if met else None,
@@ -677,10 +736,15 @@ def bs1(v: Variant, a: Annotation) -> CriterionResult:
     af, basis = _benign_af(a)
     cutoff, moi = config.bs1_af_cutoff(v.gene)
     moi_note = f"{v.gene} is {moi}" if moi else "inheritance unknown → default cutoff"
-    # BS1 is the "too common for the disorder" band below BA1's stand-alone 5%.
-    met = af is not None and cutoff <= af < AF_BA1
+    # BS1 is the "too common for the disorder" BAND, bounded above by BA1's stand-alone 5%.
+    met = af is not None and cutoff <= af <= AF_BA1
+    # Three outcomes, not two: below the band, inside it, or above it (where BA1 takes over). The
+    # ladder previously had no arm for "above", so an 8% allele was described as "under the 0.01
+    # cutoff" on the line directly beneath BA1 reporting it exceeded 0.05.
     reasoning = (f"{basis} — cannot assess ({moi_note})" if af is None
-                 else f"{basis} = {af:.4f} ≥ {cutoff:g} ({moi_note}), below BA1's {AF_BA1:g}" if met
+                 else f"{basis} = {af:.4f} ≥ {cutoff:g} ({moi_note}), at or below BA1's {AF_BA1:g}" if met
+                 else f"{basis} = {af:.4f} exceeds BA1's {AF_BA1:g} — superseded by BA1 "
+                      f"(stand-alone benign), which subsumes BS1" if af > AF_BA1
                  else f"{basis} = {af:.4f} under the {cutoff:g} BS1 cutoff ({moi_note})")
     return CriterionResult(
         "BS1", name, "strong", applies=True, met=met,
@@ -694,14 +758,21 @@ def bs1(v: Variant, a: Annotation) -> CriterionResult:
 @criterion("BS2")
 def bs2(v: Variant, a: Annotation) -> CriterionResult:
     name = "Observed in healthy adult homozygotes (incompatible with severe early-onset disease)"
-    homs = a.gnomad_homozygotes or 0
-    met = homs >= BS2_HOM_MIN
+    # None means the homozygote count was never looked up (no store, no record, or a build
+    # mismatch that skipped gnomAD) — NOT an observed zero. `or 0` collapsed the two, so the trail
+    # asserted "0 homozygotes in gnomAD" at confidence=high, citing a source that never supplied
+    # the field. PM2/BA1/BS1 already distinguish these; BS2 was the outlier.
+    homs = a.gnomad_homozygotes
+    met = homs is not None and homs >= BS2_HOM_MIN
     return CriterionResult(
         "BS2", name, "strong", applies=True, met=met,
         applied_strength="strong" if met else None,
+        confidence="high" if homs is not None else "low",
         evidence={"gnomad_homozygotes": homs, "cutoff": BS2_HOM_MIN},
-        citation=[c for c in [a.source.get("gnomad")] if c],
-        reasoning=(f"{homs} homozygotes in gnomAD" if met
+        citation=[c for c in [a.source.get("gnomad")] if c] if homs is not None else [],
+        reasoning=("gnomAD homozygote count unavailable — cannot assess healthy homozygotes"
+                   if homs is None
+                   else f"{homs} homozygotes in gnomAD" if met
                    else f"{homs} homozygotes (below {BS2_HOM_MIN})"),
     )
 
@@ -805,7 +876,10 @@ def bp4(v: Variant, a: Annotation) -> CriterionResult:
         applied_strength="supporting" if met else None,
         evidence={"revel": a.revel, "cadd_phred": a.cadd_phred,
                   "revel_cutoff": REVEL_BENIGN, "cadd_cutoff": CADD_BENIGN},
-        reasoning=(f"REVEL={a.revel}, CADD={a.cadd_phred} below benign cutoffs"
+        # PP3's identical REVEL/CADD branch cites this; BP4's did not, so a benign call could fire
+        # with the Source column blank while a predictor demonstrably drove it.
+        citation=[c for c in [a.source.get("insilico")] if c],
+        reasoning=(f"{_insilico_names(a)} below benign cutoffs"
                    if met else ("in-silico predictors conflict — neither PP3 nor BP4 applied"
                                 if direction == "conflicting"
                                 else "in-silico predictors not benign / unavailable")),

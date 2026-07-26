@@ -32,9 +32,18 @@ def test_end_to_end_pipeline_tiers():
     # PAX6: LoF in a LoF-intolerant gene, absent, no phenotype/ClinVar support
     # -> PVS1 + PM2 = Likely Pathogenic (an incidental finding, not over-called).
     assert tiers["PAX6"] == "Likely Pathogenic"
-    # KCNQ2: ClinVar P contributes only PP5 (supporting), so 1 PM + 3 PP -> VUS,
-    # not the old PS1-driven Likely Pathogenic.
-    assert "VUS" in tiers["KCNQ2"]
+    # KCNQ2 p.Arg213Trp: the ClinVar assertion still contributes ONLY PP5 (supporting) — the
+    # audit-#13 rule that a reputable-source call must not become a Strong line. PS1 is withheld
+    # for exactly that reason. What carries it to Likely Pathogenic is INDEPENDENT evidence: PM1,
+    # from 14 pathogenic-missense residues NEIGHBOURING Arg213 (the hotspot window excludes the
+    # query residue, so it cannot restate the ClinVar record). Asserting the criteria, not just
+    # the tier, keeps that distinction under test.
+    kcnq2 = next(c for c in report.classifications if c.variant.gene == "KCNQ2")
+    met = {x.code: x for x in kcnq2.criteria if x.met}
+    assert met["PP5"].applied_strength == "supporting"
+    assert "PS1" not in met, "ClinVar's own record must not also earn PS1"
+    assert met["PM1"].applied_strength == "moderate"
+    assert tiers["KCNQ2"] == "Likely Pathogenic"
     assert "VUS" in tiers["CACNA1A"]
     # OBSCN dropped by ABraOM, TTN dropped by rarity -> not classified
     assert "OBSCN" not in tiers

@@ -12,7 +12,8 @@ from . import abraom, alphamissense, clinvar, clinvar_residue, extra, from_vcf, 
 
 def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
                      build_trusted: bool = True,
-                     with_alphamissense: bool = True) -> Annotation:
+                     with_alphamissense: bool = True,
+                     with_clinvar_residue: bool = True) -> Annotation:
     """Merge all sources into an :class:`Annotation`.
 
     ``build_trusted=False`` (a detected genome-build mismatch) means the variant's
@@ -27,6 +28,13 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
     enriches just the surviving candidates via :func:`add_alphamissense` (the score
     only feeds PP3/BP4 at classification time, never the filter, so deferring it is
     behaviour-preserving for the classified variants).
+
+    ``with_clinvar_residue=False`` likewise skips the residue-index lookup that feeds
+    PS1/PM5/PM1, for the pipeline to defer to :func:`add_clinvar_residue` on the
+    candidates. It defaults to TRUE so that every ad-hoc caller — the MCP
+    ``classify_variant`` tool, scripts, notebooks — gets a COMPLETE annotation from this
+    one call. Making the deferral unconditional silently stripped those three criteria
+    from the MCP path, which then told users to build an index they already had.
     """
     patient_hpo = patient_hpo or []
 
@@ -74,7 +82,7 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
     con = extra.gene_constraint(variant.gene)
     ph = hpo.match(variant.gene, patient_hpo)
 
-    return Annotation(
+    ann = Annotation(
         clinvar_significance=cv.get("significance"),
         clinvar_review_status=cv.get("review_status"),
         clinvar_accession=cv.get("accession"),
@@ -111,6 +119,9 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
             "hpo": ph.get("_source", ""),
         },
     )
+    if with_clinvar_residue:
+        add_clinvar_residue(variant, ann, build_trusted=build_trusted)
+    return ann
 
 
 def add_clinvar_residue(variant: Variant, annotation: Annotation,
