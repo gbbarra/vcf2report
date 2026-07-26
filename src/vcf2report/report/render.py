@@ -254,9 +254,27 @@ def _render_markdown_builtin(report: ReportModel) -> str:
 
 
 def write_report(report: ReportModel, out_dir: Path | None = None) -> Path:
+    """Write the Markdown laudo and its companion ``<sample>_results.json``.
+
+    The JSON is not optional output: it is the queryable form of the same run (every variant
+    with its full ACMG criterion trail, the routed buckets, the conclusion, the ClinVar
+    do-not-dismiss list), and it is what makes a follow-up conversation a lookup instead of a
+    re-analysis. Writing it here rather than at each call site is what keeps the two in step —
+    only the CLI used to write it, so the MCP path produced a laudo that could not be explored
+    at all, which is the whole point of persisting the run.
+
+    Returns the Markdown path; the JSON sits beside it.
+    """
     out_dir = out_dir or config.OUTPUT_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     md = render_markdown(report)
     fp = out_dir / f"{report.sample_id}_report.md"
     fp.write_text(md)
+    from .explore import write_explore          # local import: avoids a cycle via assemble
+    write_explore(report, out_dir / f"{report.sample_id}_results.json")
     return fp
+
+
+def results_json_for(report_path: Path | str) -> Path:
+    """The ``_results.json`` companion of a ``_report.md`` path."""
+    return Path(str(report_path).replace("_report.md", "_results.json"))
