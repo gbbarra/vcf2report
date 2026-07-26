@@ -1,5 +1,7 @@
 # vcf2report
 
+[![tests](https://github.com/gbbarra/vcf2report/actions/workflows/tests.yml/badge.svg)](https://github.com/gbbarra/vcf2report/actions/workflows/tests.yml)
+
 **Turn a raw exome VCF into an auditable, clinical-grade ACMG variant report —
 locally, offline, in seconds.**
 
