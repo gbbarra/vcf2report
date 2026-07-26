@@ -26,6 +26,10 @@ from .. import config
 
 # gene -> {aa_pos(int) -> {alt_aa -> (ref_aa, stars, genomic_key, accession)}}
 _index: Optional[dict] = None
+# gene -> catalogued pathogenic residues per residue of its catalogued span. Depends only on the
+# gene, so it is derived once when the index is built rather than recomputed per variant; published
+# together with ``_index`` so the two can never disagree.
+_baselines: dict[str, float] = {}
 
 _P_RE = re.compile(r"p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})")
 _AA3 = {"Ala", "Arg", "Asn", "Asp", "Cys", "Gln", "Glu", "Gly", "His", "Ile",
@@ -52,25 +56,26 @@ def parse_hgvs_p(hgvs_p: Optional[str]) -> Optional[tuple[str, int, str]]:
 def _read_rows(fp):
     if not fp or not fp.exists():
         return
-    import gzip
-    with gzip.open(fp, "rt") as fh:
-        for line in fh:
-            if not line.strip() or line.startswith("#") or line.startswith("gene\t"):
-                continue
-            p = line.rstrip("\n").split("\t")
-            if len(p) < 5:
-                continue
-            gene, pos, ref_aa, alt_aa, stars = p[0], p[1], p[2], p[3], p[4]
-            key = p[5] if len(p) > 5 else None
-            acc = p[6] if len(p) > 6 else None
-            try:
-                yield gene, int(pos), ref_aa, alt_aa, int(stars), key, acc
-            except ValueError:
-                continue
+    # `_read_lines` handles plain OR gzip, which matters because VCF2REPORT_CLINVAR_RESIDUE lets a
+    # user point this at an uncompressed .tsv; opening with gzip unconditionally would fail there.
+    from .extra import _read_lines
+    for line in _read_lines(fp):
+        if not line.strip() or line.startswith("#") or line.startswith("gene\t"):
+            continue
+        p = line.rstrip("\n").split("\t")
+        if len(p) < 5:
+            continue
+        gene, pos, ref_aa, alt_aa, stars = p[0], p[1], p[2], p[3], p[4]
+        key = p[5] if len(p) > 5 else None
+        acc = p[6] if len(p) > 6 else None
+        try:
+            yield gene, int(pos), ref_aa, alt_aa, int(stars), key, acc
+        except ValueError:
+            continue
 
 
 def _load() -> dict:
-    global _index
+    global _index, _baselines
     if _index is None:
         d: dict = {}
         # frozen slice first, then the local full index (which overrides on conflict).
@@ -80,7 +85,9 @@ def _load() -> dict:
                 prev = residues.get(alt_aa)
                 if prev is None or stars >= prev[1]:
                     residues[alt_aa] = (ref_aa, stars, key, acc)
-        _index = d  # publish only when fully built
+        b = {g: len(res) / max(max(res) - min(res) + 1, 1)
+             for g, res in d.items() if res}
+        _index, _baselines = d, b  # publish only when fully built, and together
     return _index
 
 
@@ -118,16 +125,16 @@ def hotspot(gene: Optional[str], aa_pos: Optional[int], window: int = HOTSPOT_WI
     residues = idx.get(gene)
     if not residues:
         return out
-    near = [p for p in residues
-            if p != aa_pos and abs(p - aa_pos) <= window and residues[p]]
+    # Walk the WINDOW, not the gene: O(2*window+1) regardless of how densely the gene is
+    # catalogued. Scanning `residues` made the cost grow with the catalogue — backwards, since the
+    # best-studied genes are the ones most often queried.
+    near = [p for p in range(aa_pos - window, aa_pos + window + 1)
+            if p != aa_pos and residues.get(p)]
     out["n_residues"] = len(near)
     out["n_changes"] = sum(len(residues[p]) for p in near)
-    out["residues"] = sorted(near)
+    out["residues"] = near  # the range walk already emits them in ascending order
 
-    # gene baseline: catalogued pathogenic residues per residue across the catalogued span.
-    lo, hi = min(residues), max(residues)
-    span = max(hi - lo + 1, 1)
-    baseline = len(residues) / span
+    baseline = _baselines.get(gene, 0.0)
     local = len(near) / float(2 * window + 1)
     out["gene_baseline"] = round(baseline, 4)
     out["enrichment"] = round(local / baseline, 2) if baseline else 0.0
@@ -137,7 +144,9 @@ def hotspot(gene: Optional[str], aa_pos: Optional[int], window: int = HOTSPOT_WI
 def lookup(gene: Optional[str], hgvs_p: Optional[str], variant_key: Optional[str]) -> dict:
     """Residue matches for PS1 / PM5.
 
-    Returns ``{"ps1": match|None, "pm5": match|None, "available": bool, "residue": str|None}``
+    Returns ``{"ps1": match|None, "pm5": match|None, "available": bool, "residue": str|None,
+    "aa_pos": int|None}`` — ``aa_pos`` is the parsed protein position, published so callers that
+    also need :func:`hotspot` do not re-run the regex on the same string.
     where a match is ``{"alt_aa","ref_aa","stars","accession","genomic_key"}``.
 
     * **ps1**: a ClinVar P/LP missense with the *same* amino-acid change at a *different*
@@ -147,12 +156,13 @@ def lookup(gene: Optional[str], hgvs_p: Optional[str], variant_key: Optional[str
       (so PS1 and PM5 are mutually exclusive).
     """
     idx = _load()
-    out = {"ps1": None, "pm5": None, "available": bool(idx), "residue": None}
+    out = {"ps1": None, "pm5": None, "available": bool(idx), "residue": None, "aa_pos": None}
     parsed = parse_hgvs_p(hgvs_p)
     if not gene or parsed is None:
         return out
     ref_aa, pos, alt_aa = parsed
     out["residue"] = f"{ref_aa}{pos}"
+    out["aa_pos"] = pos
     residues = idx.get(gene, {}).get(pos)
     if not residues:
         return out

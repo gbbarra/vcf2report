@@ -17,6 +17,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ..acmg import criteria
 from .assemble import (carrier_findings, clinvar_pathogenic_flags, clinvar_stars,
                        split_findings, summarize)
 from .vus_triage import probable_pathogenic_vus
@@ -24,12 +25,14 @@ from .vus_triage import probable_pathogenic_vus
 # The routed buckets, in report order. Also the valid names for ``variants_in_bucket``.
 BUCKETS = ("primary", "secondary", "carrier", "probable_pathogenic_vus", "other")
 
-# Criteria that rest on a ClinVar assertion: the variant's OWN record (PP5/BP6) or a
-# residue-level cross-match to a different ClinVar record (PS1/PM5).
-_CLINVAR_CODES = {"PP5", "BP6", "PS1", "PM5"}
-# Gene/residue-level missense criteria — the ones decided from gnomAD missense constraint
-# (PP2/BP1) and the ClinVar residue index (PS1/PM5).
-MISSENSE_CODES = ("PP2", "BP1", "PS1", "PM5")
+# PP5/BP6 rest on a ClinVar assertion but cite a BARE accession, so the citation scan below cannot
+# recognise them from the text alone — they are the only codes that need naming. Every other
+# ClinVar-derived criterion (PS1/PM5/PM1) cites a ``VCV…`` accession or names the residue index,
+# which the general scan already matches; listing them here too would just be a second list to keep
+# in step with ``acmg/criteria.py``.
+_CLINVAR_CODES = {"PP5", "BP6"}
+# The gene/residue-level missense criteria, owned by the module that defines them.
+MISSENSE_CODES = criteria.MISSENSE_CONTEXT_CODES
 
 
 # ---------------------------------------------------------------------------
@@ -229,30 +232,11 @@ def missense_evidence(data: dict[str, Any], met_only: bool = True) -> list[dict[
     return out
 
 
-# What each still-unavailable criterion would need in order to be assessable. Keyed by code, so the
-# answer to "what would move this off VUS?" names a concrete next step (order a trio, commission an
-# assay) instead of an abstract strength.
-_UNLOCKS = {
-    "PS2": "confirmed de novo — parental (trio) sequencing",
-    "PM6": "assumed de novo — parental sequencing without confirmed parentage",
-    "PM3": "in trans with a pathogenic variant — phasing or parental data (recessive)",
-    "PP1": "co-segregation — genotypes for affected relatives",
-    "BS4": "lack of segregation — genotypes for affected relatives",
-    "BP2": "in trans/cis with a pathogenic variant — phasing or parental data",
-    "PS3": "functional studies showing a damaging effect — literature or assay",
-    "BS3": "functional studies showing no damaging effect — literature or assay",
-    "PS4": "case-control prevalence data",
-    "PM1": "hotspot/domain membership — not established for this residue",
-    "BP3": "repeat/domain annotation the engine does not carry",
-    "BP5": "an alternate molecular basis for the phenotype — whole-case review",
-}
 # Strength ladders differ by side: Richards Table 5 has no benign "moderate" bucket, and no
 # pathogenic "stand alone". Escalating a strength the combiner cannot score would silently produce
 # a no-op step, so each side is walked over only the strengths it actually has.
 _PATHOGENIC_LADDER = ("supporting", "moderate", "strong", "very_strong")
 _BENIGN_LADDER = ("supporting", "strong", "stand_alone")
-_TIER_RANK = {"Benign": 0, "Likely Benign": 1, "Uncertain Significance (VUS)": 2,
-              "Likely Pathogenic": 3, "Pathogenic": 4}
 
 
 def _as_criteria(c: dict[str, Any]):
@@ -288,37 +272,41 @@ def missing_evidence(data: dict[str, Any], gene: str | None = None) -> list[dict
         met = _as_criteria(c)
         current = c.get("tier")
         met_codes = {cr.get("code") for cr in c.get("criteria", []) if cr.get("met")}
-        # unavailable criteria (N/A or awaiting judgement) that could plausibly supply evidence
+        # Criteria that could still supply evidence, read STRAIGHT OFF THE TRAIL: a criterion is
+        # pending when it is not met and either does not apply to a single proband (needs a trio /
+        # segregation) or awaits judgement (needs literature / whole-case review). Each carries its
+        # own `reasoning`, written where the decision was made — so a new criterion shows up here
+        # automatically, and none of this goes stale when a criterion's rationale changes.
         pending = [{"code": cr.get("code"), "strength": cr.get("default_strength"),
-                    "needs": _UNLOCKS.get(cr.get("code"), cr.get("reasoning")),
-                    "applies": cr.get("applies")}
+                    "needs": cr.get("reasoning"), "applies": cr.get("applies"),
+                    "side": rules.side_of(cr.get("code") or "")}
                    for cr in c.get("criteria", [])
-                   if not cr.get("met") and cr.get("code") in _UNLOCKS]
+                   if not cr.get("met")
+                   and (cr.get("applies") is False or cr.get("adjudicated_by") == "model")]
 
         # The hypothetical must carry a code the combiner routes to the intended side: rules.combine
         # decides pathogenic-vs-benign by CODE membership, not by any flag, so a made-up benign code
         # would be scored as pathogenic. Borrow a real code from each side that this variant has not
         # already met, so the simulated line is additive rather than a double count.
-        free_benign = sorted(rules._BENIGN_CODES - met_codes)
+        free_benign = sorted(rules.BENIGN_CODES - met_codes)
+        sides = [("pathogenic", "PP_HYPOTHETICAL", _PATHOGENIC_LADDER)]
+        if free_benign:
+            sides.append(("benign", free_benign[0], _BENIGN_LADDER))
         steps = []
-        for side, ladder in (("pathogenic", _PATHOGENIC_LADDER), ("benign", _BENIGN_LADDER)):
-            if side == "benign" and not free_benign:
-                continue
-            code = "PP_HYPOTHETICAL" if side == "pathogenic" else free_benign[0]
+        for side, code, ladder in sides:
             for strength in ladder:
                 hyp = CriterionResult(code=code, name=code, default_strength=strength,
                                       applies=True, met=True, applied_strength=strength)
                 tier, path = rules.combine(met + [hyp])
                 if tier == current:
                     continue
-                moved = _TIER_RANK.get(tier, 2) - _TIER_RANK.get(current, 2)
+                moved = rules.tier_rank(tier) - rules.tier_rank(current)
                 steps.append({"add": f"one {strength.replace('_', ' ')} {side} criterion",
                               "strength": strength, "side": side,
                               "would_become": tier, "direction": "up" if moved > 0 else "down",
                               "rule": path,
                               "candidates": [p for p in pending
-                                             if p["strength"] == strength
-                                             and (p["code"][0] == "P") == (side == "pathogenic")]})
+                                             if p["strength"] == strength and p["side"] == side]})
                 break     # weakest addition on this side that changes anything — stop escalating
 
         v = c.get("variant", {})

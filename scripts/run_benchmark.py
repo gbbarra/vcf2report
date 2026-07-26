@@ -49,8 +49,11 @@ def _load_answer_key(bench: Path) -> dict[str, str]:
         return {r["syn_id"]: r["gene"] for r in csv.DictReader(fh, delimiter="\t")}
 
 
-def _bucket_of(gene: str, report) -> tuple[str, str | None]:
-    """Where did the planted gene land? Returns (bucket, tier-of-that-gene-or-None)."""
+def _bucket_of(gene: str, report):
+    """Where did the planted gene land? Returns (bucket, tier, classification-or-None).
+
+    The classification is returned rather than re-found by the caller: locating it is a linear scan
+    over the case's classifications, and this function has already done it to derive the tier."""
     from vcf2report.report.assemble import carrier_findings, split_findings
     from vcf2report.report.vus_triage import probable_pathogenic_vus
     primary, secondary, other = split_findings(report.classifications)
@@ -61,8 +64,8 @@ def _bucket_of(gene: str, report) -> tuple[str, str | None]:
     for name, members in (("primary", primary), ("secondary", secondary),
                           ("carrier", carriers), ("probable_vus", vus)):
         if any(c.variant.gene == gene for c in members):
-            return name, tier
-    return ("other" if hit else "absent"), tier
+            return name, tier, hit
+    return ("other" if hit else "absent"), tier, hit
 
 
 def withhold_own_clinvar_tier(classification):
@@ -86,8 +89,7 @@ def _score_one(args: tuple) -> dict:
     try:
         hpo_terms = read_hpo_file(hpo_path) if Path(hpo_path).exists() else []
         report = run_pipeline(vcf, hpo_terms=hpo_terms, sample_id=sid)
-        bucket, tier = _bucket_of(gene, report)
-        hit = next((c for c in report.classifications if c.variant.gene == gene), None)
+        bucket, tier, hit = _bucket_of(gene, report)
         withheld = withhold_own_clinvar_tier(hit) if (withhold and hit) else ""
         return {"syn_id": sid, "gene": gene, "outcome": bucket, "tier": tier or "",
                 "consequence": (hit.variant.consequence if hit else "") or "",
@@ -113,8 +115,8 @@ def _compare(results: list[dict], prev_path: str) -> None:
         print(f"\n(compare: no overlapping syn_ids with {prev_path})")
         return
 
-    def _primary(rows, key):
-        return sum(1 for r in rows if key(r) == "primary")
+    def _primary(rows):
+        return sum(1 for r in rows if r["outcome"] == "primary")
 
     changed = []
     for r in common:
@@ -122,11 +124,11 @@ def _compare(results: list[dict], prev_path: str) -> None:
         if (p.get("outcome"), p.get("tier", "")) != (r["outcome"], r["tier"]):
             changed.append((r, p))
 
-    n_before = _primary([prev[r["syn_id"]] for r in common], lambda r: r.get("outcome"))
-    n_after = _primary(common, lambda r: r["outcome"])
+    n_before = _primary([prev[r["syn_id"]] for r in common])
+    n_after = _primary(common)
     mis = [r for r in common if _is_missense(r.get("consequence"))]
-    mis_before = _primary([prev[r["syn_id"]] for r in mis], lambda r: r.get("outcome"))
-    mis_after = _primary(mis, lambda r: r["outcome"])
+    mis_before = _primary([prev[r["syn_id"]] for r in mis])
+    mis_after = _primary(mis)
 
     print(f"\n=== compare vs {prev_path} ({len(common)} common cases) ===")
     print(f"PRIMARY recovery:  before {n_before}  →  after {n_after}  ({n_after - n_before:+d})")

@@ -20,8 +20,28 @@ BENIGN = "Benign"
 _PATHOGENIC_STRENGTHS = {"very_strong": "PVS", "strong": "PS", "moderate": "PM", "supporting": "PP"}
 _BENIGN_STRENGTHS = {"stand_alone": "BA", "strong": "BS", "supporting": "BP"}
 
-# Codes that count as benign evidence (everything else met counts pathogenic).
-_BENIGN_CODES = {"BA1", "BS1", "BS2", "BS3", "BS4", "BP1", "BP2", "BP3", "BP4", "BP5", "BP6", "BP7"}
+# Codes that count as benign evidence (everything else met counts pathogenic). Public because it
+# IS the answer to "which side is this criterion on" — callers that need to reason about the
+# combining rules (e.g. the report's "what would change this tier" query) must not have to
+# re-derive it from a code's spelling, which would silently disagree with `combine`.
+BENIGN_CODES = {"BA1", "BS1", "BS2", "BS3", "BS4", "BP1", "BP2", "BP3", "BP4", "BP5", "BP6", "BP7"}
+
+# Tier ordering, benign -> pathogenic. Owned here alongside the tier constants themselves, so a
+# caller comparing two tiers never hardcodes the label strings.
+TIER_ORDER = (BENIGN, LIKELY_BENIGN, VUS, LIKELY_PATHOGENIC, PATHOGENIC)
+
+
+def side_of(code: str) -> str:
+    """``"benign"`` or ``"pathogenic"`` — the side :func:`combine` will score this code on."""
+    return "benign" if code in BENIGN_CODES else "pathogenic"
+
+
+def tier_rank(tier: str) -> int:
+    """Position of ``tier`` in :data:`TIER_ORDER` (VUS's index when unrecognised)."""
+    try:
+        return TIER_ORDER.index(tier)
+    except ValueError:
+        return TIER_ORDER.index(VUS)
 
 
 def _counts(criteria: Iterable[CriterionResult]) -> dict[str, int]:
@@ -30,7 +50,7 @@ def _counts(criteria: Iterable[CriterionResult]) -> dict[str, int]:
         if not (cr.applies and cr.met):
             continue
         strength = cr.applied_strength or cr.default_strength
-        if cr.code in _BENIGN_CODES:
+        if cr.code in BENIGN_CODES:
             bucket = _BENIGN_STRENGTHS.get(strength)
         else:
             bucket = _PATHOGENIC_STRENGTHS.get(strength)
@@ -105,7 +125,7 @@ def _combine_points(criteria: list[CriterionResult]) -> tuple[str, str]:
         if not (cr.applies and cr.met):
             continue
         strength = cr.applied_strength or cr.default_strength
-        table = _BENIGN_POINTS if cr.code in _BENIGN_CODES else _PATH_POINTS
+        table = _BENIGN_POINTS if cr.code in BENIGN_CODES else _PATH_POINTS
         total += table.get(strength, 0)
 
     if total >= 10:
