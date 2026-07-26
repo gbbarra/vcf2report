@@ -416,3 +416,28 @@ variant with its **own** ClinVar assertion nulled (`dataclasses.replace`): PP5/B
 re-engage, and the reported P/LP recovery rests on the residue index + constraint + in-silico +
 rarity alone. That is the novel-variant scenario these criteria exist for. A future cohort that
 plants variants *absent from ClinVar* would measure it end-to-end without the withholding trick.
+
+
+### Open calibration question — PP3/BP4 on a single predictor (measure before changing)
+
+`_insilico_direction` fires on **either** REVEL or CADD crossing its cutoff, while the criterion is
+named "**Multiple** in-silico lines of evidence". REVEL is missense-only, so on every LoF /
+synonymous / splice variant CADD decides alone — and nonsense CADD is routinely 35-40. A bug hunt
+reproduced the consequence: a **gnomAD-common nonsense** (BS1 firing) reaching **Likely Pathogenic**
+on CADD alone, defeating the design intent stated in `acmg/rules.py` that *"PVS1 ALONE stays VUS —
+which is what keeps incidental het LoF from flooding a healthy exome."*
+
+Left unchanged deliberately: requiring two concordant predictors is a **calibration** decision, not
+a correctness fix, and its effect on sensitivity cannot be judged without running the 200-case
+benchmark. The AlphaMissense path (which takes precedence when present) is a single predictor *by
+design* — it is ClinGen-calibrated to a variable strength, which the REVEL/CADD fallback is not.
+
+Two things to measure when the stores are available:
+
+1. `--compare` a run with PP3/BP4 requiring both predictors (when both exist) against the current
+   177/200, watching the LoF subset specifically.
+2. Whether a lone **BS1** should engage the combiner's conflict check. Richards Table 5 defines no
+   rule for a single Strong-benign line, so `combine` currently ignores it when a pathogenic rule
+   fires — which is faithful to the guideline but lets Strong benign evidence be outvoted silently.
+   The ClinGen/Tavtigian points model (`VCF2REPORT_ACMG_MODEL=clingen`) scores BS1 at -4 and does
+   not have this gap; whether that should become the default is the same measurement.

@@ -138,3 +138,30 @@ def test_insilico_reasons_name_only_the_predictors_that_ran(code, ann):
     # contributed. REVEL is missense-only, so a missing value is the norm on LoF variants.
     cr = _c(code, ann, _v(consequence="stop_gained"))
     assert "None" not in cr.reasoning
+
+
+# --- ABraOM must not be discarded by a gnomAD "absent" ----------------------
+def test_abraom_frequency_survives_a_gnomad_absent_result():
+    """The project's stated differentiator must not be silently dropped.
+
+    All three gnomAD backends report an absent variant as faf95=0.0 (not None), and _benign_af
+    returned faf95 the moment it existed — so a variant common in Brazilians and absent from gnomAD
+    lost BA1 and BS1 while the trail asserted "= 0.0000 below 0.05". Installing the local gnomAD
+    store made classification strictly worse.
+    """
+    a = Annotation(gnomad_af=0.0, gnomad_faf95=0.0, abraom_af=0.20)
+    ba1 = _c("BA1", a)
+    assert ba1.met, "20% in ABraOM must reach stand-alone benign"
+    assert "ABraOM" in ba1.reasoning
+
+
+def test_gnomad_faf95_still_wins_when_it_is_the_higher_value():
+    # faf95 remains the preferred statistic; ABraOM only takes over when it is genuinely higher.
+    a = Annotation(gnomad_faf95=0.09, abraom_af=0.01)
+    cr = _c("BA1", a)
+    assert cr.met and "filtering AF" in cr.reasoning
+
+
+def test_benign_af_still_reports_unavailable_when_nothing_was_looked_up():
+    cr = _c("BA1", Annotation())
+    assert not cr.met and "cannot assess" in cr.reasoning

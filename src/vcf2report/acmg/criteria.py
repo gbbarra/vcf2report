@@ -297,7 +297,14 @@ def _pm1_signals(v: Variant, a: Annotation) -> dict:
         "n_changes": hot.get("n_changes", 0),
         "enrichment": hot.get("enrichment", 0.0),
         "is_missense": (v.consequence or "") == "missense_variant",
-        "same_residue": a.clinvar_ps1 is not None or a.clinvar_pm5 is not None,
+        # PM1 stands down only when PS1/PM5 ACTUALLY FIRE, not merely when the index holds a
+        # same-residue match. Both are themselves withheld when the variant's own ClinVar record is
+        # a reviewed P/LP, so testing raw presence made all three stand down together — and ADDING
+        # a pathogenic ClinVar assertion LOWERED the tier (LP -> VUS), which no reading defends.
+        # PM1's evidence is the NEIGHBOURING residues (hotspot() excludes the query residue), so it
+        # is independent of PP5 and cannot double-count it.
+        "same_residue": ((a.clinvar_ps1 is not None or a.clinvar_pm5 is not None)
+                         and not _own_clinvar_plp(a)),
         # None (gene absent from the constraint table, or the caller never populated it) is NOT the
         # same as False. `bool(None)` made "unknown" behave exactly like "proven constrained", so
         # PM1's stand-in for ACMG's "without benign variation" silently vanished — the criterion
@@ -678,14 +685,26 @@ def _benign_af(a: Annotation) -> tuple[float, str]:
 
     Prefers gnomAD's filtering AF (faf95, grpmax) — the 95%-CI-bounded value
     ClinGen/Whiffin recommend for frequency-based benign criteria, robust to a
-    single small subpopulation inflating a raw popmax. Falls back to the popmax
-    AF (max of gnomAD grpmax and ABraOM) when faf95 is not available.
+    single small subpopulation inflating a raw popmax.
+
+    But it takes the MAXIMUM of that and ABraOM, never faf95 alone. gnomAD has almost no
+    admixed-Brazilian representation, and all three gnomAD backends report an absent variant as
+    ``faf95 = 0.0`` rather than None — so returning faf95 the moment it exists discarded the
+    Brazilian frequency entirely. A variant carried by 20% of Brazilians and absent from gnomAD
+    earned neither BA1 nor BS1, while the trail asserted "= 0.0000 below 0.05". Installing the
+    local gnomAD store made classification strictly WORSE, which is the opposite of the intent.
+    PM2 already reads ABraOM this way; the benign criteria were the inconsistent ones.
     """
-    if a.gnomad_faf95 is not None:
-        return a.gnomad_faf95, "gnomAD filtering AF (faf95, grpmax)"
     # None (not 0.0) when NOTHING was looked up -> BA1/BS1 report 'unavailable' rather
     # than a fabricated 0.0 that reads as a checked value (matches PM2's honesty).
-    vals = [x for x in (a.gnomad_af, a.abraom_af) if x is not None]
+    faf, braz = a.gnomad_faf95, a.abraom_af
+    if faf is not None and braz is not None:
+        if braz > faf:
+            return braz, "ABraOM (SABE) AF — above the gnomAD filtering AF"
+        return faf, "gnomAD filtering AF (faf95, grpmax)"
+    if faf is not None:
+        return faf, "gnomAD filtering AF (faf95, grpmax)"
+    vals = [x for x in (a.gnomad_af, braz) if x is not None]
     if not vals:
         return None, "no gnomAD/ABraOM frequency available"
     return max(vals), "gnomAD/ABraOM popmax AF (no faf95 available)"
