@@ -54,6 +54,12 @@ that no-ops (already annotated, no phenotype) shows a visible "skipping" note, n
 3. **Optional — AlphaMissense** (calibrated missense PP3/BP4, ~1 GB, confirm first):
    `bash scripts/fetch_alphamissense.sh && python3 scripts/freeze_alphamissense.py`. Without it the
    pipeline still runs (missense defers to VUS). Network is **off by default** (`VCF2REPORT_ALLOW_NETWORK=1`).
+4. **Optional — genome-wide ClinVar residue index** (drives **PS1 / PM5 / PM1**, ~1 GB download →
+   a few MB table, confirm first):
+   `VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/fetch_clinvar_residue.py`.
+   The repo ships a **frozen slice covering only the demo genes**, so for every other gene those
+   three criteria honestly report *"index unavailable — not assessed"* until this is built. That is
+   deliberate: an unbuilt index must never read as "checked, nothing found".
 
 ## The 8-stage flow
 
@@ -136,6 +142,14 @@ NOT run the analysis. A merely **stale** ClinVar (past its weekly window) warns 
   `inspect_vcf.py`). State **each ACMG criterion → available | limited | na** with the one-line
   consequence (e.g. no gnomAD store → PM2 disabled; single-proband → segregation N/A). This is the
   **honesty gate**, stated *before* running.
+- Say plainly what each **missing** input costs, so nothing reads as a checked negative later:
+  no gnomAD store → **PM2/BA1/BS1/BS2** cannot assess; no AlphaMissense → missense **PP3/BP4** fall
+  back to REVEL/CADD or defer to VUS; **no genome-wide residue index** (the default — the repo ships
+  a demo-gene slice) → **PS1/PM5/PM1** report *not assessed* outside those genes; no HPO terms →
+  **PP4** makes no comparison at all; single proband → **PS2/PM3/PM6/PP1/BP2/BS4** are N/A.
+- All 28 ACMG criteria are evaluated and shown on every variant — **17 engine-decided, 5 left for
+  expert/model adjudication, 6 N/A**. See `docs/ACMG_CRITERIA.md` for the per-criterion breakdown,
+  the data behind each engine decision, and the documented approximations.
 
 ### 6 · 🖥️ Prioritize — gnomAD + AlphaMissense + ClinVar + HPO
 - First **map free-text phenotype → HPO** (Claude), write one `HP:xxxxxxx` per line to `<OUT>/hpo.txt`.
@@ -151,6 +165,16 @@ NOT run the analysis. A merely **stale** ClinVar (past its weekly window) warns 
     (tier unchanged). These are the VUS worth Claude's help to work through.
   - For a met **PVS1**, name its mechanism basis: population constraint / **ClinGen Haploinsufficiency=3**
     / established autosomal-recessive phenotype — so the reader sees *why* loss-of-function counts here.
+  - For a **missense**, name which gene/residue evidence carried it, because these decide most
+    missense calls and each rests on a different source:
+    | criterion | evidence | source |
+    |---|---|---|
+    | **PS1** (Strong) | same amino-acid change as a *different* established pathogenic variant | ClinVar residue index |
+    | **PM5** (graded) | a *different* pathogenic missense at the **same residue** | ClinVar residue index |
+    | **PM1** (Moderate) | *neighbouring* residues are a pathogenic hotspot | ClinVar residue index |
+    | **PP2** / **BP1** (Supporting) | the gene is depleted of / tolerant to missense | gnomAD missense constraint |
+    Exactly one of PS1/PM5/PM1 can fire (same change → same residue → neighbourhood), and PP2 stands
+    down when PM1 fires — so if the report shows two of them, that is a bug worth reporting.
 
 ### 7 · 🖥️ QC — the gate
 Surface QC as its own step: the funnel (total → PASS → QC-passing → candidates), the
@@ -177,11 +201,29 @@ Surface QC as its own step: the funnel (total → PASS → QC-passing → candid
 4. **Persisted for conversational follow-up.** The run also writes `<OUT>/<name>_results.json` — the
    whole report (every variant + its full ACMG criterion trail, the routed buckets, the conclusion,
    the ClinVar do-not-dismiss list). After the laudo, answer follow-up questions **off this file, no
-   re-run**: load it with `vcf2report.report.explore.load_explore` and use the read helpers —
-   `overview` (case digest), `findings_for_gene` / `explain` ("show / tell me about gene X"),
-   `criterion_basis(data, gene, code)` ("why did Y get PM2"), `variants_in_bucket` (e.g. the
-   probable-pathogenic VUS), `findings_citing_clinvar`. Terminal: `python3 -m vcf2report.report.explore
-   <OUT>/<name>_results.json [--gene G] [--criterion PM2] [--bucket …] [--clinvar]`.
+   re-run** — it is a lookup, not a re-analysis. Load it with
+   `vcf2report.report.explore.load_explore`; terminal equivalent:
+   `python3 -m vcf2report.report.explore <OUT>/<name>_results.json [flags]`.
+
+   | the operator asks | helper | flag |
+   |---|---|---|
+   | "summarise this case" | `overview` | *(default)* |
+   | "tell me about gene X" | `explain` / `findings_for_gene` | `--gene X` |
+   | "why did X get PM2?" | `criterion_basis(data, gene, code)` | `--gene X --criterion PM2` |
+   | "show the probable-pathogenic VUS" | `variants_in_bucket` | `--bucket probable_pathogenic_vus` |
+   | "what rests on ClinVar?" | `findings_citing_clinvar` | `--clinvar` |
+   | "which calls rest on gene/residue missense evidence?" | `missense_evidence` | `--missense` [`--all-criteria`] |
+   | **"what would it take to call this?"** | `missing_evidence` | `--missing` [`--gene X`] |
+
+   `--missing` is the one to reach for on a **VUS**, which is where a conservative engine leaves most
+   real cases. It re-runs the published combining rules with one hypothetical extra line of evidence
+   and reports the **weakest** addition that would change the tier, then names what would concretely
+   supply it — so the answer is *"one Moderate line reaches Likely Pathogenic; PM6 would give it,
+   which means ordering parental sequencing"*, not an abstract strength. Nothing is re-classified:
+   it reads the persisted trail and reports what Richards Table 5 would do.
+
+   `--missense --all-criteria` is the honest audit view: it shows the missense criteria that did
+   **not** fire and why — including when the residue index simply was not built for that gene.
 
 ## Guardrails (always)
 - **Compact layout.** Render short values (QC metrics, per-variant facts) **inline** (the template's
