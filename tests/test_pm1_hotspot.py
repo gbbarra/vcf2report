@@ -29,6 +29,10 @@ def _hot(n_residues=4, n_changes=9, window=7, enrichment=3.5):
 
 def _ann(**kw):
     kw.setdefault("clinvar_residue_available", True)
+    # Known-and-not-tolerant is the normal case: the shipped constraint table covers 19,658 genes.
+    # PM1 now requires the metric to be ANSWERABLE, so a fixture that omits it models an
+    # uncatalogued gene, which is a different test (below).
+    kw.setdefault("gene_missense_tolerant", False)
     return Annotation(**kw)
 
 

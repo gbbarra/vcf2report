@@ -156,7 +156,11 @@ def lookup(gene: Optional[str], hgvs_p: Optional[str], variant_key: Optional[str
       (so PS1 and PM5 are mutually exclusive).
     """
     idx = _load()
-    out = {"ps1": None, "pm5": None, "available": bool(idx), "residue": None, "aa_pos": None}
+    # Coverage is PER GENE. A global "some rows loaded" flag made every gene outside the index
+    # report "checked, no match" at high confidence — the shipped frozen slice covers 15 genes, so
+    # ~20,000 genes were getting a confident negative for a table they were never in.
+    out = {"ps1": None, "pm5": None, "available": bool(gene and gene in idx),
+           "residue": None, "aa_pos": None}
     parsed = parse_hgvs_p(hgvs_p)
     if not gene or parsed is None:
         return out
@@ -173,11 +177,10 @@ def lookup(gene: Optional[str], hgvs_p: Optional[str], variant_key: Optional[str
     if known_same and same[2] and variant_key and same[2] != variant_key:
         out["ps1"] = {"alt_aa": alt_aa, "ref_aa": same[0], "stars": same[1],
                       "genomic_key": same[2], "accession": same[3]}
-    elif known_same and (same[2] is None or not variant_key):
-        # Same AA change is established but we can't prove it is a *different* variant
-        # (missing key). Treat conservatively as PS1 evidence — a same-AA pathogenic exists.
-        out["ps1"] = {"alt_aa": alt_aa, "ref_aa": same[0], "stars": same[1],
-                      "genomic_key": same[2], "accession": same[3]}
+    # If the row has no genomic key (or the query has none), we CANNOT establish that the hit is a
+    # different variant — and "same change as a DIFFERENT pathogenic variant" is the entire claim
+    # PS1 makes. Granting it anyway was anti-conservative on *pathogenic* evidence: the match could
+    # be the query's own ClinVar record, turning a self-match into PS1_Strong.
 
     # PM5: a DIFFERENT pathogenic AA change at this residue — only when the query's exact
     # change is not itself established (else it is PS1/PP5 territory, never PM5). ``n_other``
