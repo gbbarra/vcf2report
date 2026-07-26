@@ -83,7 +83,8 @@ def test_ps1_suppressed_when_own_clinvar_is_pathogenic():
     # from a same-AA different-locus entry) is withheld so the ClinVar evidence isn't double-counted.
     m = {"alt_aa": "Cys", "ref_aa": "Arg", "stars": 2, "genomic_key": "1-101-G-A",
          "accession": "VCV000012345"}
-    cr = _ps1(_v(), _ann(clinvar_ps1=m, clinvar_significance="Pathogenic"))
+    cr = _ps1(_v(), _ann(clinvar_ps1=m, clinvar_significance="Pathogenic",
+                         clinvar_review_status="criteria provided, single submitter"))
     assert not cr.met
     assert "PP5" in cr.reasoning and "double-count" in cr.reasoning
 
@@ -91,9 +92,23 @@ def test_ps1_suppressed_when_own_clinvar_is_pathogenic():
 def test_pm5_suppressed_when_own_clinvar_is_pathogenic():
     m = {"alt_aa": "His", "ref_aa": "Arg", "stars": 1, "genomic_key": "1-101-G-A",
          "accession": "VCV000067890"}
-    cr = _pm5(_v(), _ann(clinvar_pm5=m, clinvar_ps1=None, clinvar_significance="Likely pathogenic"))
+    cr = _pm5(_v(), _ann(clinvar_pm5=m, clinvar_ps1=None,
+                         clinvar_significance="Likely pathogenic",
+                         clinvar_review_status="criteria provided, single submitter"))
     assert not cr.met
     assert "PP5" in cr.reasoning
+
+
+def test_ps1_not_suppressed_by_an_unreviewed_clinvar_record():
+    # The guard's justification is "captured by PP5" — so it must test the condition PP5 actually
+    # tests, stars included. A 0-star "Pathogenic" does NOT fire PP5, so withholding PS1 on it
+    # would strip a legitimate residue cross-match while citing a PP5 that never fired.
+    m = {"alt_aa": "Cys", "ref_aa": "Arg", "stars": 2, "genomic_key": "1-101-G-A",
+         "accession": "VCV000012345"}
+    a = _ann(clinvar_ps1=m, clinvar_significance="Pathogenic",
+             clinvar_review_status="no assertion criteria provided")
+    assert not all_criteria()["PP5"](_v(), a).met      # 0-star: PP5 does not fire...
+    assert _ps1(_v(), a).met                           # ...so PS1 must not stand down
 
 
 def test_ps1_still_fires_when_own_clinvar_is_vus():

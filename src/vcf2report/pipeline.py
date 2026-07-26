@@ -11,7 +11,7 @@ from pathlib import Path
 
 from . import config
 from .acmg.engine import classify
-from .annotate import add_alphamissense, annotate_variant
+from .annotate import add_alphamissense, add_clinvar_residue, annotate_variant
 from .models import Classification, QCSummary
 from .report.assemble import ReportModel, build_report
 from .vcf import seqqc
@@ -132,6 +132,13 @@ def run_pipeline(
         for v, a in candidates:
             add_alphamissense(v, a)
     _mark("alphamissense_s")
+
+    # Residue-level ClinVar evidence (PS1/PM5/PM1) — deferred here for the same reason as
+    # AlphaMissense: it feeds classification only, never the filter, so the surviving candidates
+    # are the only variants that need it.
+    for v, a in candidates:
+        add_clinvar_residue(v, a, build_trusted=build_trusted)
+    _mark("clinvar_residue_s")
 
     classifications: list[Classification] = [classify(v, a) for v, a in candidates]
     _mark("classify_s")

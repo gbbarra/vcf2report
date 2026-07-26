@@ -168,9 +168,10 @@ def test_ps1_pm5_count_as_clinvar_citing_criteria():
 
 
 # --- "what would move this off VUS?" ---------------------------------------
-def _na_crit(code, strength):
+def _na_crit(code, strength, reasoning="Requires parental (trio) data — not available from a "
+                                       "single proband VCF"):
     return CriterionResult(code=code, name=f"{code} criterion", default_strength=strength,
-                           applies=False, met=False, reasoning="needs family data")
+                           applies=False, met=False, reasoning=reasoning)
 
 
 def _gap_report():
@@ -204,6 +205,32 @@ def test_missing_evidence_names_the_concrete_next_step():
     assert "PM6" in codes
     needs = next(c["needs"] for c in up[0]["candidates"] if c["code"] == "PM6")
     assert "parental" in needs
+
+
+def test_pending_criteria_are_read_off_the_trail_not_a_hardcoded_list():
+    """The "what's still available" set must come from the criteria themselves.
+
+    A hardcoded map in the report layer goes stale the moment a criterion changes class — as it
+    did when PM1 became engine-decided but was still advertised here as an orderable next step.
+    Deriving it from `applies is False or adjudicated_by == "model"` means a criterion is listed
+    if and only if it really is still open, whatever `acmg/criteria.py` does next.
+    """
+    from vcf2report.acmg.engine import evaluate_criteria
+    from vcf2report.models import Variant as V
+
+    var = V(chrom="1", pos=100, ref="G", alt="A", gene="REALG",
+            consequence="missense_variant", hgvs_p="p.Gly97Arg", zygosity="het")
+    real = Classification(variant=var, annotation=Annotation(),
+                          criteria=evaluate_criteria(var, Annotation()),
+                          tier=_VUS, rule_path="VUS path")
+    d = build_explore(build_report("CASE-R", [], QCSummary(candidates=1), [real]))
+    pending = {p["code"] for p in missing_evidence(d)[0]["pending_criteria"]}
+
+    # exactly the single-proband-undecidable + judgement criteria, from the engine itself
+    assert pending == {"PS2", "PM3", "PM6", "PP1", "BP2", "BS4",     # N/A
+                       "PS3", "PS4", "BS3", "BP3", "BP5"}            # model-adjudicated
+    # engine-decided criteria that merely did not fire are NOT offered as next steps
+    assert not pending & {"PM1", "PS1", "PM5", "PP2", "BP1", "PVS1", "PM2", "PP3", "PP5"}
 
 
 def test_missing_evidence_routes_the_benign_hypothetical_to_the_benign_side():

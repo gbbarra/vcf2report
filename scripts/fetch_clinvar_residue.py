@@ -22,23 +22,25 @@ demo + tests exercising PS1/PM5 with no download.
 from __future__ import annotations
 
 import gzip
-import re
 import sys
 import urllib.request
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "src"))
+# The WRITER of this index and its READER must agree exactly on what counts as a missense —
+# otherwise rows are written that the engine will never match, or vice versa. So the parser is
+# imported from the reader rather than restated here: one definition, no way for the two to drift.
+from vcf2report.annotate.clinvar_residue import parse_hgvs_p  # noqa: E402
+
 URL = "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_summary.txt.gz"
 OUT = REPO / "data" / "clinvar" / "clinvar_residue.tsv.gz"
 
-# 20 standard amino acids (3-letter). A missense is a substitution between two of these;
-# Ter (stop), synonymous (=) and indel/dup/fs 'p.' forms are excluded.
-_AA3 = {"Ala", "Arg", "Asn", "Asp", "Cys", "Gln", "Glu", "Gly", "His", "Ile",
-        "Leu", "Lys", "Met", "Phe", "Pro", "Ser", "Thr", "Trp", "Tyr", "Val"}
-_P_RE = re.compile(r"p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})")
-
 
 def _stars(review: str) -> int:
+    # Deliberately STRICTER than report.assemble.clinvar_stars, which also scores a bare
+    # "single submitter" / "conflicting" status as 1. Building a pathogenic-evidence index warrants
+    # requiring the explicit "criteria provided" prefix, so the two are not merged.
     r = (review or "").lower().replace("_", " ").strip()
     if "practice guideline" in r:
         return 4
@@ -84,12 +86,13 @@ def main() -> int:
             stars = _stars(f[ri])
             if stars < 1:
                 continue
-            m = _P_RE.search(f[ni])
-            if not m:
+            # ClinVar's Name column is "NM_…(GENE):c.… (p.Xxx###Yyy)"; the shared parser searches
+            # for the p. form anywhere in it and applies the same standard-AA / not-synonymous
+            # rules the engine will apply when reading this index back.
+            parsed = parse_hgvs_p(f[ni])
+            if parsed is None:
                 continue
-            ref_aa, pos, alt_aa = m.group(1), m.group(2), m.group(3)
-            if ref_aa not in _AA3 or alt_aa not in _AA3 or ref_aa == alt_aa:
-                continue
+            ref_aa, pos, alt_aa = parsed[0], str(parsed[1]), parsed[2]
             gene = f[gi]
             if not gene or gene == "-":
                 continue

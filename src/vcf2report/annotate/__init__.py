@@ -73,13 +73,6 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         am = {"am_pathogenicity": None, "am_class": None, "_source": note}
     con = extra.gene_constraint(variant.gene)
     ph = hpo.match(variant.gene, patient_hpo)
-    # Residue-level ClinVar cross-match (PS1/PM5). Needs the GRCh38 genomic key to prove a
-    # PS1 hit is a *different* variant, so it is gated on a trusted build like the other
-    # coordinate-keyed lookups; a build mismatch leaves the matches unpopulated (None).
-    res = (clinvar_residue.lookup(variant.gene, variant.hgvs_p, variant.key)
-           if build_trusted else {"ps1": None, "pm5": None, "available": None})
-    _parsed = clinvar_residue.parse_hgvs_p(variant.hgvs_p) if build_trusted else None
-    hot = clinvar_residue.hotspot(variant.gene, _parsed[1]) if _parsed else None
 
     return Annotation(
         clinvar_significance=cv.get("significance"),
@@ -87,10 +80,6 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         clinvar_accession=cv.get("accession"),
         clinvar_condition=cv.get("condition"),
         clinvar_date=cv.get("date"),
-        clinvar_ps1=res.get("ps1"),
-        clinvar_pm5=res.get("pm5"),
-        clinvar_residue_available=res.get("available"),
-        clinvar_hotspot=hot,
         gnomad_af=g.get("af"),
         gnomad_ac=g.get("ac"),
         gnomad_an=g.get("an"),
@@ -113,15 +102,41 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         source={
             "gnomad": g.get("_source", ""),
             "clinvar": cv.get("_source", ""),
-            "clinvar_residue": "ClinVar residue index (PS1/PM5, local)",
             "abraom": ab.get("_source", ""),
-            "gene_lof_intolerant": con.get("_source", ""),
+            # One provenance string for the whole gnomAD constraint table — PVS1 cites it for the
+            # LoF columns, PP2/BP1 for the missense ones. A single key, so the two can never drift.
             "gene_constraint": con.get("_source", ""),
             "insilico": isi.get("_source", ""),
             "alphamissense": am.get("_source", ""),
             "hpo": ph.get("_source", ""),
         },
     )
+
+
+def add_clinvar_residue(variant: Variant, annotation: Annotation,
+                        build_trusted: bool = True) -> None:
+    """Populate the residue-level ClinVar evidence (PS1/PM5/PM1) — the lazy path.
+
+    Deferred for the same reason as :func:`add_alphamissense`: these fields feed classification
+    ONLY (``ps1``/``pm5``/``pm1``/``pp2``), never the QC/rarity filter, so computing them for every
+    post-QC variant does ~10-20k lookups per exome to serve the few hundred that survive to
+    candidacy. The pipeline calls this on the candidates instead, which is behaviour-preserving.
+
+    Needs the GRCh38 genomic key to prove a PS1 hit is a *different* variant, so it is gated on a
+    trusted build like the other coordinate-keyed lookups; a build mismatch leaves the matches
+    unpopulated (None) rather than fabricating a cross-build match.
+    """
+    if not build_trusted:
+        return
+    res = clinvar_residue.lookup(variant.gene, variant.hgvs_p, variant.key)
+    annotation.clinvar_ps1 = res.get("ps1")
+    annotation.clinvar_pm5 = res.get("pm5")
+    annotation.clinvar_residue_available = res.get("available")
+    # `lookup` already parsed the protein position — reuse it rather than re-running the regex.
+    aa_pos = res.get("aa_pos")
+    if aa_pos is not None:
+        annotation.clinvar_hotspot = clinvar_residue.hotspot(variant.gene, aa_pos)
+    annotation.source["clinvar_residue"] = "ClinVar residue index (local)"
 
 
 def add_alphamissense(variant: Variant, annotation: Annotation) -> None:

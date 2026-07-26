@@ -38,6 +38,21 @@ CADD_BENIGN = 10.0
 BS2_HOM_MIN = 2             # healthy homozygotes incompatible with severe disease
 HPO_PP4_MIN = 0.60          # phenotype-match score to support PP4
 
+# Shared audit-trail wording for the three residue-index criteria (PS1/PM5/PM1). Written once
+# because these are user-facing report text that must read identically across the three — and
+# because the first embeds a SCRIPT PATH, which would otherwise have to be found in three literals
+# if the script is ever renamed.
+_RESIDUE_UNAVAILABLE = ("ClinVar residue index unavailable — {code} not assessed "
+                        "(build it: scripts/fetch_clinvar_residue.py)")
+_OWN_PLP_WITHHELD = ("variant's own ClinVar assertion is pathogenic — captured by PP5; "
+                     "{code} withheld to avoid double-counting the same ClinVar evidence")
+
+# The criteria decided from GENE- or RESIDUE-level missense context rather than from the variant's
+# own record: gnomAD missense constraint (PP2/BP1) and the ClinVar residue index (PS1/PM5/PM1).
+# Defined here, beside the criteria themselves, so adding one is a single edit in a single file —
+# the report layer imports this rather than keeping its own copy, which went stale immediately.
+MISSENSE_CONTEXT_CODES = ("PS1", "PM1", "PM5", "PP2", "BP1")
+
 CriterionFn = Callable[[Variant, Annotation], CriterionResult]
 
 _REGISTRY: dict[str, CriterionFn] = {}
@@ -59,6 +74,20 @@ def _na(code: str, name: str, strength: str, reason: str) -> CriterionResult:
     return CriterionResult(
         code=code, name=name, default_strength=strength, applies=False,
         met=False, reasoning=reason, confidence="high", adjudicated_by="engine",
+    )
+
+
+def _judgment(code: str, name: str, strength: str, reason: str,
+              evidence: dict | None = None) -> CriterionResult:
+    """A criterion needing genuine clinical/literature judgement.
+
+    The evidence is surfaced and the decision tagged ``adjudicated_by="model"``, defaulting to
+    not-met, so a human or model decides it transparently instead of the engine pretending it is a
+    fact. One helper so the contract lives in one place rather than being restated per criterion.
+    """
+    return CriterionResult(
+        code=code, name=name, default_strength=strength, applies=True, met=False,
+        adjudicated_by="model", confidence="low", evidence=evidence or {}, reasoning=reason,
     )
 
 
@@ -131,8 +160,8 @@ def pvs1(v: Variant, a: Annotation) -> CriterionResult:
     cites = []
     if clingen_hi:
         cites.append("ClinGen Dosage Sensitivity (HI=3, local)")
-    if a.source.get("gene_lof_intolerant"):
-        cites.append(a.source["gene_lof_intolerant"])
+    if a.source.get("gene_constraint"):
+        cites.append(a.source["gene_constraint"])
     if ar_mechanism and not a.gene_lof_intolerant and not clingen_hi:
         cites.append("HPO gene-to-phenotype inheritance (local)")
     if met and strength != "very_strong":
@@ -159,15 +188,37 @@ def pvs1(v: Variant, a: Annotation) -> CriterionResult:
     )
 
 
-def _own_clinvar_plp(a: Annotation) -> bool:
-    """True when the variant's OWN ClinVar record is Pathogenic / Likely pathogenic.
+def _clinvar_reviewed(a: Annotation) -> bool:
+    """Is the ClinVar assertion criteria-based (>=1 star)?
 
-    Such a variant is already covered by PP5 (its direct reputable-source assertion), so
-    the residue-index criteria PS1/PM5 are withheld: firing them would double-count the
-    same ClinVar evidence (the concern behind the SVI's PP5 deprecation). PS1/PM5 are thus
-    reserved for their real purpose — elevating missense ClinVar has NOT directly classified.
+    Review status arrives with spaces (E-utilities) or underscores (VCF); normalize, then use
+    ``startswith`` so the 0-star "no assertion criteria provided" — which CONTAINS the substring
+    "criteria provided" — is correctly excluded.
     """
-    return (a.clinvar_significance or "").lower().startswith(("pathogenic", "likely pathogenic"))
+    review = (a.clinvar_review_status or "").lower().replace("_", " ").strip()
+    return (review.startswith("criteria provided")
+            or "reviewed by expert" in review
+            or "practice guideline" in review)
+
+
+def _clinvar_says(a: Annotation, *prefixes: str) -> bool:
+    """Does the variant's own ClinVar significance start with one of ``prefixes``?"""
+    return (a.clinvar_significance or "").lower().startswith(prefixes)
+
+
+def _own_clinvar_plp(a: Annotation) -> bool:
+    """True when PP5 fires — i.e. the variant's OWN ClinVar record is a REVIEWED P/LP assertion.
+
+    Such a variant is already covered by PP5, so the residue-index criteria PS1/PM5 stand down:
+    firing them too would double-count the same ClinVar evidence (the concern behind the SVI's PP5
+    deprecation). PS1/PM5 are thus reserved for their real purpose — elevating missense ClinVar has
+    NOT directly classified.
+
+    This is deliberately the exact condition ``pp5`` tests, sharing both halves rather than
+    restating them: a 0-star "Pathogenic" record does NOT fire PP5, so withholding PS1/PM5 on it
+    would strip a legitimate residue cross-match while claiming a PP5 that never fired.
+    """
+    return _clinvar_says(a, "pathogenic", "likely pathogenic") and _clinvar_reviewed(a)
 
 
 @criterion("PS1")
@@ -186,10 +237,9 @@ def ps1(v: Variant, a: Annotation) -> CriterionResult:
                   f"{'→' + m['alt_aa'] if m.get('alt_aa') else ''}) as an established ClinVar "
                   f"pathogenic variant {acc or ''} ({m.get('stars')}★) at a different locus")
     elif m is not None and own_plp:
-        reason = ("variant's own ClinVar assertion is pathogenic — captured by PP5; "
-                  "PS1 withheld to avoid double-counting the same ClinVar evidence")
+        reason = _OWN_PLP_WITHHELD.format(code="PS1")
     elif not a.clinvar_residue_available:
-        reason = "ClinVar residue index unavailable — PS1 not assessed (build it: scripts/fetch_clinvar_residue.py)"
+        reason = _RESIDUE_UNAVAILABLE.format(code="PS1")
     elif not v.hgvs_p:
         reason = "no protein change (not a missense) — PS1 not applicable"
     else:
@@ -212,40 +262,51 @@ def ps2(v: Variant, a: Annotation) -> CriterionResult:
 
 @criterion("PS3")
 def ps3(v: Variant, a: Annotation) -> CriterionResult:
-    return CriterionResult(
-        "PS3", "Well-established functional studies show a damaging effect",
-        "strong", applies=True, met=False, adjudicated_by="model",
-        confidence="low",
-        reasoning="Requires literature review of functional assays — left for expert/model adjudication",
-    )
+    return _judgment(
+        "PS3", "Well-established functional studies show a damaging effect", "strong",
+        "Requires literature review of functional assays — left for expert/model adjudication")
 
 
 @criterion("PS4")
 def ps4(v: Variant, a: Annotation) -> CriterionResult:
-    return CriterionResult(
-        "PS4", "Prevalence in affected significantly increased vs controls",
-        "strong", applies=True, met=False, adjudicated_by="model", confidence="low",
-        evidence={"gnomad_af": a.gnomad_af, "abraom_af": a.abraom_af},
-        reasoning="Needs case-control data; population absence alone is captured by PM2",
-    )
+    return _judgment(
+        "PS4", "Prevalence in affected significantly increased vs controls", "strong",
+        "Needs case-control data; population absence alone is captured by PM2",
+        evidence={"gnomad_af": a.gnomad_af, "abraom_af": a.abraom_af})
 
 
-def _pm1_fires(v: Variant, a: Annotation) -> bool:
-    """The PM1 decision, shared so PP2 can stand down when the more specific PM1 applies.
+def _pm1_signals(v: Variant, a: Annotation) -> dict:
+    """Every input to the PM1 decision, plus the decision itself, computed ONCE.
+
+    ``pm1`` needs the individual signals to explain *why* it did or did not fire, and ``pp2`` needs
+    only the verdict — so both read this rather than each restating the guards. Keeping the verdict
+    next to the signals it is derived from is what stops ``met`` and the reasoning string drifting
+    apart when a guard or threshold changes.
 
     A missense whose NEIGHBOURHOOD is dense with pathogenic missense — and materially denser than
     the gene's own baseline — sits in a mutational hot spot. Withheld when the variant's own residue
     already carries pathogenic evidence (that is PS1/PM5) or when the gene tolerates missense.
     """
     hot = a.clinvar_hotspot or {}
-    if (v.consequence or "") != "missense_variant":
-        return False
-    if a.clinvar_ps1 is not None or a.clinvar_pm5 is not None:
-        return False
-    if a.gene_missense_tolerant:
-        return False
-    return (hot.get("n_residues", 0) >= extra_residue.HOTSPOT_MIN_RESIDUES
-            and hot.get("enrichment", 0.0) >= extra_residue.HOTSPOT_MIN_ENRICHMENT)
+    s = {
+        "hot": hot,
+        "n_residues": hot.get("n_residues", 0),
+        "n_changes": hot.get("n_changes", 0),
+        "enrichment": hot.get("enrichment", 0.0),
+        "is_missense": (v.consequence or "") == "missense_variant",
+        "same_residue": a.clinvar_ps1 is not None or a.clinvar_pm5 is not None,
+        "tolerant": bool(a.gene_missense_tolerant),
+    }
+    s["dense"] = s["n_residues"] >= extra_residue.HOTSPOT_MIN_RESIDUES
+    s["enriched"] = s["enrichment"] >= extra_residue.HOTSPOT_MIN_ENRICHMENT
+    s["fires"] = bool(s["is_missense"] and s["dense"] and s["enriched"]
+                      and not s["same_residue"] and not s["tolerant"])
+    return s
+
+
+def _pm1_fires(v: Variant, a: Annotation) -> bool:
+    """Whether PM1 applies — the verdict alone, for PP2's stand-down check."""
+    return _pm1_signals(v, a)["fires"]
 
 
 @criterion("PM1")
@@ -261,15 +322,11 @@ def pm1(v: Variant, a: Annotation) -> CriterionResult:
     #     benign index here, so it is approximated at gene level: a gene that TOLERATES missense
     #     (BP1's flag) is excluded.
     #   * a high residue count is required (not a single neighbour), so isolated pairs don't fire.
-    hot = a.clinvar_hotspot or {}
-    n_res, n_chg = hot.get("n_residues", 0), hot.get("n_changes", 0)
-    enrich = hot.get("enrichment", 0.0)
-    is_missense = (v.consequence or "") == "missense_variant"
-    same_residue_evidence = a.clinvar_ps1 is not None or a.clinvar_pm5 is not None
-    tolerant = bool(a.gene_missense_tolerant)
-    dense = n_res >= extra_residue.HOTSPOT_MIN_RESIDUES
-    enriched = enrich >= extra_residue.HOTSPOT_MIN_ENRICHMENT
-    met = _pm1_fires(v, a)
+    s = _pm1_signals(v, a)
+    hot, n_res, n_chg, enrich = s["hot"], s["n_residues"], s["n_changes"], s["enrichment"]
+    is_missense, same_residue_evidence = s["is_missense"], s["same_residue"]
+    tolerant, dense, enriched = s["tolerant"], s["dense"], s["enriched"]
+    met = s["fires"]
     if met:
         reason = (f"{n_res} distinct pathogenic-missense residues within ±{hot.get('window')} aa "
                   f"({n_chg} pathogenic changes), {enrich}× denser than {v.gene}'s own baseline — "
@@ -277,7 +334,7 @@ def pm1(v: Variant, a: Annotation) -> CriterionResult:
     elif not is_missense:
         reason = f"{v.consequence or 'variant'} is not a missense variant"
     elif not a.clinvar_residue_available:
-        reason = "ClinVar residue index unavailable — PM1 not assessed (build it: scripts/fetch_clinvar_residue.py)"
+        reason = _RESIDUE_UNAVAILABLE.format(code="PM1")
     elif same_residue_evidence:
         reason = ("pathogenic missense at this exact residue — carried by PS1/PM5; "
                   "PM1 withheld so the same residue evidence is not counted twice")
@@ -414,12 +471,11 @@ def pm5(v: Variant, a: Annotation) -> CriterionResult:
                   f"ClinVar (→{m['alt_aa']}, {acc or ''}, {m.get('stars')}★); this change is novel"
                   f"{extra_note}")
     elif m is not None and own_plp:
-        reason = ("variant's own ClinVar assertion is pathogenic — captured by PP5; "
-                  "PM5 withheld to avoid double-counting the same ClinVar evidence")
+        reason = _OWN_PLP_WITHHELD.format(code="PM5")
     elif a.clinvar_ps1 is not None:
         reason = "same amino-acid change is itself established — captured by PS1, not PM5"
     elif not a.clinvar_residue_available:
-        reason = "ClinVar residue index unavailable — PM5 not assessed (build it: scripts/fetch_clinvar_residue.py)"
+        reason = _RESIDUE_UNAVAILABLE.format(code="PM5")
     elif not v.hgvs_p:
         reason = "no protein change (not a missense) — PM5 not applicable"
     else:
@@ -563,17 +619,7 @@ def pp4(v: Variant, a: Annotation) -> CriterionResult:
 @criterion("PP5")
 def pp5(v: Variant, a: Annotation) -> CriterionResult:
     name = "Reputable source (ClinVar) classifies the variant as pathogenic"
-    sig = (a.clinvar_significance or "").lower()
-    is_plp = sig.startswith("pathogenic") or sig.startswith("likely pathogenic")
-    # ClinVar review status comes with spaces (E-utilities) or underscores (VCF);
-    # normalize, then require a criteria-based (>=1 star) assertion. Use startswith
-    # so the 0-star "no assertion criteria provided" (which CONTAINS the substring
-    # "criteria provided") is correctly excluded.
-    review = (a.clinvar_review_status or "").lower().replace("_", " ").strip()
-    reviewed = (review.startswith("criteria provided")
-                or "reviewed by expert" in review
-                or "practice guideline" in review)
-    met = bool(is_plp and reviewed)
+    met = _own_clinvar_plp(a)   # a REVIEWED (>=1-star) P/LP assertion — see the helper
     # PP5 was deprecated by the ClinGen SVI; retained here as a transparent, gated
     # SUPPORTING line so ClinVar contributes without over-weighting (vs the old PS1).
     return CriterionResult(
@@ -664,11 +710,9 @@ def bs2(v: Variant, a: Annotation) -> CriterionResult:
 def bs3(v: Variant, a: Annotation) -> CriterionResult:
     # The benign mirror of PS3: same evidence class (published functional assays), same reason it
     # cannot be automated — it needs a literature judgement, not a lookup.
-    return CriterionResult(
-        "BS3", "Well-established functional studies show NO damaging effect",
-        "strong", applies=True, met=False, adjudicated_by="model", confidence="low",
-        reasoning="Requires literature review of functional assays — left for expert/model adjudication",
-    )
+    return _judgment(
+        "BS3", "Well-established functional studies show NO damaging effect", "strong",
+        "Requires literature review of functional assays — left for expert/model adjudication")
 
 
 @criterion("BS4")
@@ -728,12 +772,10 @@ def bp3(v: Variant, a: Annotation) -> CriterionResult:
     # Needs a repeat/low-complexity track AND a "no known function" domain call. The engine carries
     # neither, and inferring "repetitive" from the sequence alone would be a guess dressed as a fact,
     # so the in-frame consequence is surfaced and the decision left explicit.
-    return CriterionResult(
-        "BP3", "In-frame indel in a repetitive region without a known function",
-        "supporting", applies=True, met=False, adjudicated_by="model", confidence="low",
-        evidence={"consequence": v.consequence, "hgvs_p": v.hgvs_p},
-        reasoning="Requires a repeat/domain annotation the engine does not carry — model adjudication",
-    )
+    return _judgment(
+        "BP3", "In-frame indel in a repetitive region without a known function", "supporting",
+        "Requires a repeat/domain annotation the engine does not carry — model adjudication",
+        evidence={"consequence": v.consequence, "hgvs_p": v.hgvs_p})
 
 
 @criterion("BP4")
@@ -776,31 +818,21 @@ def bp5(v: Variant, a: Annotation) -> CriterionResult:
     # judgement (and a clinical one — an alternate basis does not always exclude a second hit).
     # A per-variant evaluator cannot see the rest of the case, so this stays explicit rather than
     # being silently inferred from the candidate list.
-    return CriterionResult(
-        "BP5", "Variant found in a case with an alternate molecular basis for disease",
-        "supporting", applies=True, met=False, adjudicated_by="model", confidence="low",
-        evidence={"gene": v.gene},
-        reasoning="Requires whole-case context (another finding explaining the phenotype) plus "
-                  "clinical judgement — left for expert/model adjudication",
-    )
+    return _judgment(
+        "BP5", "Variant found in a case with an alternate molecular basis for disease", "supporting",
+        "Requires whole-case context (another finding explaining the phenotype) plus clinical "
+        "judgement — left for expert/model adjudication",
+        evidence={"gene": v.gene})
 
 
 @criterion("BP6")
 def bp6(v: Variant, a: Annotation) -> CriterionResult:
     name = "Reputable source (ClinVar) classifies the variant as benign"
-    sig = (a.clinvar_significance or "").lower()
-    # Mirror of PP5: a criteria-based ClinVar Benign / Likely benign assertion. "conflicting"
-    # is deliberately excluded (it starts with neither token) — a conflicted record is not a
-    # reputable benign call. The variant's OWN assertion, not a residue cross-match.
-    is_blp = sig.startswith("benign") or sig.startswith("likely benign")
-    # ClinVar review status arrives space- (E-utilities) or underscore-delimited (VCF); normalize,
-    # then require a criteria-based (>=1 star) assertion — same gate as PP5, so 0-star
-    # "no assertion criteria provided" is excluded despite containing "criteria provided".
-    review = (a.clinvar_review_status or "").lower().replace("_", " ").strip()
-    reviewed = (review.startswith("criteria provided")
-                or "reviewed by expert" in review
-                or "practice guideline" in review)
-    met = bool(is_blp and reviewed)
+    # Mirror of PP5, sharing both halves of its gate: a criteria-based (>=1-star) ClinVar Benign /
+    # Likely benign assertion. "conflicting" is deliberately excluded (it starts with neither
+    # token) — a conflicted record is not a reputable benign call. The variant's OWN assertion,
+    # not a residue cross-match.
+    met = _clinvar_says(a, "benign", "likely benign") and _clinvar_reviewed(a)
     # BP6 was deprecated by the ClinGen SVI (like PP5); retained here as a transparent, gated
     # SUPPORTING benign line so a reviewed ClinVar benign assertion contributes symmetrically to
     # PP5 without over-weighting. PP5 and BP6 are mutually exclusive (a record is P or B, not both),
