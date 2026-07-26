@@ -130,10 +130,18 @@ def _write_index(path, rows):
 
 
 def _reset_index(monkeypatch, frozen=None):
+    """Point the loader at a test table AND make the swap undo itself.
+
+    The module caches the parsed index (and the per-gene baselines derived from it). Clearing them
+    by plain assignment leaked the test table into every later test in the session — monkeypatch
+    restored the config paths but not the cache, so the loader saw "already loaded" and kept the
+    tmp data. Going through monkeypatch means teardown restores the previous cache too.
+    """
     from vcf2report import config
     monkeypatch.setattr(config, "CLINVAR_RESIDUE_FROZEN", frozen)
     monkeypatch.setattr(config, "CLINVAR_RESIDUE_LOCAL", None)
-    clinvar_residue._index = None
+    monkeypatch.setattr(clinvar_residue, "_index", None)
+    monkeypatch.setattr(clinvar_residue, "_baselines", {})
 
 
 def test_lookup_ps1_and_pm5_from_table(tmp_path, monkeypatch):
@@ -176,3 +184,28 @@ def test_parse_hgvs_p_rejects_non_missense():
     assert clinvar_residue.parse_hgvs_p("p.Leu479fs") is None     # frameshift
     assert clinvar_residue.parse_hgvs_p("p.Ser330Ser") is None    # synonymous
     assert clinvar_residue.parse_hgvs_p(None) is None
+
+
+def test_annotate_variant_populates_residue_evidence_by_default():
+    """A single `annotate_variant` call must return a COMPLETE annotation.
+
+    Regression: the residue lookup was moved out of `annotate_variant` into a pipeline-only
+    deferral step for performance. That silently stripped PS1/PM5/PM1 from every other entry
+    point — notably the MCP `classify_variant` tool, which calls `annotate_variant` directly and
+    then reported "index unavailable — build it" for an index that was present and would have
+    fired. The deferral is now opt-in (`with_clinvar_residue=False`), as it already was for
+    AlphaMissense, so ad-hoc callers get complete annotations and only the pipeline defers.
+    """
+    from vcf2report.annotate import annotate_variant
+    from vcf2report.models import Variant as V
+
+    v = V(chrom="5", pos=112838671, ref="A", alt="T", gene="APC",
+          consequence="missense_variant", hgvs_p="p.Asn1026Asp")
+    ann = annotate_variant(v, [])
+    assert ann.clinvar_residue_available is True, "residue index not consulted by default"
+    assert ann.clinvar_hotspot is not None, "hotspot not computed by default"
+
+    # ...and the deferred form leaves them unset, for the pipeline to fill on the candidates.
+    deferred = annotate_variant(v, [], with_clinvar_residue=False)
+    assert deferred.clinvar_residue_available is None
+    assert deferred.clinvar_hotspot is None
