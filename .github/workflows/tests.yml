@@ -1,0 +1,104 @@
+name: tests
+
+# Runs the full suite on every push to main and every pull request, so a change is
+# verified by something other than the author remembering to run pytest.
+#
+# The suite is deliberately runnable WITHOUT the large local stores (gnomAD /
+# AlphaMissense / full ClinVar): the committed fixtures — the gene-constraint table, the
+# frozen ClinVar residue slice, and the self-contained annotated example VCFs — carry
+# everything the tests need. So CI installs only the light dependency set and never
+# touches the network, which is also a standing check that the offline path stays intact.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A new push to the same branch cancels the previous run — no point finishing a job
+  # for a commit that has already been superseded.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      # Let every version report, rather than hiding the others behind the first failure.
+      fail-fast: false
+      matrix:
+        # pyproject declares requires-python = ">=3.10"; test the floor and the versions
+        # above it, so a change that quietly needs a newer syntax is caught here.
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install (light deps only — no duckdb/cyvcf2/mcp)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Show what is installed
+        # The optional accelerators must be ABSENT here: the tests are supposed to pass on
+        # the pure-Python fallbacks, and a silent dependency on duckdb/cyvcf2 would make CI
+        # green while a fresh `pip install vcf2report` fails.
+        run: pip list
+
+      - name: Run the test suite
+        run: pytest -q
+
+  cli-smoke:
+    # Unit tests import the package directly, so they would not notice a broken console
+    # entry point or a packaging mistake. This installs and invokes the CLI the way a user
+    # would, then runs a committed worked example end to end.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: CLI entry point responds
+        run: vcf2report --help
+
+      - name: Classify a shipped example end to end
+        # data/example/*.annotated.vcf.gz are self-contained (gnomAD/ClinVar/AlphaMissense
+        # baked into INFO), so this is a real report with no stores and no network.
+        run: |
+          python scripts/run_headless.py data/example/SYN-004.NIPBL.annotated.vcf.gz \
+            --hpo data/example/SYN-004.hpo.txt \
+            --sample-id CI-SYN-004 \
+            --out "$RUNNER_TEMP/ci-report"
+          test -s "$RUNNER_TEMP/ci-report/CI-SYN-004_report.md"
+          test -s "$RUNNER_TEMP/ci-report/CI-SYN-004_results.json"
+
+      - name: The example must still reach its expected call
+        # A report that renders but classifies wrongly is the failure that matters. NIPBL
+        # p.Arg1837* is a known Pathogenic in the committed example; assert the tier rather
+        # than merely that a file appeared.
+        run: |
+          python - "$RUNNER_TEMP/ci-report/CI-SYN-004_results.json" <<'EOF'
+          import json, sys
+          data = json.load(open(sys.argv[1]))
+          hit = next(c for c in data["classifications"] if c["variant"]["gene"] == "NIPBL")
+          print(f"NIPBL {hit['variant']['hgvs_p']} -> {hit['tier']}")
+          assert hit["tier"] == "Pathogenic", f"expected Pathogenic, got {hit['tier']}"
+          EOF
