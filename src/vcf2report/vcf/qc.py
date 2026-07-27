@@ -29,6 +29,16 @@ def passes_qc(v: Variant) -> tuple[bool, str]:
     return True, "PASS"
 
 
+def is_metric_drop(reason: str) -> bool:
+    """True when a variant was dropped for a *borderline quantitative* reason (DP/GQ/AB).
+
+    These are the recoverable drops: the call exists and the proband carries it, it just
+    sits under a threshold. A non-carrier genotype or an explicit caller FILTER is a
+    categorical rejection and is not reconsidered.
+    """
+    return reason.startswith(("DP=", "GQ=", "AB="))
+
+
 def apply_qc(variants: list[Variant]) -> tuple[list[Variant], list[tuple[Variant, str]]]:
     kept: list[Variant] = []
     dropped: list[tuple[Variant, str]] = []

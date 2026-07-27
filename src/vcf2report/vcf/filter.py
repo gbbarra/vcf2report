@@ -18,6 +18,12 @@ IMPACTFUL = {
     "stop_gained", "frameshift_variant", "splice_donor_variant",
     "splice_acceptor_variant", "start_lost", "stop_lost",
     "missense_variant", "inframe_insertion", "inframe_deletion",
+    # Whole-transcript / whole-exon loss. These are the MOST damaging consequences an
+    # annotator emits, and omitting them meant annparse translated SnpEff's EXON_DELETED
+    # into "transcript_ablation" only for this filter to discard it one step later.
+    "transcript_ablation", "exon_loss_variant",
+    # VEP's catch-all for a protein-length/sequence change it cannot type more precisely.
+    "protein_altering_variant",
 }
 
 
@@ -50,7 +56,10 @@ class FilterFunnel:
 
 
 def _is_clinvar_plp(a: Annotation) -> bool:
-    sig = (a.clinvar_significance or "").lower()
+    # Underscores normalized first: raw ClinVar CLNSIG is underscore-delimited
+    # ("Likely_pathogenic"). This test guards the rarity/impact RESCUE, so failing it
+    # silently drops a known pathogenic variant from the candidate list entirely.
+    sig = (a.clinvar_significance or "").lower().replace("_", " ")
     return sig.startswith("pathogenic") or sig.startswith("likely pathogenic")
 
 

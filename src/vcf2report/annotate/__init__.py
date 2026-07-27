@@ -43,7 +43,12 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         # fast, offline path for a real pre-annotated exome — then fall back to the
         # local snapshots / live clients only for whatever INFO didn't provide.
         vi = from_vcf.extract(variant)
-        if "gnomad_af" in vi:
+        # Gate on the VALUE, not the key. from_vcf sets gnomad_af=None when the INFO field
+        # is a per-allele array that does not cover THIS allele (an annotator/ALT-count
+        # mismatch). Testing key presence recorded that as _source="VCF INFO" with no
+        # frequency and skipped the local snapshot entirely — the variant then looked
+        # absent from gnomAD when the data was simply never consulted.
+        if vi.get("gnomad_af") is not None:
             g = {"af": vi["gnomad_af"], "ac": vi.get("gnomad_ac"),
                  "an": vi.get("gnomad_an"), "hom": vi.get("gnomad_hom"),
                  "faf95": vi.get("gnomad_faf95"), "pop": None, "_source": "VCF INFO"}
@@ -57,8 +62,8 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
                   "_source": "VCF INFO"}
         else:
             cv = clinvar.lookup(variant)
-        ab = {"af": vi["abraom_af"], "_source": "VCF INFO"} if "abraom_af" in vi \
-            else abraom.lookup(variant)
+        ab = {"af": vi["abraom_af"], "_source": "VCF INFO"} \
+            if vi.get("abraom_af") is not None else abraom.lookup(variant)
         if "revel" in vi or "cadd" in vi:
             isi = {"revel": vi.get("revel"), "cadd": vi.get("cadd"), "_source": "VCF INFO"}
         else:

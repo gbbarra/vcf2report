@@ -52,14 +52,26 @@ def _int(x: Optional[str], idx: int = 0):
     return int(v) if v is not None else None
 
 
-def _multi_num(x: Optional[str]):
-    """Max numeric from a multi-value predictor field (dbNSFP REVEL/CADD are
-    per-transcript, separated by ',', ';' or '&'; '.' means missing)."""
+def _multi_num(x: Optional[str], idx: int = 0, n_alts: int = 1):
+    """Max numeric from a multi-value predictor field.
+
+    A comma is ambiguous in these fields: dbNSFP writes one value per TRANSCRIPT, while a
+    VCF ``Number=A`` field writes one per ALT ALLELE. The only available disambiguator is
+    the count — when the comma arity equals the record's ALT count at a multiallelic site,
+    the commas are per-allele and only THIS allele's element may be read. Taking the max
+    across them instead handed the benign allele of a multiallelic site the pathogenic
+    allele's score, inverting the in-silico evidence (PP3 firing on a BP4 allele).
+    ``;`` and ``&`` are always per-transcript. ``.`` means missing.
+    """
     if x is None:
         return None
     import re
+    s = str(x)
+    parts = s.split(",")
+    if n_alts > 1 and len(parts) == n_alts:
+        s = parts[idx] if idx < len(parts) else ""
     vals = []
-    for tok in re.split(r"[;,&]", str(x)):
+    for tok in re.split(r"[;,&]", s):
         tok = tok.strip()
         if tok and tok != ".":
             try:
@@ -104,18 +116,19 @@ def extract(variant: Variant) -> dict:
         out["clinvar_condition"] = str(cond).replace("_", " ") if cond else None
         out["clinvar_accession"] = _first(info, A["clinvar_accession"])
 
-    # REVEL/CADD are per-transcript multi-values, not per-allele: aggregate (max).
-    rv = _multi_num(_first(info, A["revel"]))
+    # REVEL/CADD/AlphaMissense are per-transcript multi-values (max = most damaging) UNLESS
+    # the comma arity matches the ALT count, in which case they are per-allele — see _multi_num.
+    n = variant.n_alts or 1
+    rv = _multi_num(_first(info, A["revel"]), i, n)
     if rv is not None:
         out["revel"] = rv
-    cd = _multi_num(_first(info, A["cadd"]))
+    cd = _multi_num(_first(info, A["cadd"]), i, n)
     if cd is not None:
-        out["cadd"] = _num(cd, i)
-    # AlphaMissense: per-transcript score (max = most damaging); class is a label.
-    am = _multi_num(_first(info, A["am_pathogenicity"]))
+        out["cadd"] = cd
+    am = _multi_num(_first(info, A["am_pathogenicity"]), i, n)
     if am is not None:
         out["am_pathogenicity"] = am
-        amc = _first(info, A["am_class"])
+        amc = _pick(_first(info, A["am_class"]), i) if n > 1 else _first(info, A["am_class"])
         if amc is not None:
             out["am_class"] = str(amc)
     return out

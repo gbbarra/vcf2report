@@ -99,9 +99,15 @@ def _sample_metrics(fmt: str, sample: str, alt_index: int) -> dict:
         try:
             parts = [int(x) for x in ad.split(",")]
             total = sum(parts)
-            # AD is [ref, alt1, alt2, ...]; use THIS allele's depth.
-            if total > 0 and len(parts) > alt_index + 1:
-                out["allele_balance"] = round(parts[alt_index + 1] / total, 3)
+            # AD is [ref, alt1, alt2, ...]. Allele balance must be measured against the
+            # alleles the sample ACTUALLY CARRIES, not the whole site: at a 1/2 call,
+            # dividing by the site total makes both real alleles look ~0.3 and the QC gate
+            # drops the pair as imbalanced. Restrict the denominator to the genotype's own
+            # alleles; fall back to the site total only when GT is unusable.
+            called = {int(a) for a in _alleles(d.get("GT", "")) if a.isdigit()}
+            denom = sum(parts[a] for a in called if a < len(parts)) if called else total
+            if denom > 0 and len(parts) > alt_index + 1:
+                out["allele_balance"] = round(parts[alt_index + 1] / denom, 3)
             # Many callers omit FORMAT/DP but carry AD; sum(AD) is the site depth.
             if "depth" not in out and total > 0:
                 out["depth"] = total
@@ -162,6 +168,7 @@ def _parse_pure(path: Path, sample: str | None = None
     variants: list[Variant] = []
     header: list[str] = []
     csq_format = None
+    ann_format = None
     sample_idx = 0
     setup_done = False
     with _open(path) as fh:
@@ -172,6 +179,7 @@ def _parse_pure(path: Path, sample: str | None = None
                 continue
             if not setup_done:  # header is complete once data starts
                 csq_format = annparse.parse_csq_format(header)
+                ann_format = annparse.parse_ann_format(header)
                 sample_idx = _resolve_sample_index(header, sample)
                 setup_done = True
             cols = line.split("\t")
@@ -189,7 +197,8 @@ def _parse_pure(path: Path, sample: str | None = None
                 if not _reportable_alt(alt_allele):
                     continue  # '*' / symbolic ALT: never annotate/report
                 metrics = _sample_metrics(fmt, samp, i) if fmt and samp else {}
-                ann = annparse.extract(info_d, alt_allele, csq_format, ref, i, len(alts)) or {}
+                ann = annparse.extract(info_d, alt_allele, csq_format, ref, i, len(alts),
+                                       ann_format) or {}
                 variants.append(Variant(
                     chrom=chrom, pos=int(pos), ref=ref, alt=alt_allele,
                     gene=ann.get("gene"),
@@ -227,6 +236,7 @@ def _parse_cyvcf2(path: Path, sample: str | None = None
     vcf = VCF(str(path))
     header = [str(h) for h in vcf.raw_header.splitlines()]
     csq_format = annparse.parse_csq_format(header)
+    ann_format = annparse.parse_ann_format(header)
     s = 0
     if sample is not None:
         if sample not in list(vcf.samples):
@@ -251,14 +261,19 @@ def _parse_cyvcf2(path: Path, sample: str | None = None
                 try:
                     ad = [x for x in list(ad_arr[s]) if x is not None and x >= 0]
                     total = sum(ad)
-                    if total > 0 and len(ad) > i + 1:
-                        allele_balance = round(ad[i + 1] / total, 3)
+                    # Same denominator rule as the pure reader: measure against the
+                    # alleles the genotype carries, not the whole multiallelic site.
+                    called = {int(a) for a in (gts or []) if str(a).isdigit()}
+                    denom = sum(ad[a] for a in called if a < len(ad)) if called else total
+                    if denom > 0 and len(ad) > i + 1:
+                        allele_balance = round(ad[i + 1] / denom, 3)
                     if depth_i is None and total > 0:  # DP absent -> sum(AD)
                         depth_i = total
                 except (TypeError, ValueError, IndexError):
                     allele_balance = None
             info = {k: str(v) for k, v in dict(rec.INFO).items()}
-            ann = annparse.extract(info, str(alt_allele), csq_format, rec.REF, i, len(alts)) or {}
+            ann = annparse.extract(info, str(alt_allele), csq_format, rec.REF, i, len(alts),
+                                   ann_format) or {}
             variants.append(Variant(
                 chrom=rec.CHROM, pos=rec.POS, ref=rec.REF, alt=alt_allele,
                 gene=ann.get("gene"), hgvs_c=ann.get("hgvs_c"),

@@ -79,6 +79,18 @@ def _render_markdown_builtin(report: ReportModel) -> str:
     for w in q.warnings:
         L.append(f"- ⚠️ {w}")
     L.append("")
+    if q.qc_rescued:
+        # These variants are NOT in any candidate table — the QC gate removed them before
+        # annotation. Without this section the report simply would not contain them.
+        L.append("### Removed by QC, but known to ClinVar")
+        L.append("")
+        L.append("Variants the per-variant QC gate dropped for a borderline metric that "
+                 "ClinVar nevertheless classifies Pathogenic / Likely Pathogenic. They were "
+                 "**not classified** and are **not** candidates below — they are listed so a "
+                 "marginal-quality call on a known allele is confirmed, not silently lost:")
+        for note in q.qc_rescued:
+            L.append(f"- ⚠️ {note}")
+        L.append("")
     if q.abraom_filtered:
         L.append("### Brazilian-frequency filtering (ABraOM)")
         L.append("")

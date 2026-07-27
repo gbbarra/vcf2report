@@ -26,6 +26,15 @@
 {% for w in r.qc.warnings %}
 - ⚠️ {{ w }}
 {% endfor %}
+{% if r.qc.qc_rescued %}
+
+### Removed by QC, but known to ClinVar
+
+Variants the per-variant QC gate dropped for a borderline metric that ClinVar nevertheless classifies Pathogenic / Likely Pathogenic. They were **not classified** and are **not** candidates below — they are listed so a marginal-quality call on a known allele is confirmed, not silently lost:
+{% for note in r.qc.qc_rescued %}
+- ⚠️ {{ note }}
+{% endfor %}
+{% endif %}
 {% if r.qc.abraom_filtered %}
 
 ### Brazilian-frequency filtering (ABraOM)

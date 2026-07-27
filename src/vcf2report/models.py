@@ -187,6 +187,11 @@ class QCSummary:
     warnings: list[str] = field(default_factory=list)
     # Spurious candidates removed thanks to ABraOM (Brazilian) frequencies.
     abraom_filtered: list[str] = field(default_factory=list)
+    # Variants dropped by the QC gate that ClinVar nevertheless classifies P/LP with
+    # >=2-star review. QC runs BEFORE annotation, so the report's do-not-dismiss net
+    # can never see these — they are recovered here so a marginal-quality call on a
+    # known pathogenic allele is named and confirmed, not deleted in silence.
+    qc_rescued: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

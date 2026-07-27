@@ -80,12 +80,19 @@ def split_findings(classifications):
     * **other** — everything else, incl. unrelated P/LP in a non-SF gene (an
       incidental finding that is not on the actionable SF list), phenotype-matched
       benign, and unrelated VUS/benign.
+
+    A phenotype score of ``None`` means NO COMPARISON WAS POSSIBLE (no HPO terms were
+    supplied, or the gene is absent from the local HPO table) — never "compared, and it
+    did not match". A P/LP variant is therefore NOT demoted on an absent comparison; see
+    :func:`phenotype_compared`.
     """
     from ..config import ACMG_SF_GENES, HPO_RELATED_MIN
     primary, secondary, other = [], [], []
     plp_hits = _plp_hits_by_gene(classifications)
     for c in classifications:
-        related = (c.annotation.hpo_match_score or 0) >= HPO_RELATED_MIN
+        score = c.annotation.hpo_match_score
+        compared = score is not None
+        related = compared and score >= HPO_RELATED_MIN
         # QC caution: a homozygous genotype for a variant the store vouches is absent from gnomAD
         # (AC=0) is genotype-implausible — a homozygote needs the allele to exist — and a classic
         # calling-artifact signature in difficult regions. On a HEALTHY exome that is noise. But
@@ -94,7 +101,12 @@ def split_findings(classifications):
         # discriminator is the phenotype: demote it UNLESS it is a phenotype-matched P/LP finding,
         # where the imperative to surface the candidate wins and the report carries the
         # "confirm the genotype" caveat (surfaced via is_hom_absent_artifact) instead of hiding it.
-        if is_hom_absent_artifact(c) and not (related and c.tier in _PLP):
+        # An ACMG-SF P/LP is likewise never demoted here: this gate used to run BEFORE the SF
+        # branch below, so an actionable secondary finding was suppressed AND the conclusion
+        # then asserted the gene was "not on the ACMG SF actionable list". It carries the same
+        # confirm-the-genotype caveat instead.
+        _sf_plp = c.variant.gene in ACMG_SF_GENES and c.tier in _PLP
+        if is_hom_absent_artifact(c) and not (related and c.tier in _PLP) and not _sf_plp:
             other.append(c)
             continue
         # Carrier caution: a lone heterozygous null in a recessive-only gene is a PATHOGENIC
@@ -112,11 +124,26 @@ def split_findings(classifications):
         is_sf = c.variant.gene in ACMG_SF_GENES
         if related and c.tier not in _BENIGN:
             primary.append(c)
+        elif not compared and c.tier in _PLP and not is_sf:
+            # Phenotype comparison was not possible. Routing this to `other` made the report
+            # state the variant does "not match the stated phenotype" — a claim about a
+            # comparison that never happened, and on a run with no --hpo at all it emptied
+            # `primary` while a Pathogenic variant sat under "Not routinely reported".
+            primary.append(c)
         elif not related and c.tier in _PLP and is_sf:
             secondary.append(c)
         else:
             other.append(c)
     return primary, secondary, other
+
+
+def phenotype_compared(classifications) -> bool:
+    """True when at least one candidate had a computable phenotype score.
+
+    ``hpo.match`` returns None both when no HPO terms were supplied and when the gene is
+    absent from the local HPO table; either way the report must not describe a variant as
+    "not matching the stated phenotype"."""
+    return any(c.annotation.hpo_match_score is not None for c in classifications)
 
 
 def _plp_hits_by_gene(classifications) -> dict:
@@ -177,13 +204,31 @@ def carrier_findings(classifications):
 
 
 def is_hom_absent_artifact(c) -> bool:
-    """Homozygous genotype for a variant the store vouches is absent from gnomAD (AC=0). A
-    homozygote requires the allele to exist in the population, so AC=0 + hom is implausible for a
-    real allele and a common calling-artifact signature in difficult regions (segdup / low-complexity
-    / homopolymer). A QC caution only — the ACMG tier is untouched; it is just not presented as a
-    confident diagnostic finding. Heterozygous variants (incl. genuine novel dominant LoF) are
-    unaffected."""
-    return (c.variant.zygosity == "hom") and (c.annotation.gnomad_af == 0.0)
+    """Homozygous genotype for a variant gnomAD **actually observed and vouches is absent**
+    (AN>0 alleles surveyed, AC=0 seen). A homozygote requires the allele to exist in the
+    population, so a vouched AC=0 + hom is implausible for a real allele and a common
+    calling-artifact signature in difficult regions (segdup / low-complexity / homopolymer).
+    A QC caution only — the ACMG tier is untouched; it is just not presented as a confident
+    diagnostic finding. Heterozygous variants (incl. genuine novel dominant LoF) are unaffected.
+
+    ``AN`` is REQUIRED. Annotators write ``gnomAD_AF=0`` alongside ``gnomAD_AN=0`` wherever
+    gnomAD has no coverage at all — AF is 0/0, undefined, not a survey that found nothing.
+    Reading that as a vouched absence turns missing data into evidence, and demotes exactly
+    the recessive candidates that live in gnomAD-uncovered regions. That case is
+    :func:`is_hom_gnomad_uncovered` and carries a different, weaker caveat.
+    """
+    return (c.variant.zygosity == "hom") and (c.annotation.gnomad_af == 0.0) \
+        and bool(c.annotation.gnomad_an)
+
+
+def is_hom_gnomad_uncovered(c) -> bool:
+    """Homozygous genotype at a site gnomAD does not cover (AN=0 / absent) — so the
+    frequency is UNKNOWN, not zero.
+
+    Worth a caveat (uncovered sites are typically the same difficult regions that generate
+    artifacts) but NOT a demotion: a genuine novel recessive allele in a poorly-surveyed
+    region looks exactly like this, and no evidence exists either way."""
+    return (c.variant.zygosity == "hom") and not c.annotation.gnomad_an
 
 
 def clinvar_stars(review_status) -> int:
@@ -212,7 +257,12 @@ def clinvar_pathogenic_flags(classifications):
     circularity) — it is a report-level safety flag."""
     out = []
     for c in classifications:
-        sig = (c.annotation.clinvar_significance or "").lower()
+        # Normalize underscores for the SAME reason clinvar_stars does: raw ClinVar CLNSIG
+        # is underscore-delimited ("Likely_pathogenic"). Every ingest path in this repo
+        # normalizes, but an externally-built Parquet or a hand-made slice need not — and
+        # the identical test in vcf/filter.py guards the rarity/impact RESCUE, so a raw
+        # value would be dropped by the filter and invisible to this net at the same time.
+        sig = (c.annotation.clinvar_significance or "").lower().replace("_", " ")
         is_plp = sig.startswith("pathogenic") or sig.startswith("likely pathogenic")
         if is_plp and clinvar_stars(c.annotation.clinvar_review_status) >= 2 and c.tier not in _PLP:
             out.append(c)
@@ -230,18 +280,44 @@ def summarize(report: "ReportModel") -> list[str]:
     primary, secondary, other = split_findings(report.classifications)
     lines: list[str] = []
 
+    # Every phenotype claim below is gated on a comparison having actually happened. With no
+    # HPO terms (the CLI's --hpo is optional and MCP run_report defaults to None) the scores
+    # are all None, and "in phenotype-matched genes" / "not matching the stated phenotype"
+    # would describe a comparison that never ran.
+    compared = phenotype_compared(report.classifications)
+    if not compared:
+        lines.append(
+            "**No phenotype was available for this analysis** (no HPO terms supplied, or none "
+            "of the candidate genes are in the local HPO table), so findings below are NOT "
+            "phenotype-filtered and no statement about matching the indication is made. "
+            "Supplying HPO terms materially sharpens the prioritisation."
+        )
+
     diag = [c for c in primary if c.tier in _PLP]
     if diag:
         g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in diag)
-        lines.append(f"Likely explanatory finding for the clinical indication: **{g}** "
-                     "(in a gene overlapping the patient's phenotype) — confirm and review.")
+        where = (" (in a gene overlapping the patient's phenotype)" if compared else
+                 " (phenotype overlap NOT assessed)")
+        lines.append(f"Likely explanatory finding for the clinical indication: **{g}**"
+                     f"{where} — confirm and review.")
     else:
         vus = [c for c in primary if c.tier == "Uncertain Significance (VUS)"]
         msg = ("**No Pathogenic / Likely Pathogenic finding** by the engine's independent "
-               "ACMG classification in phenotype-matched genes")
+               "ACMG classification" + (" in phenotype-matched genes" if compared else ""))
         if vus:
             msg += f"; {len(vus)} variant(s) of uncertain significance need further evaluation"
         lines.append(msg + ".")
+
+    # Safety flag: a known ClinVar-Pathogenic variant the QC gate removed BEFORE annotation.
+    # The do-not-dismiss net below cannot reach these — they are not classifications at all —
+    # so without this line the report deletes a known pathogenic allele and then states there
+    # is no finding. Placed immediately after the headline it may be contradicting.
+    if report.qc.qc_rescued:
+        lines.append(
+            f"⚠️ **Removed by QC before classification, but known to ClinVar** — "
+            f"{len(report.qc.qc_rescued)} variant(s): "
+            + "; ".join(report.qc.qc_rescued)
+        )
 
     # Safety flag: a known, well-reviewed ClinVar-Pathogenic variant must never be hidden
     # behind a lower engine tier (surfaced independently of the ACMG math).
@@ -252,6 +328,20 @@ def summarize(report: "ReportModel") -> list[str]:
         lines.append(f"⚠️ **Classified Pathogenic/Likely Pathogenic in ClinVar** (≥2-star review) — "
                      f"the engine's independent tier is lower, but DO NOT dismiss: **{g}**. Review the "
                      "ClinVar assertion and its underlying evidence.")
+
+    # gnomAD has no coverage here, so the frequency is UNKNOWN. Not a demotion (see
+    # is_hom_gnomad_uncovered) but the reader must not read a blank AF as "absent".
+    uncovered = [c for c in report.classifications
+                 if is_hom_gnomad_uncovered(c) and c.tier not in _BENIGN]
+    if uncovered:
+        g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in uncovered)
+        lines.append(
+            f"**Population frequency unknown, not zero** — {len(uncovered)} homozygous "
+            f"variant(s) at sites gnomAD does not survey (AN=0): {g}. Rarity criteria (PM2) rest "
+            "on no observation here, and such sites are often the difficult regions that also "
+            "generate genotyping artifacts — confirm the genotype and seek an alternative "
+            "frequency source before weighing rarity."
+        )
 
     artifacts = [c for c in report.classifications if is_hom_absent_artifact(c) and c.tier in _PLP]
     if artifacts:
@@ -283,9 +373,11 @@ def summarize(report: "ReportModel") -> list[str]:
     inc = [c for c in other if c.tier in _PLP and c not in carriers]
     if inc:
         g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in inc)
-        lines.append(f"Additional **Pathogenic / Likely Pathogenic** variant(s) not matching the "
-                     f"stated phenotype and not on the ACMG SF actionable list: {g}. Clinical "
-                     "relevance to the indication is uncertain — review in context.")
+        # Only claim a non-match where a phenotype score actually existed for that gene.
+        why = ("not matching the stated phenotype and not on the ACMG SF actionable list"
+               if compared else "not on the ACMG SF actionable list (phenotype not assessed)")
+        lines.append(f"Additional **Pathogenic / Likely Pathogenic** variant(s) {why}: {g}. "
+                     "Clinical relevance to the indication is uncertain — review in context.")
 
     # Probable-pathogenic VUS: the engine held these at Uncertain Significance (correctly — the
     # evidence is Supporting-only), but they overlap the phenotype AND carry molecular signal, so
