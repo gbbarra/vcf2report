@@ -28,6 +28,10 @@ class Variant:
     exon: Optional[str] = None         # SnpEff rank / VEP EXON as "N/M" (for PVS1 NMD tree)
     transcript: Optional[str] = None   # SnpEff feature_id / VEP Feature — reported with HGVS
     zygosity: Optional[str] = None     # het | hom | hemi
+    # Half-call ("./1"): the sample certainly carries this ALT but the second allele was
+    # not called, so `zygosity` above is the conservative "het" and NOT an observation.
+    # Rendered as "het (partial call)" so a het/hom question is confirmed, not assumed.
+    partial_call: bool = False
     depth: Optional[int] = None        # DP
     gq: Optional[int] = None           # genotype quality
     allele_balance: Optional[float] = None
@@ -192,6 +196,9 @@ class QCSummary:
     # can never see these — they are recovered here so a marginal-quality call on a
     # known pathogenic allele is named and confirmed, not deleted in silence.
     qc_rescued: list[str] = field(default_factory=list)
+    # Rare splice-ADJACENT variants the impact step set aside by design (see
+    # vcf.filter.NEAR_SPLICE). Surfaced so the shortlist's coverage is stated, not assumed.
+    near_splice_excluded: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

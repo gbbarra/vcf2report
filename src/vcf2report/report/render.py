@@ -43,6 +43,12 @@ def render_markdown(report: ReportModel) -> str:
     return _render_markdown_builtin(report)
 
 
+def _zyg(v) -> str:
+    """Zygosity for display. A half-call is shown as an assumption, not an observation."""
+    z = v.zygosity or "?"
+    return f"{z} (partial call)" if getattr(v, "partial_call", False) else z
+
+
 def _fmt_af(x) -> str:
     return "n/a" if x is None else f"{x:.6f}"
 
@@ -76,6 +82,12 @@ def _render_markdown_builtin(report: ReportModel) -> str:
     L.append(f"- After rarity: **{q.after_rarity}**")
     L.append(f"- After coding/splice impact: **{q.after_impact}**")
     L.append(f"- **Candidates classified: {q.candidates}**")
+    if q.near_splice_excluded:
+        L.append(f"- Set aside by design: **{q.near_splice_excluded}** rare splice-*adjacent* "
+                 "variants (3–8 bases into the intron, or the last exonic bases). The canonical "
+                 "±1,2 splice sites ARE included; these are not, because no splice predictor is "
+                 "wired in. A splice-region variant already known to ClinVar as P/LP is still "
+                 "shortlisted. **This is a stated sensitivity limit of the shortlist.**")
     for w in q.warnings:
         L.append(f"- ⚠️ {w}")
     L.append("")
@@ -148,7 +160,7 @@ def _render_markdown_builtin(report: ReportModel) -> str:
             v, a = c.variant, c.annotation
             hgvs = " ".join(x for x in [v.hgvs_c, v.hgvs_p] if x) or v.key
             L.append(
-                f"| {v.gene or '?'} | {v.transcript or '—'} | {hgvs} | {v.zygosity or '?'} | {v.consequence or '?'} "
+                f"| {v.gene or '?'} | {v.transcript or '—'} | {hgvs} | {_zyg(v)} | {v.consequence or '?'} "
                 f"| {a.clinvar_significance or '—'} | {_fmt_af(a.gnomad_af)} | {_fmt_af(a.abraom_af)} "
                 f"| {a.hpo_match_score if a.hpo_match_score is not None else '—'} | **{c.tier}** |"
             )

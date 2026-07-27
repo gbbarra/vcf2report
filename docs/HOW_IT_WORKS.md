@@ -278,7 +278,20 @@ deduplicated at build time and dropped `disease_id`). (6) **Late-onset dominants
 (LOEUF 0.469) is neither constraint-intolerant nor recessive, so PVS1 does not fire on a TP53 null
 even though LoF is its established mechanism. (7) The gene-constraint table's **pLI column is empty**,
 so `lof_intolerant` is decided by LOEUF alone. (8) Carrier routing needs zygosity from the VCF; a
-sites-only VCF (no genotype) cannot be triaged this way.
+sites-only VCF (no genotype) cannot be triaged this way — the pipeline now *warns* loudly instead
+of reporting the resulting empty shortlist as "no finding". (9) **Splice-adjacent variants are
+excluded from the shortlist by design, and the report says so.** The canonical ±1,2 sites
+(`splice_donor_variant` / `splice_acceptor_variant`) are included; `splice_region_variant` and the
+newer VEP splice terms (3–8 bases into the intron, or the last exonic bases) are not, because no
+splice predictor (SpliceAI/MaxEntScan) is wired in — admitting them added ~28% more candidates on
+the committed exomes, every one landing at VUS, with no change in the P/LP count. A splice-region
+variant **already known to ClinVar as P/LP still reaches the shortlist** through the ClinVar bypass
+in `filter_variants`, so nothing with existing evidence is lost. The QC funnel reports the count set
+aside (`qc.near_splice_excluded`) rather than letting the reader assume full coverage. Wiring a
+splice predictor should reopen this trade-off. (10) **A half-call (`./1`) is reported as `het`
+conservatively, flagged "partial call".** The sample certainly carries the allele; the zygosity was
+never observed. It is kept (dropping it deleted a real carrier) and the het allele-balance window is
+not applied to it, but a het/hom question on such a call must be resolved orthogonally.
 
 **Reproducibility & privacy.** Every input is openly licensed and every store is rebuildable from
 public sources (`scripts/build_*`), or downloadable as a checksummed Release. Because the default

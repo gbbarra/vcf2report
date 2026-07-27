@@ -231,6 +231,7 @@ def run_pipeline(
     qc.after_impact = funnel.after_impact
     qc.candidates = funnel.candidates
     qc.abraom_filtered = funnel.abraom_filtered
+    qc.near_splice_excluded = funnel.near_splice_excluded
     _mark("filter_s")
 
     if build_trusted:

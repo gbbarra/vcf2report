@@ -343,7 +343,12 @@ def summarize(report: "ReportModel") -> list[str]:
             "frequency source before weighing rarity."
         )
 
-    artifacts = [c for c in report.classifications if is_hom_absent_artifact(c) and c.tier in _PLP]
+    # Every non-benign hom-absent variant, not only the P/LP ones. The caveat used to be
+    # gated on _PLP — the same condition that exempts a variant from the demotion — so a
+    # phenotype-matched homozygote the engine held at VUS was routed to "Not routinely
+    # reported" AND given no explanation. Nothing leaves the diagnostic sections silently.
+    artifacts = [c for c in report.classifications
+                 if is_hom_absent_artifact(c) and c.tier not in _BENIGN]
     if artifacts:
         g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in artifacts)
         lines.append(f"⚠️ **Verify the genotype before interpreting** — {len(artifacts)} homozygous "

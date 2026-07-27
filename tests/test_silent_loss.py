@@ -320,3 +320,98 @@ def test_biallelic_allele_balance_is_unchanged(tmp_path):
         chr1\t100\t.\tA\tG\t50\tPASS\tGENE=X;CSQ=missense_variant\tGT:AD:DP:GQ\t0/1:20,20:40:60\t
         """)
     assert parse_vcf(p)[0][0].allele_balance == 0.5
+
+
+# --------------------------------------------------------------------------------------
+# 15-18. Judgement calls, once decided, become assertions like everything else.
+# --------------------------------------------------------------------------------------
+
+def test_near_splice_exclusion_is_disclosed_not_silent():
+    """splice_region variants stay out of the shortlist by design — so the funnel must
+    say how many were set aside, in both renderers."""
+    from vcf2report.report.render import _render_markdown_builtin, render_markdown
+    r = run_pipeline("data/example/SYN-004.NIPBL.annotated.vcf.gz")
+    assert r.qc.near_splice_excluded > 0
+    for md in (render_markdown(r), _render_markdown_builtin(r)):
+        assert "Set aside by design" in md
+        assert str(r.qc.near_splice_excluded) in md
+        assert "stated sensitivity limit" in md
+
+
+def test_known_pathogenic_splice_region_still_reaches_the_shortlist():
+    """The exclusion is only defensible because ClinVar P/LP bypasses the impact step."""
+    from vcf2report.vcf.filter import filter_variants
+    v = Variant(chrom="1", pos=1, ref="A", alt="G", gene="X",
+                consequence="splice_region_variant", zygosity="het")
+    known, _f = filter_variants([(v, Annotation(clinvar_significance="Pathogenic",
+                                                gnomad_af=0.0))])
+    novel, _f = filter_variants([(v, Annotation(gnomad_af=0.0))])
+    assert len(known) == 1 and len(novel) == 0
+
+
+def test_per_allele_frequency_is_not_broadcast_at_a_multiallelic_site(tmp_path):
+    """A lone Number=A value at a 2-ALT site resolved only one allele; giving ALT #2 ALT
+    #1's frequency can flip BA1/BS1. Falls back to the snapshot instead."""
+    p = _write(tmp_path, "scalar.vcf", """
+        chr1\t100\t.\tA\tG,T\t50\tPASS\tgnomad_AF=0.42;GENE=X;CSQ=missense_variant\tGT:AD\t1/2:0,20,20\t
+        """)
+    got = {v.alt: from_vcf.extract(v).get("gnomad_af") for v in parse_vcf(p)[0]}
+    assert got == {"G": 0.42, "T": None}
+
+
+def test_per_site_faf95_still_applies_to_every_allele(tmp_path):
+    """fafmax_faf95_max is per-SITE in gnomAD v4.1 — the strict rule must not eat it."""
+    p = _write(tmp_path, "faf.vcf", """
+        chr1\t100\t.\tA\tG,T\t50\tPASS\tgnomad_AF=0.4,0.01;gnomad_faf95=0.3;GENE=X;CSQ=missense_variant\tGT:AD\t1/2:0,20,20\t
+        """)
+    got = {v.alt: from_vcf.extract(v).get("gnomad_faf95") for v in parse_vcf(p)[0]}
+    assert got == {"G": 0.3, "T": 0.3}
+
+
+def test_half_call_is_kept_as_a_flagged_het_not_dropped(tmp_path):
+    """'./1' certainly carries the ALT; only the zygosity is unknown. Dropping it as a
+    non-carrier deleted a real variant."""
+    from vcf2report.vcf.qc import apply_qc
+    p = _write(tmp_path, "half.vcf", """
+        chr1\t300\t.\tA\tG\t50\tPASS\tGENE=X;CSQ=stop_gained\tGT:AD:DP:GQ\t./1:0,25:25:60\t
+        """)
+    v = parse_vcf(p)[0][0]
+    assert v.zygosity == "het" and v.partial_call is True
+    kept, dropped = apply_qc([v])
+    assert kept == [v] and not dropped        # the het AB window must not evict it
+
+    from vcf2report.report.render import _render_markdown_builtin, _zyg
+    assert _zyg(v) == "het (partial call)"
+
+
+@pytest.mark.parametrize("gt,zyg,partial", [
+    ("0/1", "het", False), ("1/1", "hom", False),
+    ("./1", "het", True),         # carries ALT #1; zygosity unknown -> conservative het
+    ("1|.", "het", True),
+    ("./.", None, False),         # nothing called at all: not a partial call
+    ("./0", None, True),          # partial GT, but no evidence for ANY alt -> non-carrier
+    ("./2", None, True),          # carries ALT #2, not ALT #1 — non-carrier for this row
+])
+def test_zygosity_and_partial_call_across_genotypes(tmp_path, gt, zyg, partial):
+    p = _write(tmp_path, f"gt_{abs(hash(gt))}.vcf", f"""
+        chr1\t300\t.\tA\tG,C\t50\tPASS\tGENE=X;CSQ=stop_gained\tGT:AD:DP:GQ\t{gt}:0,25,25:50:60\t
+        """)
+    v = [x for x in parse_vcf(p)[0] if x.alt == "G"][0]
+    assert v.zygosity == zyg and v.partial_call is partial
+
+
+def test_every_demoted_hom_absent_variant_is_explained():
+    """The caveat used to be gated on _PLP — the same condition that EXEMPTS a variant from
+    the demotion — so a phenotype-matched hom VUS was demoted with no explanation."""
+    from vcf2report.report.assemble import split_findings
+    vus = _cls("GENEV", "Uncertain Significance (VUS)", zygosity="hom", gnomad_af=0.0,
+               gnomad_ac=0, gnomad_an=152000, hpo_match_score=0.9, hpo_best_match=0.9)
+    _p, _s, other = split_findings([vus])
+    assert vus in other                                   # still demoted (healthy-exome guard)
+    assert "Verify the genotype" in " ".join(summarize(_report([vus])))   # ...but explained
+
+
+def test_benign_hom_absent_variants_do_not_generate_caveat_noise():
+    benign = _cls("GENEB", "Benign", zygosity="hom", gnomad_af=0.0, gnomad_ac=0,
+                  gnomad_an=152000, hpo_match_score=0.0)
+    assert "Verify the genotype" not in " ".join(summarize(_report([benign])))

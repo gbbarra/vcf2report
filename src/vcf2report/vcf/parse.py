@@ -75,6 +75,14 @@ def zygosity(alleles: list[str], alt_num: int) -> Optional[str]:
             return None
         return "hemi" if a == str(alt_num) else None
     if any(a in _MISSING for a in alleles):
+        # Half-call ("./1"): one allele is uncalled. The sample DEFINITELY carries the
+        # called allele — only the ZYGOSITY is unknown — so dropping it as a non-carrier
+        # deleted a real variant. Report the conservative "het" and let the caller mark it
+        # a partial call (see is_partial_call) so the genotype is confirmed, not assumed.
+        # "./." and "./0" carry no evidence for THIS allele and remain non-carriers.
+        called = [a for a in alleles if a not in _MISSING]
+        if called and any(a == str(alt_num) for a in called):
+            return "het"
         return None                            # no-call -> unknown, never "hom"
     count = sum(1 for a in alleles if a == str(alt_num))
     if count == 0:
@@ -82,10 +90,23 @@ def zygosity(alleles: list[str], alt_num: int) -> Optional[str]:
     return "hom" if count == len(alleles) else "het"  # 1/2 compound -> het
 
 
+def is_partial_call(alleles: list[str]) -> bool:
+    """True for a half-call ("./1", "1|.") — some alleles called, at least one not.
+
+    The carrier status is certain; the zygosity is not. Reported alongside the
+    conservative "het" so a het/hom question is confirmed rather than assumed."""
+    alleles = [str(a) for a in alleles]
+    if len(alleles) < 2:
+        return False
+    return any(a in _MISSING for a in alleles) and any(a not in _MISSING for a in alleles)
+
+
 def _sample_metrics(fmt: str, sample: str, alt_index: int) -> dict:
     """Per-sample + per-ALT metrics. alt_index is 0-based into ALT."""
     d = dict(zip(fmt.split(":"), sample.split(":")))
-    out: dict = {"zygosity": zygosity(_alleles(d.get("GT", "./.")), alt_index + 1)}
+    gt_alleles = _alleles(d.get("GT", "./."))
+    out: dict = {"zygosity": zygosity(gt_alleles, alt_index + 1),
+                 "partial_call": is_partial_call(gt_alleles)}
     if d.get("DP", ".").isdigit():
         out["depth"] = int(d["DP"])
     gq = d.get("GQ", ".")
@@ -211,6 +232,7 @@ def _parse_pure(path: Path, sample: str | None = None
                     variant_id=_id if _id not in (".", "") else None,
                     n_alts=len(alts),
                     zygosity=metrics.get("zygosity"),
+                    partial_call=metrics.get("partial_call", False),
                     depth=metrics.get("depth"),
                     gq=metrics.get("gq"),
                     allele_balance=metrics.get("allele_balance"),
@@ -255,6 +277,7 @@ def _parse_cyvcf2(path: Path, sample: str | None = None
             if not _reportable_alt(str(alt_allele)):
                 continue
             zyg = zygosity([str(a) for a in gts], i + 1) if gts else None
+            partial = is_partial_call([str(a) for a in gts]) if gts else False
             allele_balance = None
             depth_i = depth
             if ad_arr is not None:
@@ -279,7 +302,7 @@ def _parse_cyvcf2(path: Path, sample: str | None = None
                 gene=ann.get("gene"), hgvs_c=ann.get("hgvs_c"),
                 hgvs_p=ann.get("hgvs_p"), consequence=ann.get("consequence"),
                 exon=ann.get("exon"), transcript=ann.get("transcript"),
-                filter_status=rec.FILTER or "PASS", zygosity=zyg,
+                filter_status=rec.FILTER or "PASS", zygosity=zyg, partial_call=partial,
                 variant_id=rec.ID if rec.ID not in (None, ".", "") else None,
                 n_alts=len(alts),
                 depth=depth_i, gq=gq, allele_balance=allele_balance, info=info,

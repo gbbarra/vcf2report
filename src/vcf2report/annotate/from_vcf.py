@@ -21,24 +21,33 @@ def _first(info: dict, keys: list[str]) -> Optional[str]:
     return None
 
 
-def _pick(x: Optional[str], idx: int) -> Optional[str]:
-    """The idx-th comma element of a Number=A INFO value.
+def _pick(x: Optional[str], idx: int, n_alts: int = 1, per_allele: bool = False
+          ) -> Optional[str]:
+    """The idx-th comma element of a multi-value INFO field.
 
-    gnomAD AF/AC/nhomalt and ABraOM AF are one value per ALT. A genuine scalar
-    (single value) is used for any allele; but if the array length is >1 and does
-    NOT cover ``idx`` (annotator/ALT-count mismatch), return None rather than
-    silently broadcasting allele #1's value onto another allele.
+    ``per_allele=True`` marks a VCF ``Number=A`` field — gnomAD AF/AC/AN/nhomalt and
+    ABraOM AF, one value per ALT. For those, a LONE value at a multiallelic site is not a
+    site-wide constant: it means the annotator resolved only one allele, and applying it to
+    the others hands ALT #2 ALT #1's frequency (a rare allele inheriting a common one's AF
+    can flip BA1/BS1). Return None so the caller falls back to the local snapshot.
+
+    ``per_allele=False`` is for genuinely per-SITE values (gnomAD v4.1's
+    ``fafmax_faf95_max``), where a single value legitimately applies to every allele.
+
+    Either way, an array that is >1 long but does NOT cover ``idx`` is a mismatch: None.
     """
     if x is None:
         return None
     parts = str(x).split(",")
     if idx < len(parts):
         return parts[idx]
-    return parts[0] if len(parts) == 1 else None
+    if len(parts) != 1:
+        return None
+    return None if (per_allele and n_alts > 1) else parts[0]
 
 
-def _num(x: Optional[str], idx: int = 0):
-    p = _pick(x, idx)
+def _num(x: Optional[str], idx: int = 0, n_alts: int = 1, per_allele: bool = False):
+    p = _pick(x, idx, n_alts, per_allele)
     if p is None or p == ".":
         return None
     try:
@@ -47,8 +56,8 @@ def _num(x: Optional[str], idx: int = 0):
         return None
 
 
-def _int(x: Optional[str], idx: int = 0):
-    v = _num(x, idx)
+def _int(x: Optional[str], idx: int = 0, n_alts: int = 1, per_allele: bool = False):
+    v = _num(x, idx, n_alts, per_allele)
     return int(v) if v is not None else None
 
 
@@ -88,21 +97,22 @@ def extract(variant: Variant) -> dict:
     i = variant.alt_index
     out: dict = {}
 
+    n = variant.n_alts or 1
     gaf = _first(info, A["gnomad_af"])
     if gaf is not None:
-        out["gnomad_af"] = _num(gaf, i)
-        out["gnomad_ac"] = _int(_first(info, A["gnomad_ac"]), i)
-        out["gnomad_an"] = _int(_first(info, A["gnomad_an"]), i)
-        out["gnomad_hom"] = _int(_first(info, A["gnomad_hom"]), i)
-        # fafmax_faf95_max is a single per-site value in gnomAD v4.1 (not per-allele);
-        # _num tolerates both a scalar and an allele-indexed array.
+        out["gnomad_af"] = _num(gaf, i, n, per_allele=True)
+        out["gnomad_ac"] = _int(_first(info, A["gnomad_ac"]), i, n, per_allele=True)
+        out["gnomad_an"] = _int(_first(info, A["gnomad_an"]), i, n, per_allele=True)
+        out["gnomad_hom"] = _int(_first(info, A["gnomad_hom"]), i, n, per_allele=True)
+        # fafmax_faf95_max is a single per-site value in gnomAD v4.1 (not per-allele), so
+        # a lone value here legitimately applies to every allele.
         faf = _first(info, A["gnomad_faf95"])
         if faf is not None:
-            out["gnomad_faf95"] = _num(faf, i)
+            out["gnomad_faf95"] = _num(faf, i, n)
 
     abaf = _first(info, A["abraom_af"])
     if abaf is not None:
-        out["abraom_af"] = _num(abaf, i)
+        out["abraom_af"] = _num(abaf, i, n, per_allele=True)
 
     # ClinVar CLNSIG/CLNREVSTAT contain literal commas (e.g. "Pathogenic,_low_
     # penetrance"), so do NOT comma-index by allele — take the whole value. (Real
@@ -118,7 +128,6 @@ def extract(variant: Variant) -> dict:
 
     # REVEL/CADD/AlphaMissense are per-transcript multi-values (max = most damaging) UNLESS
     # the comma arity matches the ALT count, in which case they are per-allele — see _multi_num.
-    n = variant.n_alts or 1
     rv = _multi_num(_first(info, A["revel"]), i, n)
     if rv is not None:
         out["revel"] = rv
