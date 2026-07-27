@@ -30,7 +30,7 @@ from .annotate import gnomad as _gnomad
 from .annotate import hpo as _hpo
 from .models import Variant
 from .pipeline import run_pipeline
-from .report.render import render_markdown, write_report
+from .report.render import render_markdown, results_json_for, write_report
 from .vcf.parse import parse_vcf as _parse_vcf
 from .vcf.qc import apply_qc
 
@@ -123,12 +123,17 @@ def run_report(vcf_path: str, hpo_terms: Optional[list[str]] = None,
 
     Writes a Markdown draft report and returns its path, the tier summary, and
     the rendered Markdown for immediate review. This is the end-to-end tool.
+
+    Also writes `results_json` — the same run in queryable form. Pass that path to the
+    explore_* tools to answer follow-up questions ("why did X get PM2?", "what would it
+    take to call this?") without re-running the pipeline.
     """
     report = run_pipeline(vcf_path, hpo_terms=hpo_terms or [], sample_id=sample_id or None)
     out = Path(out_dir) if out_dir else config.OUTPUT_DIR
     fp = write_report(report, out)
     return {
         "report_path": str(fp),
+        "results_json": str(results_json_for(fp)),
         "candidates": report.qc.candidates,
         "abraom_filtered": report.qc.abraom_filtered,
         "tiers": [{"gene": c.variant.gene, "variant": c.variant.hgvs_p or c.variant.key,
@@ -250,6 +255,94 @@ def annotate_and_report(vcf_path: str, hpo_terms: Optional[list[str]] = None,
     result["steps"] = ann["steps"]
     result["annotated_input"] = used
     return result
+
+
+# ---------------------------------------------------------------------------
+# Explore — question-answering over a finished run, with no re-analysis
+#
+# `run_report` writes `<sample>_results.json` beside the laudo: the whole run in queryable
+# form. These tools read it back, so a follow-up question ("why did BRCA1 get PM2?", "what
+# would it take to call this?") costs a file read rather than a second pipeline pass — and
+# the answers are the SAME values the laudo was rendered from, not a re-derivation that
+# could disagree with it.
+# ---------------------------------------------------------------------------
+def _explore_load(results_json: str):
+    from .report.explore import load_explore
+    return load_explore(results_json)
+
+
+@mcp.tool()
+def explore_case(results_json: str) -> dict:
+    """Open a finished run: sample, build, candidate count, the routed buckets, the
+    interpretive conclusion, and the ClinVar do-not-dismiss safety list.
+
+    Start here after run_report. `results_json` is the `<sample>_results.json` written
+    beside the Markdown laudo.
+    """
+    from .report.explore import overview
+    return overview(_explore_load(results_json))
+
+
+@mcp.tool()
+def explore_gene(results_json: str, gene: str, criterion: str = "") -> dict:
+    """Everything the run concluded about one gene — or WHY it got one ACMG criterion.
+
+    Without `criterion`: the gene digest (each classified variant's tier, rule path, met
+    criteria, HGVS, key annotations, and which bucket it routed to).
+
+    With `criterion` (e.g. "PM2", "PS1"): that criterion's full trail per variant — whether
+    it applied and was met, at what strength, the concrete evidence values, the citation,
+    the one-line reasoning, and whether the ENGINE decided it or it is left for model/expert
+    adjudication. This is the audit answer, verbatim from the persisted run.
+    """
+    from .report.explore import criterion_basis, explain
+    data = _explore_load(results_json)
+    if criterion:
+        return {"gene": gene, "criterion": criterion.upper(),
+                "basis": criterion_basis(data, gene, criterion)}
+    return explain(data, gene)
+
+
+@mcp.tool()
+def explore_missing_evidence(results_json: str, gene: str = "") -> dict:
+    """"What would it take to call this?" — the question a conservative engine invites.
+
+    Re-runs the published ACMG combining rules with ONE hypothetical extra line of evidence
+    at each strength and reports the WEAKEST addition that would change the tier, in either
+    direction, then names the criteria that could supply it and what each concretely
+    requires — a trio, a functional assay, segregation data.
+
+    Reach for this on a VUS, which is where the engine leaves most real cases. Nothing is
+    re-classified: it reads the persisted trail and reports what the combining rules would
+    do. Omit `gene` for every classified variant.
+    """
+    from .report.explore import missing_evidence
+    return {"cases": missing_evidence(_explore_load(results_json), gene or None)}
+
+
+@mcp.tool()
+def explore_evidence_sources(results_json: str, view: str = "clinvar",
+                             include_not_met: bool = False) -> dict:
+    """Which findings rest on which class of evidence — for weighing circularity.
+
+    `view="clinvar"`: findings with a met criterion drawing on a ClinVar assertion, either
+    the variant's own record (PP5/BP6) or a residue-level cross-match to a different record
+    (PS1/PM5). Use this to see how much of a call is ClinVar repeating itself.
+
+    `view="missense"`: findings carrying gene- or residue-level missense evidence
+    (PP2/BP1 from gnomAD missense constraint; PS1/PM5/PM1 from the ClinVar residue index) —
+    the criteria that decide most missense calls. Set `include_not_met` for the honest audit
+    view, which also shows why they did NOT fire, including when the residue index was never
+    built for that gene.
+    """
+    from .report.explore import findings_citing_clinvar, missense_evidence
+    data = _explore_load(results_json)
+    v = (view or "clinvar").lower()
+    if v == "missense":
+        return {"view": v, "findings": missense_evidence(data, met_only=not include_not_met)}
+    if v != "clinvar":
+        return {"error": f"unknown view {view!r}; expected 'clinvar' or 'missense'"}
+    return {"view": v, "findings": findings_citing_clinvar(data)}
 
 
 def main() -> None:  # pragma: no cover

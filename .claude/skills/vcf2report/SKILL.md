@@ -205,15 +205,19 @@ Surface QC as its own step: the funnel (total → PASS → QC-passing → candid
    `vcf2report.report.explore.load_explore`; terminal equivalent:
    `python3 -m vcf2report.report.explore <OUT>/<name>_results.json [flags]`.
 
-   | the operator asks | helper | flag |
-   |---|---|---|
-   | "summarise this case" | `overview` | *(default)* |
-   | "tell me about gene X" | `explain` / `findings_for_gene` | `--gene X` |
-   | "why did X get PM2?" | `criterion_basis(data, gene, code)` | `--gene X --criterion PM2` |
-   | "show the probable-pathogenic VUS" | `variants_in_bucket` | `--bucket probable_pathogenic_vus` |
-   | "what rests on ClinVar?" | `findings_citing_clinvar` | `--clinvar` |
-   | "which calls rest on gene/residue missense evidence?" | `missense_evidence` | `--missense` [`--all-criteria`] |
-   | **"what would it take to call this?"** | `missing_evidence` | `--missing` [`--gene X`] |
+   | the operator asks | helper | Code (flag) | **Desktop (MCP tool)** |
+   |---|---|---|---|
+   | "summarise this case" | `overview` | *(default)* | `explore_case` |
+   | "tell me about gene X" | `explain` / `findings_for_gene` | `--gene X` | `explore_gene` |
+   | "why did X get PM2?" | `criterion_basis(data, gene, code)` | `--gene X --criterion PM2` | `explore_gene(…, criterion="PM2")` |
+   | "show the probable-pathogenic VUS" | `variants_in_bucket` | `--bucket probable_pathogenic_vus` | — (use `explore_case` buckets) |
+   | "what rests on ClinVar?" | `findings_citing_clinvar` | `--clinvar` | `explore_evidence_sources(view="clinvar")` |
+   | "which calls rest on gene/residue missense evidence?" | `missense_evidence` | `--missense` [`--all-criteria`] | `explore_evidence_sources(view="missense")` |
+   | **"what would it take to call this?"** | `missing_evidence` | `--missing` [`--gene X`] | `explore_missing_evidence` |
+
+   On **Desktop**, `run_report` returns `results_json` — pass that path to the `explore_*`
+   tools. Same data the laudo was rendered from, so an answer can never disagree with the
+   report it came from.
 
    `--missing` is the one to reach for on a **VUS**, which is where a conservative engine leaves most
    real cases. It re-runs the published combining rules with one hypothetical extra line of evidence
