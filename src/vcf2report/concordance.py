@@ -171,6 +171,17 @@ def _annotation_from_frozen(
     bundled local datasets. ClinVar is withheld (all None) when ``withhold_clinvar``
     so PP5 cannot fire and the concordance signal stays non-circular. No in-silico
     scores are attached in v1 (missense pathogenicity is left to model adjudication).
+
+    The gene-constraint block passes through the MISSENSE columns as well as the LoF ones.
+    They were computed here all along and then dropped, which silently made PP2 and BP1
+    impossible in the panel — understating pathogenic sensitivity by 17 of 200 entries, every
+    one of them a true positive held at VUS. They carry no circularity: gnomAD constraint is
+    population data, independent of the ClinVar label this panel is scored against.
+
+    The ClinVar RESIDUE criteria (PS1/PM5/PM1) are deliberately still absent. They read ClinVar
+    records for *other* variants at the same or neighbouring residues — not the variant's own
+    assertion, but ClinVar knowledge about the same position, which is exactly the leakage this
+    panel exists to exclude. Enabling them would measure a different, less independent thing.
     """
     g = entry.frozen_gnomad or {}
     am = entry.frozen_alphamissense or {}
@@ -196,6 +207,10 @@ def _annotation_from_frozen(
         gnomad_faf95=g.get("faf95"),
         abraom_af=ab.get("af"),
         gene_lof_intolerant=con.get("lof_intolerant"),
+        gene_mis_z=con.get("mis_z"),
+        gene_oe_mis_upper=con.get("oe_mis_upper"),
+        gene_missense_constrained=con.get("missense_constrained"),
+        gene_missense_tolerant=con.get("missense_tolerant"),
         revel=None,
         cadd_phred=None,
         am_pathogenicity=am.get("am_pathogenicity"),
@@ -204,7 +219,7 @@ def _annotation_from_frozen(
         source={
             "gnomad": f"gnomAD v{g.get('release', '4.1')} (frozen panel)",
             "abraom": ab.get("_source", ""),
-            "gene_lof_intolerant": con.get("_source", ""),
+            "gene_constraint": con.get("_source", ""),
             "alphamissense": "AlphaMissense (frozen panel)" if am.get("am_pathogenicity") is not None
             else "AlphaMissense (no score)",
             "clinvar": "withheld (concordance panel)" if withhold_clinvar

@@ -288,3 +288,59 @@ def test_frozen_panel_safety_invariant():
     # (_rate(0, 0) == 0.0) and would spuriously fail without any real violation.
     if res.metrics["n_benign"]:
         assert res.metrics["benign_specificity"] >= 0.9, res.to_markdown()
+
+
+# ---------------------------------------------------------------------------
+# The published headline numbers must match the code that produces them
+# ---------------------------------------------------------------------------
+def test_panel_headline_metrics_are_pinned():
+    """Pin the numbers README.md and docs/CONCORDANCE.md publish.
+
+    Nothing asserted them before, and they drifted: the docs claimed 60% pathogenic
+    sensitivity with 84% on LoF, while the code produced 44% and 100%. A published accuracy
+    figure that no test defends is a claim, not a measurement — and this repo has now been
+    caught making three of those (the "28 criteria" count, the laudo's N/A list, and this).
+
+    Update these numbers ONLY together with the docs, and only when the change is understood.
+    """
+    from vcf2report.concordance import evaluate_panel, load_panel
+    m = evaluate_panel(load_panel()).metrics
+
+    assert m["n"] == 200 and m["n_pathogenic"] == 100 and m["n_benign"] == 100
+    assert m["pathogenic_sensitivity"] == pytest.approx(0.61, abs=0.005)
+    assert m["lof_pathogenic_sensitivity"] == pytest.approx(1.0, abs=0.005)
+    assert m["concordance"] == pytest.approx(0.31, abs=0.005)
+
+
+def test_panel_safety_properties_hold():
+    """The properties that matter clinically, independent of the headline rate.
+
+    The engine may be conservative (a pathogenic variant held at VUS is a non-call, and this
+    panel withholds ClinVar precisely to force that), but it must never FLIP a call: no
+    pathogenic scored benign, no benign scored pathogenic.
+    """
+    from vcf2report.concordance import evaluate_panel, load_panel
+    res = evaluate_panel(load_panel())
+    assert res.gross_discordances == [], "a flipped call is a real error, not conservatism"
+    assert res.metrics["pathogenic_precision"] == 1.0
+    assert res.metrics["benign_precision"] == 1.0
+    assert res.matrix["PATH"]["BEN"] == 0 and res.matrix["BEN"]["PATH"] == 0
+
+
+def test_panel_exercises_the_gene_constraint_criteria():
+    """PP2/BP1 must be reachable in the panel.
+
+    The panel computed `extra.gene_constraint(...)` and passed through only `lof_intolerant`,
+    dropping the four missense columns — so PP2 and BP1 could never fire and pathogenic
+    sensitivity was understated by 17 of 200 entries, every one a true positive held at VUS.
+    They carry no circularity: gnomAD constraint is population data, independent of the
+    ClinVar label the panel is scored against.
+    """
+    from vcf2report.concordance import evaluate_panel, load_panel
+    rows = evaluate_panel(load_panel()).rows
+    assert sum(1 for r in rows if "PP2" in r.met_codes) > 0, "PP2 unreachable in the panel"
+
+    # ...and the residue criteria stay OUT: they read ClinVar for other variants at the same
+    # position, which is the leakage this panel exists to exclude.
+    for code in ("PS1", "PM5", "PM1"):
+        assert not any(code in r.met_codes for r in rows), f"{code} would leak ClinVar into the panel"

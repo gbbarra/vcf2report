@@ -133,8 +133,13 @@ comparison is non-circular (details: [docs/CONCORDANCE.md](docs/CONCORDANCE.md))
 | **Pathogenic precision** | **100%** | when it says Pathogenic-ish, it is |
 | **Benign precision** | **100%** | when it says Benign-ish, it is |
 | **Concordance when decisive** | **100%** | of the calls it commits to, all match ClinVar |
-| **Pathogenic sensitivity** | **60%** (LoF 84%) | conservative — defers the rest to VUS |
-| v1 → v2 (AlphaMissense) | 37% → **60%** | +23 missense recovered, still 0 gross |
+| **Pathogenic sensitivity** | **61%** (LoF **100%**) | conservative — defers the rest to VUS |
+
+Every null variant whose gene has an established LoF mechanism is recovered (LoF
+sensitivity 100%); the deferred 39% are missense the panel deliberately starves of
+context — it withholds ClinVar, supplies no phenotype, and excludes the residue
+criteria (see below), so a missense has only rarity, gnomAD constraint and
+AlphaMissense to stand on.
 
 The engine is deliberately **conservative** (it defers to VUS unless it has strong
 deterministic evidence) — the value is that it is **never dangerously wrong** and

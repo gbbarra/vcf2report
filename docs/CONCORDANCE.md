@@ -71,21 +71,37 @@ The panel measures the exact effect (200 variants, ClinVar withheld, no phenotyp
 |---|---|---|
 | Gross discordances (P↔B) | **0** | **0** |
 | Pathogenic / benign precision | 100% / 100% | 100% / 100% |
-| Pathogenic sensitivity | **60%** | **37%** |
-| — LoF-only sensitivity | 84.1% | **84.1%** |
-| Decisiveness | 30.5% | 21% |
+| Pathogenic sensitivity | **61%** | **61%** |
+| — LoF-only sensitivity | **100%** | **100%** |
+| Decisiveness | 31% | 33% |
 
-Both models are **equally safe** (zero gross discordances, 100% precision). LoF
-sensitivity is **identical** — under the points system PVS1 alone (8 pts) already
-reaches Likely Pathogenic, so downgrading PM2 doesn't hurt null variants. The drop
-in overall sensitivity (60% → 37%) is the **calibrated-missense recovery**: a rare
-missense with a strong AlphaMissense prediction scores `PM2_Supporting (1) +
-PP3_Strong (4) = 5 points`, one point short of LP — so it defers to VUS. (In a real
-case with phenotype (PP4) or functional data those variants cross back to LP; the
-panel withholds that context, so 37% is a floor.) `richards` is kept as the default
-because it recovers more on this panel with the same safety; `clingen` is available
-for labs requiring strict ClinGen-SVI-2020 alignment. Reproduce both:
-`VCF2REPORT_ACMG_MODEL=clingen python scripts/run_concordance.py`.
+Both models are **equally safe** (zero gross discordances, 100% precision) and now
+recover the same variants: under the points system PVS1 alone (8 pts) already reaches
+Likely Pathogenic, so downgrading PM2 never hurt null variants, and PP2 (gnomAD
+missense constraint) lifts the same rare missense in both. `richards` remains the
+default; `clingen` is available for labs requiring strict ClinGen-SVI-2020 alignment.
+Reproduce both: `VCF2REPORT_ACMG_MODEL=clingen python scripts/run_concordance.py`.
+
+> **These numbers moved, and the reason is worth stating.** The panel built its
+> `Annotation` by hand and passed through only the LoF column of
+> `extra.gene_constraint(...)`, silently dropping the four missense columns it had
+> already computed — so **PP2 and BP1 could never fire here**. Restoring them lifted
+> pathogenic sensitivity from 44% to 61% (17 of 200 entries, every one a true positive
+> previously held at VUS) with precision and gross discordances unchanged. No
+> circularity is introduced: gnomAD constraint is population data, independent of the
+> ClinVar label the panel is scored against.
+>
+> The docs had meanwhile been publishing **60% / LoF 84%**, which matched neither the
+> old code (44% / 100%) nor the new. Nothing asserted them, so they drifted.
+> `tests/test_concordance_panel.py` now pins the headline metrics, the safety
+> properties, and the fact that PP2 is reachable at all.
+
+**Why PS1/PM5/PM1 are deliberately excluded here.** The residue criteria read ClinVar
+records for *other* variants at the same or neighbouring residues. That is legitimate
+ACMG evidence in real use — and it is exactly the leakage this panel exists to exclude,
+since ClinVar is the answer key. Including them would measure a different, less
+independent thing, so the panel keeps them off and reports a floor. Their value is
+measured instead on the `hpo-spiked-exomes` benchmark (`docs/BENCHMARK.md`).
 
 ## Building the panel (once, with network)
 
