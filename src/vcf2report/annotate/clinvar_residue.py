@@ -31,7 +31,13 @@ _index: Optional[dict] = None
 # together with ``_index`` so the two can never disagree.
 _baselines: dict[str, float] = {}
 
-_P_RE = re.compile(r"p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})")
+# Anchored at both ends (after an optional transcript prefix and optional parens) so a
+# LONGER form cannot be read as a substring. VEP and ClinVar write frameshifts as
+# ``p.Arg97GlyfsTer26``; a `.search` for three-letter-digits-three-letter matched the
+# leading ``p.Arg97Gly`` and reported a frameshift as a clean missense — both when reading a
+# query and when BUILDING the index from ClinVar's Name column, so the index itself carried
+# indels recorded as missense and handed them to PS1 as Strong evidence.
+_P_RE = re.compile(r"p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})$")
 _AA3 = {"Ala", "Arg", "Asn", "Asp", "Cys", "Gln", "Glu", "Gly", "His", "Ile",
         "Leu", "Lys", "Met", "Phe", "Pro", "Ser", "Thr", "Trp", "Tyr", "Val"}
 
@@ -44,7 +50,14 @@ def parse_hgvs_p(hgvs_p: Optional[str]) -> Optional[tuple[str, int, str]]:
     """
     if not hgvs_p:
         return None
-    m = _P_RE.search(hgvs_p)
+    # Strip a transcript/protein prefix ("ENSP00000350283.3:p.Gln356Arg") and the parentheses
+    # HGVS uses for a predicted consequence, then require the WHOLE remainder to be the
+    # substitution — see _P_RE on why a substring match is unsafe.
+    s = hgvs_p.strip().split(":")[-1].strip()
+    if s.endswith(")"):
+        s = s[:-1]
+    s = s.replace("p.(", "p.")
+    m = _P_RE.search(s)
     if not m:
         return None
     ref_aa, pos, alt_aa = m.group(1), int(m.group(2)), m.group(3)
@@ -168,6 +181,17 @@ def lookup(gene: Optional[str], hgvs_p: Optional[str], variant_key: Optional[str
     out["residue"] = f"{ref_aa}{pos}"
     out["aa_pos"] = pos
     residues = idx.get(gene, {}).get(pos)
+    if not residues:
+        return out
+
+    # The REFERENCE amino acid must agree. The index is keyed (gene, aa_pos, alt_aa) and stores
+    # ref_aa in the row, but nothing compared it to the query's — so any change to the same ALT
+    # residue matched whatever the reference had been: a query Ala265Glu earned PS1 from an index
+    # row for Gly265Glu. Worse, the reasoning string prints the INDEX's ref_aa, so the audit trail
+    # read "same amino-acid change (Gly→Glu)" and was internally consistent — a reviewer had no way
+    # to see the mismatch. A disagreement means the two are numbering different transcripts (the
+    # index records no transcript), so the residue is not established to be the same one.
+    residues = {a: row for a, row in residues.items() if row[0] == ref_aa}
     if not residues:
         return out
 

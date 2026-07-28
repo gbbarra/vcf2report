@@ -7,6 +7,7 @@ These tests pin the field mapping so that regression is caught without a network
 import importlib.util
 import json
 import pathlib
+import shutil
 
 import pytest
 
@@ -20,6 +21,11 @@ def test_resume_skips_only_on_scope_match(tmp_path):
     # A partition is reused ONLY if its _scope.json matches; else a later broader build
     # (dropping --bed / switching preset) must re-extract, never silently reuse a slice.
     duckdb = pytest.importorskip("duckdb")
+    # The rebuild branch shells out to bcftools. Guard on the binary too, or this test turns
+    # a missing external tool into a red suite the moment duckdb IS installed — which is
+    # exactly what the new `parquet` CI job does.
+    if shutil.which("bcftools") is None:
+        pytest.skip("bcftools not installed — the rebuild branch shells out to it")
     out = tmp_path / "store"
     part = out / "chrom=chr21"
     part.mkdir(parents=True)
