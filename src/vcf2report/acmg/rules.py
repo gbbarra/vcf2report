@@ -26,6 +26,16 @@ _BENIGN_STRENGTHS = {"stand_alone": "BA", "strong": "BS", "supporting": "BP"}
 # re-derive it from a code's spelling, which would silently disagree with `combine`.
 BENIGN_CODES = {"BA1", "BS1", "BS2", "BS3", "BS4", "BP1", "BP2", "BP3", "BP4", "BP5", "BP6", "BP7"}
 
+# Reserved codes for "what would change this call" simulations. `combine` routes a criterion by
+# CODE membership in BENIGN_CODES, so a simulated benign line needs a code this set recognises —
+# but it must NOT be a real criterion. Borrowing a real one (BA1 was picked alphabetically) made
+# the simulation print rule paths naming BA1 at Supporting and Strong, strengths BA1 can never
+# hold, so the advice cited a rule the engine would never produce. These two are never emitted by
+# any evaluator; `all_criteria()` does not register them.
+HYPOTHETICAL_PATHOGENIC = "PP_HYPOTHETICAL"
+HYPOTHETICAL_BENIGN = "BP_HYPOTHETICAL"
+BENIGN_CODES.add(HYPOTHETICAL_BENIGN)
+
 # Tier ordering, benign -> pathogenic. Owned here alongside the tier constants themselves, so a
 # caller comparing two tiers never hardcodes the label strings.
 TIER_ORDER = (BENIGN, LIKELY_BENIGN, VUS, LIKELY_PATHOGENIC, PATHOGENIC)
@@ -92,6 +102,38 @@ def _likely_pathogenic_rule(c: dict[str, int]) -> str | None:
     if pm == 1 and pp >= 4:
         return "LP-6 (1 Moderate + >=4 Supporting)"
     return None
+
+
+# Strength buckets that must never be silently discarded when the other side wins.
+_DECISIVE_PATHOGENIC = {"very_strong", "strong"}
+_DECISIVE_BENIGN = {"stand_alone", "strong"}
+
+
+def _discarded_decisive(criteria: Iterable[CriterionResult], losing_side: str) -> bool:
+    """True when the side that did NOT reach a rule still holds Strong-or-above evidence.
+
+    Richards defaults a variant to VUS when "the evidence for benign and pathogenic is
+    conflicting" — EVIDENCE, not rules — but does not quantify "conflicting". Testing whether
+    a RULE fired (the previous behaviour) made substantial evidence vanish, because Table 5
+    has no rule for a lone Strong-benign line (Likely Benign needs 1 Strong AND 1 Supporting)
+    and none for a lone PVS1. A nonsense variant present in 2% of the population therefore
+    reached Pathogenic with "+ BS1" printed in the audit trail as though it had been weighed.
+
+    The test is deliberately narrower than "any met criterion on both sides". PM2 alongside
+    BP4/BP6 — "rare" next to "predicted benign" — is not a contradiction, since a rare variant
+    can be perfectly benign; firing there would convert legitimate Likely Benign calls into
+    VUS. Nor should a single Supporting line on the losing side veto a call built on two
+    Strong criteria. Only Strong-or-above evidence on the losing side forces the conflict.
+    """
+    decisive = _DECISIVE_BENIGN if losing_side == "benign" else _DECISIVE_PATHOGENIC
+    for cr in criteria:
+        if not (cr.applies and cr.met):
+            continue
+        if (cr.code in BENIGN_CODES) != (losing_side == "benign"):
+            continue
+        if (cr.applied_strength or cr.default_strength) in decisive:
+            return True
+    return False
 
 
 def _benign_rule(c: dict[str, int]) -> str | None:
@@ -162,7 +204,12 @@ def combine(criteria: list[CriterionResult]) -> tuple[str, str]:
     met = [cr.code for cr in criteria if cr.applies and cr.met]
     trail = " + ".join(met) if met else "no criteria met"
 
-    if path and benign:
+    # Conflict when both sides reach a rule, OR when the side that did NOT reach one still
+    # holds Strong-or-above evidence that would otherwise be discarded in silence. See
+    # _discarded_decisive for why the second test is not simply "met on both sides".
+    if (path and benign) \
+            or (path and _discarded_decisive(criteria, "benign")) \
+            or (benign and _discarded_decisive(criteria, "pathogenic")):
         return VUS, f"{trail} => conflicting pathogenic & benign evidence => VUS"
 
     if path:

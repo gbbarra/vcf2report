@@ -546,8 +546,14 @@ def pp2(v: Variant, a: Annotation) -> CriterionResult:
     cites = [a.source["gene_constraint"]] if a.source.get("gene_constraint") else []
     mz = a.gene_mis_z
     if met:
-        reason = (f"missense in {v.gene}, a missense-constrained gene "
-                  f"(gnomAD mis_z={mz:.2f} ≥ {extra.MIS_Z_CONSTRAINED})")
+        # gene_missense_constrained and gene_mis_z are independent optional fields. The shipped
+        # annotator derives the flag FROM the score so they cannot disagree, but a hand-built or
+        # deserialised Annotation can set the flag alone — and formatting None with :.2f raised
+        # TypeError out of evaluate_criteria, aborting the whole classification rather than
+        # degrading one criterion's wording.
+        score = f"gnomAD mis_z={mz:.2f} ≥ {extra.MIS_Z_CONSTRAINED}" if mz is not None \
+            else "flagged missense-constrained by the annotation (mis_z not supplied)"
+        reason = f"missense in {v.gene}, a missense-constrained gene ({score})"
     elif pm1_fires:
         reason = ("regional hotspot evidence applies (PM1, Moderate) — PP2 stands down so the "
                   "same missense-intolerance signal is not counted at two granularities")

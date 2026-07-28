@@ -107,3 +107,30 @@ def test_doc_headline_counts_match_the_code():
         counts[_kind(cr)] = counts.get(_kind(cr), 0) + 1
     expected = f"**{counts['engine']} engine · {counts['model']} model · {counts['N/A']} N/A.**"
     assert expected in DOC.read_text(), f"doc headline should read: {expected}"
+
+
+def test_every_registered_criterion_is_on_a_known_side():
+    """`evaluate_criteria` auto-appends any newly registered code; `rules.BENIGN_CODES` is a
+    hardcoded set. Nothing ties the two, and `side_of` treats an unlisted code as PATHOGENIC —
+    so a future benign criterion would be scored as pathogenic evidence, silently. Two such
+    criteria would combine to `Pathogenic [PATH-2 (>=2 Strong)]`. Pin the invariant."""
+    from vcf2report.acmg.rules import BENIGN_CODES, side_of
+    registered = set(all_criteria())
+    for code in registered:
+        expected = "benign" if code.startswith("B") else "pathogenic"
+        assert side_of(code) == expected, (
+            f"{code} is scored as {side_of(code)} evidence; add it to rules.BENIGN_CODES")
+    # ...and nothing stale in the other direction (reserved simulation codes excepted).
+    from vcf2report.acmg import rules
+    stale = (BENIGN_CODES - registered) - {rules.HYPOTHETICAL_BENIGN}
+    assert not stale, f"BENIGN_CODES names criteria that are not registered: {sorted(stale)}"
+
+
+def test_reserved_simulation_codes_are_not_real_criteria():
+    """explore.missing_evidence feeds these to rules.combine; if an evaluator ever claimed one
+    of the names, the simulation would double-count a real criterion."""
+    from vcf2report.acmg import rules
+    for code in (rules.HYPOTHETICAL_PATHOGENIC, rules.HYPOTHETICAL_BENIGN):
+        assert code not in all_criteria()
+    assert rules.side_of(rules.HYPOTHETICAL_BENIGN) == "benign"
+    assert rules.side_of(rules.HYPOTHETICAL_PATHOGENIC) == "pathogenic"

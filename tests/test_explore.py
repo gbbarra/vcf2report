@@ -252,12 +252,17 @@ def test_missing_evidence_skips_the_nonexistent_benign_moderate_bucket():
 
 
 def test_missing_evidence_shows_a_robust_pathogenic_call_as_hard_to_move():
+    # "Hard to move" means a SUPPORTING benign line cannot veto a call built on Strong
+    # evidence. A STRONG benign line can, and must: the conflict test in rules.combine fires
+    # when the losing side holds Strong-or-above evidence, precisely so such a line is not
+    # discarded in silence (it previously took a stand-alone BA1 to register at all).
     d = build_explore(_gap_report())
     solid = next(r for r in missing_evidence(d) if r["gene"] == "SOLID")
     assert solid["tier"] == "Pathogenic"
     assert not [s for s in solid["would_change_with"] if s["direction"] == "up"]
     down = [s for s in solid["would_change_with"] if s["direction"] == "down"]
-    assert down and down[0]["strength"] == "stand_alone"
+    assert down and down[0]["strength"] == "strong"
+    assert not [s for s in down if s["strength"] == "supporting"]
 
 
 def test_missing_evidence_covers_every_variant_when_no_gene_given():

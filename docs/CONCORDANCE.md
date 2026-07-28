@@ -59,11 +59,15 @@ asserts this is zero on the frozen panel.
 
 The engine can combine criteria two ways, toggled by `VCF2REPORT_ACMG_MODEL`:
 
-- **`richards`** (default) — Richards 2015 Table 5 categorical rules; PM2 at **Moderate**.
+- **`richards`** (default) — Richards 2015 Table 5 categorical rules.
 - **`clingen`** — the ClinGen/Tavtigian 2020 **naturally-scaled points** system
   (Very Strong 8 · Strong 4 · Moderate 2 · Supporting 1; benign negative; Pathogenic ≥10,
-  LP 6–9, VUS 0–5, LB −1..−6, Benign ≤−7) with the ClinGen SVI 2020 refinement that
-  downgrades PM2 to **Supporting**.
+  LP 6–9, VUS 0–5, LB −1..−6, Benign ≤−7).
+
+PM2 is at **Supporting in both models** — the ClinGen SVI 2020 refinement, applied globally via
+`config.pm2_strength()` and tuned against the specificity benchmark, not per model. (This
+document previously claimed `richards` used PM2 at Moderate; it never did. Nothing asserted the
+claim, so it drifted.)
 
 The panel measures the exact effect (200 variants, ClinVar withheld, no phenotype):
 
@@ -75,12 +79,21 @@ The panel measures the exact effect (200 variants, ClinVar withheld, no phenotyp
 | — LoF-only sensitivity | **100%** | **100%** |
 | Decisiveness | 31% | 33% |
 
-Both models are **equally safe** (zero gross discordances, 100% precision) and now
-recover the same variants: under the points system PVS1 alone (8 pts) already reaches
+Both models are **equally safe on this panel** (zero gross discordances, 100% precision) and
+recover the same variants here: under the points system PVS1 alone (8 pts) already reaches
 Likely Pathogenic, so downgrading PM2 never hurt null variants, and PP2 (gnomAD
 missense constraint) lifts the same rare missense in both. `richards` remains the
 default; `clingen` is available for labs requiring strict ClinGen-SVI-2020 alignment.
 Reproduce both: `VCF2REPORT_ACMG_MODEL=clingen python scripts/run_concordance.py`.
+
+> **Read "equally safe" as a statement about this panel, not about the combiner.** The panel
+> cannot exercise most of where the two models diverge: with ClinVar withheld and no phenotype,
+> PP4, PP5, PS1, PM1, PM5 and BA1 never fire, and PM2 — which fires on 194 of 200 entries — is
+> mutually exclusive with BS1. Only 3 entries carry a Strong benign line at all, and 68 carry
+> exactly one benign line of any strength. Across randomly sampled criterion states the two
+> models disagree far more often than the table suggests, with two-tier gaps in both directions.
+> The agreement above is real and worth having; it is evidence about *these 200 variants*, not
+> a general claim that the models are interchangeable.
 
 > **These numbers moved, and the reason is worth stating.** The panel built its
 > `Annotation` by hand and passed through only the LoF column of
