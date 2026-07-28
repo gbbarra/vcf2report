@@ -200,7 +200,13 @@ def prime(variants) -> int:
     if tmp and os.path.exists(tmp):
         os.remove(tmp)
 
-    absent = {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
+    # `vouched_absent` marks a SURVEYED absence: the store covers this locus and holds no record,
+    # which is a real observation of zero. It is only ever set on the two branches below, where
+    # coverage is established. AN cannot carry this meaning — a locus with no record has no AN to
+    # report, so an=0 here means "no row", NOT "no alleles surveyed". Consumers that must tell a
+    # vouched absence from missing data (report.assemble.is_hom_absent_artifact) read this flag.
+    absent = {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None,
+              "vouched_absent": True}
     # present but not PASS: the variant EXISTS in gnomAD (so not absent -> no PM2), but its AF is
     # not filtering-AF-authoritative -> serve None so PM2/BA1/BS1 all read 'frequency unavailable'.
     filtered = {"af": None, "ac": None, "an": None, "hom": None, "faf95": None, "pop": None}

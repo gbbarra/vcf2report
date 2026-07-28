@@ -99,6 +99,11 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         gnomad_homozygotes=g.get("hom"),
         gnomad_popmax_pop=g.get("pop"),
         gnomad_faf95=g.get("faf95"),
+        # A store that covers the locus and holds no record vouches for the absence; a
+        # pre-annotated VCF vouches when it reports a real AN alongside AF=0. Neither is the
+        # same as an annotator writing AF=0/AN=0 where gnomAD has no coverage at all.
+        gnomad_absence_vouched=bool(g.get("vouched_absent")) or (
+            g.get("af") == 0.0 and bool(g.get("an"))),
         abraom_af=ab.get("af"),
         gene_lof_intolerant=con.get("lof_intolerant"),
         gene_mis_z=con.get("mis_z"),
