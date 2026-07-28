@@ -92,3 +92,25 @@ def test_setup_doc_lists_every_registered_mcp_tool():
     assert not registered - listed, f"registered but undocumented: {sorted(registered - listed)}"
     assert not (listed - registered) - {"tests/test_mcp_explore.py"}, \
         f"documented but not registered: {sorted(listed - registered)}"
+
+
+def test_the_server_class_import_survives_both_sdk_generations():
+    """The SDK removed `mcp.server.fastmcp.FastMCP` in v2 in favour of `mcp.server.MCPServer`.
+    pyproject declares `mcp[cli]>=1.2`, so CI resolved v2 the day it shipped and the module
+    raised SystemExit at import — an upstream rename taking the whole MCP surface down. The
+    decorator API is identical across both, so the import accepts either."""
+    import mcp.server
+
+    available = [n for n in ("FastMCP", "MCPServer")
+                 if hasattr(mcp.server, n)
+                 or (n == "FastMCP" and _has_fastmcp_module())]
+    assert available, "neither SDK generation's server class is importable"
+    assert M.mcp is not None and hasattr(M.mcp, "tool")
+
+
+def _has_fastmcp_module():
+    try:
+        import mcp.server.fastmcp  # noqa: F401
+        return True
+    except ImportError:
+        return False
