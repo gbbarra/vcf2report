@@ -52,7 +52,7 @@ def test_points_thresholds():
 # End-to-end under the ClinGen model
 # ---------------------------------------------------------------------------
 def _ann(**kw):
-    base = dict(gene_lof_intolerant=False, abraom_af=0.0, source={})
+    base = dict(gene_lof_intolerant=False, local_cohort_af=0.0, source={})
     base.update(kw)
     return Annotation(**base)
 

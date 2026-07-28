@@ -275,7 +275,7 @@ def ps4(v: Variant, a: Annotation) -> CriterionResult:
     return _judgment(
         "PS4", "Prevalence in affected significantly increased vs controls", "strong",
         "Needs case-control data; population absence alone is captured by PM2",
-        evidence={"gnomad_af": a.gnomad_af, "abraom_af": a.abraom_af})
+        evidence={"gnomad_af": a.gnomad_af, "local_cohort_af": a.local_cohort_af})
 
 
 def _pm1_signals(v: Variant, a: Annotation) -> dict:
@@ -385,34 +385,36 @@ def pm1(v: Variant, a: Annotation) -> CriterionResult:
 
 @criterion("PM2")
 def pm2(v: Variant, a: Annotation) -> CriterionResult:
-    """Absent / ultra-rare in population databases — gnomAD AND ABraOM.
+    """Absent / ultra-rare in population databases — gnomAD AND a local cohort if one exists.
 
-    Checking ABraOM (Brazilian SABE cohort) alongside gnomAD is the key local
-    value-add: a variant absent from gnomAD but common in admixed Brazilians
-    must NOT earn PM2, which prevents a real class of local misclassifications.
+    Population databases are dominated by a few ancestries, so a variant that is rare or
+    absent in gnomAD can still be common in the population a lab serves — and PM2 is exactly
+    the criterion a locally common variant must NOT earn. Consulting an operator-supplied
+    cohort alongside gnomAD prevents that class of misclassification. This project ships no
+    cohort; see annotate/local_cohort.py.
     """
-    # The name states which databases were ACTUALLY consulted for THIS variant. The Brazilian
-    # leg is the project's differentiator, but the shipped ABraOM table is a 2-variant demo
-    # stub, so on real input the leg is almost never surveyed — and a name promising
-    # "gnomAD + ABraOM" over a decision taken on gnomAD alone is the claim README makes and
+    # The name states which databases were ACTUALLY consulted for THIS variant. The local
+    # leg is only present when the operator supplied a cohort, so on a stock install it is
+    # never surveyed — and a name promising
+    # "gnomAD + local cohort" over a decision taken on gnomAD alone is the claim README makes and
     # the code does not keep. Firing on gnomAD alone is right (absence there is real
     # evidence); presenting it as a two-database result is not.
-    abraom_checked = a.abraom_af is not None
-    name = ("Absent or ultra-rare in population databases (gnomAD + ABraOM)" if abraom_checked
-            else "Absent or ultra-rare in population databases (gnomAD; ABraOM not consulted)")
+    local_cohort_checked = a.local_cohort_af is not None
+    name = ("Absent or ultra-rare in population databases (gnomAD + local cohort)" if local_cohort_checked
+            else "Absent or ultra-rare in population databases (gnomAD; local cohort not consulted)")
     # gnomAD AF None means 'frequency unavailable' (lookup failed), NOT absence —
     # PM2 must not fire because we cannot assert the variant is rare.
     gnomad_unknown = a.gnomad_af is None
-    # An unsurveyed ABraOM cannot BLOCK PM2 (that would disable the criterion wherever the
-    # Brazilian table is incomplete, i.e. almost everywhere), but it must not be reported as
+    # An unsurveyed local cohort cannot BLOCK PM2 (that would disable the criterion wherever the
+    # cohort is absent, i.e. on a stock install), but it must not be reported as
     # a checked zero either — see the confidence downgrade and the reasoning text below.
-    baf = a.abraom_af if abraom_checked else 0.0
-    cites = [c for c in (a.source.get("gnomad"), a.source.get("abraom")) if c]
+    baf = a.local_cohort_af if local_cohort_checked else 0.0
+    cites = [c for c in (a.source.get("gnomad"), a.source.get("local_cohort")) if c]
     if gnomad_unknown:
         return CriterionResult(
             "PM2", name, "moderate", applies=True, met=False, adjudicated_by="engine",
             confidence="low",
-            evidence={"gnomad_af": None, "abraom_af": a.abraom_af},
+            evidence={"gnomad_af": None, "local_cohort_af": a.local_cohort_af},
             citation=cites,
             reasoning="gnomAD frequency unavailable — cannot assert population absence",
         )
@@ -422,14 +424,14 @@ def pm2(v: Variant, a: Annotation) -> CriterionResult:
     rare_global = gaf <= ceiling
     rare_local = baf <= ceiling
     met = rare_global and rare_local
-    # Don't quote an ABraOM AF we never checked: None means "not in the local table",
+    # Don't quote an local cohort AF we never checked: None means "not in the local table",
     # not a verified 0.0 (it still doesn't block PM2 — baf defaults to 0.0 above).
-    abraom_txt = f"ABraOM AF={a.abraom_af:.6f}" if a.abraom_af is not None else "ABraOM not checked"
+    local_cohort_txt = f"local cohort AF={a.local_cohort_af:.6f}" if a.local_cohort_af is not None else "local cohort not checked"
     reason = (
-        f"gnomAD popmax AF={gaf:.6f}, {abraom_txt} — gnomAD at/under {ceiling:g} ({moi_note})"
+        f"gnomAD popmax AF={gaf:.6f}, {local_cohort_txt} — gnomAD at/under {ceiling:g} ({moi_note})"
         if met else
         f"present above the {ceiling:g} PM2 ceiling ({moi_note}): "
-        f"gnomAD AF={gaf:.6f}, {abraom_txt}"
+        f"gnomAD AF={gaf:.6f}, {local_cohort_txt}"
     )
     return CriterionResult(
         "PM2", name, "moderate", applies=True, met=met,
@@ -437,9 +439,9 @@ def pm2(v: Variant, a: Annotation) -> CriterionResult:
         # Rarity established on one population database rather than two is weaker evidence,
         # and the reader should see that without reading the trail. Nothing decides on
         # confidence — it is signal, not a gate.
-        confidence="high" if abraom_checked else "moderate",
-        evidence={"gnomad_af": a.gnomad_af, "abraom_af": a.abraom_af,
-                  "abraom_checked": abraom_checked,
+        confidence="high" if local_cohort_checked else "moderate",
+        evidence={"gnomad_af": a.gnomad_af, "local_cohort_af": a.local_cohort_af,
+                  "local_cohort_checked": local_cohort_checked,
                   "ceiling": ceiling, "moi": moi, "strength_model": config.acmg_model()},
         citation=cites, reasoning=reason,
     )
@@ -709,27 +711,27 @@ def _benign_af(a: Annotation) -> tuple[float, str]:
     ClinGen/Whiffin recommend for frequency-based benign criteria, robust to a
     single small subpopulation inflating a raw popmax.
 
-    But it takes the MAXIMUM of that and ABraOM, never faf95 alone. gnomAD has almost no
-    admixed-Brazilian representation, and all three gnomAD backends report an absent variant as
-    ``faf95 = 0.0`` rather than None — so returning faf95 the moment it exists discarded the
-    Brazilian frequency entirely. A variant carried by 20% of Brazilians and absent from gnomAD
-    earned neither BA1 nor BS1, while the trail asserted "= 0.0000 below 0.05". Installing the
-    local gnomAD store made classification strictly WORSE, which is the opposite of the intent.
-    PM2 already reads ABraOM this way; the benign criteria were the inconsistent ones.
+    But it takes the MAXIMUM of that and the local cohort, never faf95 alone. gnomAD
+    under-represents many populations, and all three gnomAD backends report an absent variant
+    as ``faf95 = 0.0`` rather than None — so returning faf95 the moment it exists discarded the
+    local frequency entirely. A variant carried by 20% of the local population and absent from
+    gnomAD earned neither BA1 nor BS1, while the trail asserted "= 0.0000 below 0.05".
+    Installing the gnomAD store made classification strictly WORSE, the opposite of the intent.
+    PM2 already reads the local cohort this way; the benign criteria were the inconsistent ones.
     """
     # None (not 0.0) when NOTHING was looked up -> BA1/BS1 report 'unavailable' rather
     # than a fabricated 0.0 that reads as a checked value (matches PM2's honesty).
-    faf, braz = a.gnomad_faf95, a.abraom_af
+    faf, braz = a.gnomad_faf95, a.local_cohort_af
     if faf is not None and braz is not None:
         if braz > faf:
-            return braz, "ABraOM (SABE) AF — above the gnomAD filtering AF"
+            return braz, "local cohort AF — above the gnomAD filtering AF"
         return faf, "gnomAD filtering AF (faf95, grpmax)"
     if faf is not None:
         return faf, "gnomAD filtering AF (faf95, grpmax)"
     vals = [x for x in (a.gnomad_af, braz) if x is not None]
     if not vals:
-        return None, "no gnomAD/ABraOM frequency available"
-    return max(vals), "gnomAD/ABraOM popmax AF (no faf95 available)"
+        return None, "no gnomAD/local cohort frequency available"
+    return max(vals), "gnomAD/local cohort popmax AF (no faf95 available)"
 
 
 @criterion("BA1")
@@ -747,7 +749,7 @@ def ba1(v: Variant, a: Annotation) -> CriterionResult:
         "BA1", name, "stand_alone", applies=True, met=met,
         applied_strength="stand_alone" if met else None,
         evidence={"af": af, "cutoff": AF_BA1, "basis": basis},
-        citation=[c for c in (a.source.get("gnomad"), a.source.get("abraom")) if c],
+        citation=[c for c in (a.source.get("gnomad"), a.source.get("local_cohort")) if c],
         reasoning=reasoning,
     )
 
@@ -772,7 +774,7 @@ def bs1(v: Variant, a: Annotation) -> CriterionResult:
         "BS1", name, "strong", applies=True, met=met,
         applied_strength="strong" if met else None,
         evidence={"af": af, "cutoff": cutoff, "moi": moi, "basis": basis},
-        citation=[c for c in (a.source.get("gnomad"), a.source.get("abraom")) if c],
+        citation=[c for c in (a.source.get("gnomad"), a.source.get("local_cohort")) if c],
         reasoning=reasoning,
     )
 

@@ -15,7 +15,7 @@ Reference for grounding classification. Strengths: Very Strong (PVS), Strong
 - **PM1** (moderate) — mutational hotspot / critical, well-established functional
   domain without benign variation.
 - **PM2** (moderate) — absent (or at extremely low frequency) from population
-  databases. *vcf2report requires absence in BOTH gnomAD and ABraOM.*
+  databases. *vcf2report requires absence in BOTH gnomAD and local cohort.*
 - **PM3** (moderate) — for recessive disorders, detected in trans with a
   pathogenic variant. *Needs phasing.*
 - **PM4** (moderate) — protein length change (in-frame indel / stop-loss).

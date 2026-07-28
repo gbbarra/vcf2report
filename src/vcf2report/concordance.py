@@ -42,7 +42,7 @@ from .acmg.rules import (
     PATHOGENIC,
     VUS,
 )
-from .annotate import abraom, extra
+from .annotate import local_cohort, extra
 from .models import Annotation, Classification, Variant
 
 # ---------------------------------------------------------------------------
@@ -167,7 +167,7 @@ def _annotation_from_frozen(
 ) -> Annotation:
     """Assemble an :class:`Annotation` for a panel variant, fully offline.
 
-    gnomAD comes from the frozen snapshot; ABraOM and gene constraint from the
+    gnomAD comes from the frozen snapshot; local cohort and gene constraint from the
     bundled local datasets. ClinVar is withheld (all None) when ``withhold_clinvar``
     so PP5 cannot fire and the concordance signal stays non-circular. No in-silico
     scores are attached in v1 (missense pathogenicity is left to model adjudication).
@@ -186,7 +186,7 @@ def _annotation_from_frozen(
     g = entry.frozen_gnomad or {}
     am = entry.frozen_alphamissense or {}
     v = entry.variant
-    ab = abraom.lookup(v)
+    ab = local_cohort.lookup(v)
     con = extra.gene_constraint(v.gene)
 
     if withhold_clinvar:
@@ -205,7 +205,7 @@ def _annotation_from_frozen(
         gnomad_homozygotes=g.get("hom"),
         gnomad_popmax_pop=g.get("pop"),
         gnomad_faf95=g.get("faf95"),
-        abraom_af=ab.get("af"),
+        local_cohort_af=ab.get("af"),
         gene_lof_intolerant=con.get("lof_intolerant"),
         gene_mis_z=con.get("mis_z"),
         gene_oe_mis_upper=con.get("oe_mis_upper"),
@@ -218,7 +218,7 @@ def _annotation_from_frozen(
         hpo_match_score=None,
         source={
             "gnomad": f"gnomAD v{g.get('release', '4.1')} (frozen panel)",
-            "abraom": ab.get("_source", ""),
+            "local_cohort": ab.get("_source", ""),
             "gene_constraint": con.get("_source", ""),
             "alphamissense": "AlphaMissense (frozen panel)" if am.get("am_pathogenicity") is not None
             else "AlphaMissense (no score)",

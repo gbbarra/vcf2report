@@ -7,7 +7,7 @@ from so the ACMG criteria and the report can cite provenance.
 from __future__ import annotations
 
 from ..models import Annotation, Variant
-from . import abraom, alphamissense, clinvar, clinvar_residue, extra, from_vcf, gnomad, hpo
+from . import local_cohort, alphamissense, clinvar, clinvar_residue, extra, from_vcf, gnomad, hpo
 
 
 def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
@@ -62,8 +62,8 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
                   "_source": "VCF INFO"}
         else:
             cv = clinvar.lookup(variant)
-        ab = {"af": vi["abraom_af"], "_source": "VCF INFO"} \
-            if vi.get("abraom_af") is not None else abraom.lookup(variant)
+        ab = {"af": vi["local_cohort_af"], "_source": "VCF INFO"} \
+            if vi.get("local_cohort_af") is not None else local_cohort.lookup(variant)
         if "revel" in vi or "cadd" in vi:
             isi = {"revel": vi.get("revel"), "cadd": vi.get("cadd"), "_source": "VCF INFO"}
         else:
@@ -104,7 +104,7 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         # same as an annotator writing AF=0/AN=0 where gnomAD has no coverage at all.
         gnomad_absence_vouched=bool(g.get("vouched_absent")) or (
             g.get("af") == 0.0 and bool(g.get("an"))),
-        abraom_af=ab.get("af"),
+        local_cohort_af=ab.get("af"),
         gene_lof_intolerant=con.get("lof_intolerant"),
         gene_mis_z=con.get("mis_z"),
         gene_oe_mis_upper=con.get("oe_mis_upper"),
@@ -120,7 +120,7 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         source={
             "gnomad": g.get("_source", ""),
             "clinvar": cv.get("_source", ""),
-            "abraom": ab.get("_source", ""),
+            "local_cohort": ab.get("_source", ""),
             # One provenance string for the whole gnomAD constraint table — PVS1 cites it for the
             # LoF columns, PP2/BP1 for the missense ones. A single key, so the two can never drift.
             "gene_constraint": con.get("_source", ""),

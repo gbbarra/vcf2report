@@ -88,7 +88,7 @@ def test_untrusted_build_skips_coordinate_annotation():
 def test_insilico_conflict_fires_neither_pp3_nor_bp4():
     v = Variant(chrom="1", pos=1, ref="A", alt="G", gene="X",
                 consequence="missense_variant")
-    a = Annotation(gnomad_af=0.0, abraom_af=0.0, revel=0.95, cadd_phred=5.0)
+    a = Annotation(gnomad_af=0.0, local_cohort_af=0.0, revel=0.95, cadd_phred=5.0)
     codes = {c.code: c for c in classify(v, a).criteria}
     assert codes["PP3"].met is False      # revel says pathogenic...
     assert codes["BP4"].met is False      # ...cadd says benign -> conflict -> neither
@@ -103,8 +103,8 @@ def test_report_render_no_placeholder_and_expected_content():
     assert report.generated                       # real ISO timestamp
     for gene in ("SCN1A", "PAX6", "RB1", "KCNQ2", "CACNA1A"):
         assert gene in md
-    assert "ABraOM" in md and "OBSCN" in md        # differentiator callout
-    assert "Candidates classified: 5" in md
+    assert "OBSCN" in md                          # reaches the shortlist without a cohort
+    assert "Candidates classified: 6" in md
 
 
 def test_primary_vs_secondary_findings_split():
@@ -140,7 +140,7 @@ def test_pipeline_reports_per_stage_timings():
 def test_clinvar_is_pp5_supporting_not_ps1_strong():
     v = Variant(chrom="20", pos=63446204, ref="G", alt="A", gene="KCNQ2",
                 consequence="missense_variant", hgvs_p="p.Arg213Trp")
-    a = Annotation(gnomad_af=0.0, abraom_af=0.0, clinvar_significance="Pathogenic",
+    a = Annotation(gnomad_af=0.0, local_cohort_af=0.0, clinvar_significance="Pathogenic",
                    clinvar_review_status="criteria_provided,_single_submitter",
                    clinvar_accession="VCV1", revel=0.92, cadd_phred=32.0,
                    hpo_match_score=0.7, hpo_matched_terms=["x"])

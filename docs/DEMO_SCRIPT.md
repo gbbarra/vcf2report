@@ -27,7 +27,7 @@ export OFFLINE=1                      # dress-rehearsal: no network needed
    ACMG rationale.
 3. Point at the **money shots**:
    - **SCN1A p.Arg612Ter → Pathogenic**, with the criterion table: PVS1 (LoF in a
-     LoF-intolerant gene) + PM2 (absent in gnomAD **and** ABraOM) + PP4 (phenotype
+     LoF-intolerant gene) + PM2 (absent in gnomAD **and** local cohort) + PP4 (phenotype
      match 1.0) + PP5 (reviewed ClinVar). Not a score — a sourced derivation.
    - **Secondary findings, gated on ACMG SF v3.2** — **RB1 p.Arg320Ter →
      Likely Pathogenic** (PVS1 + PM2) is unrelated to the seizures but RB1 is an
@@ -35,8 +35,6 @@ export OFFLINE=1                      # dress-rehearsal: no network needed
      finding**. Meanwhile **PAX6 p.Arg68Ter** (also LP, aniridia) is *not* on the
      SF list, so it is routed to "Other", not returned. Shows real SF gating, not
      a loose "any incidental P/LP" claim.
-   - **ABraOM callout**: *OBSCN was dropped — absent from gnomAD but 3.2% in
-     Brazilians. A gnomAD-only pipeline would have chased it.*
    - **KCNQ2 p.Arg213Trp → Likely Pathogenic, and ClinVar is only one line of five**
      — the rule path reads `PM1 + PM2 + PP3 + PP4 + PP5`. ClinVar's Pathogenic
      assertion contributes **PP5, Supporting** — the engine does not rubber-stamp it.
@@ -66,5 +64,5 @@ pytest        # the full suite, ~25s
 
 - Hours of manual curation → a reviewable draft in seconds.
 - Transparent, auditable ACMG — every criterion cited.
-- Built for admixed Brazilian patients, where gnomAD alone misclassifies.
+- A slot for your own population, where gnomAD alone misclassifies.
 - Open and composable — drop in your lab's own databases and template.

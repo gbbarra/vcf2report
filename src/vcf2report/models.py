@@ -46,7 +46,7 @@ class Variant:
         """Canonical CHROM-POS-REF-ALT key used across annotators and caches.
         REF/ALT are upper-cased: VCF alleles are case-insensitive, and lowercase
         (soft-masked / lifted / hand-edited) input must still match the uppercase
-        ClinVar/ABraOM/gnomAD snapshots keyed off this string."""
+        ClinVar/local cohort/gnomAD snapshots keyed off this string."""
         chrom = self.chrom[3:] if self.chrom.lower().startswith("chr") else self.chrom
         return f"{chrom}-{self.pos}-{self.ref.upper()}-{self.alt.upper()}"
 
@@ -100,7 +100,9 @@ class Annotation:
     # must not read missing data as evidence (is_hom_absent_artifact) need the distinction.
     gnomad_absence_vouched: bool = False
 
-    abraom_af: Optional[float] = None       # Brazilian (SABE) allele frequency
+    # Allele frequency from a cohort the OPERATOR supplies (see annotate/local_cohort.py).
+    # None means not consulted / not in the table — never a checked zero.
+    local_cohort_af: Optional[float] = None
 
     # gene-level constraint (for PVS1/PP2/BP1 judgment)
     gene_lof_intolerant: Optional[bool] = None  # e.g. pLI>=0.9 / low LOEUF
@@ -194,8 +196,8 @@ class QCSummary:
     candidates: int = 0
     build: str = "GRCh38"
     warnings: list[str] = field(default_factory=list)
-    # Spurious candidates removed thanks to ABraOM (Brazilian) frequencies.
-    abraom_filtered: list[str] = field(default_factory=list)
+    # Spurious candidates removed thanks to an operator-supplied local cohort.
+    local_cohort_filtered: list[str] = field(default_factory=list)
     # Variants dropped by the QC gate that ClinVar nevertheless classifies P/LP with
     # >=2-star review. QC runs BEFORE annotation, so the report's do-not-dismiss net
     # can never see these — they are recovered here so a marginal-quality call on a

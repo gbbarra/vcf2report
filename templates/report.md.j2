@@ -38,12 +38,12 @@ Variants the per-variant QC gate dropped for a borderline metric that ClinVar ne
 - ⚠️ {{ note }}
 {% endfor %}
 {% endif %}
-{% if r.qc.abraom_filtered %}
+{% if r.qc.local_cohort_filtered %}
 
-### Brazilian-frequency filtering (ABraOM)
+### Brazilian-frequency filtering (local cohort)
 
-Spurious candidates a gnomAD-only pipeline would have kept, removed using ABraOM (SABE) local frequencies:
-{% for note in r.qc.abraom_filtered %}
+Spurious candidates a gnomAD-only pipeline would have kept, removed using the operator's local cohort frequencies:
+{% for note in r.qc.local_cohort_filtered %}
 - {{ note }}
 {% endfor %}
 {% endif %}
@@ -87,10 +87,10 @@ Spurious candidates a gnomAD-only pipeline would have kept, removed using ABraOM
 
 {% macro findings(rows) %}
 {% if rows %}
-| Gene | Transcript | Variant (c./p.) | Zyg | Consequence | ClinVar | gnomAD AF | ABraOM AF | HPO | ACMG |
+| Gene | Transcript | Variant (c./p.) | Zyg | Consequence | ClinVar | gnomAD AF | local cohort AF | HPO | ACMG |
 |---|---|---|---|---|---|---|---|---|---|
 {% for c in rows %}
-| {{ c.variant.gene or '?' }} | {{ c.variant.transcript or '—' }} | {{ [c.variant.hgvs_c, c.variant.hgvs_p] | select | join(' ') or c.variant.key }} | {{ c.variant.zygosity or '?' }}{% if c.variant.partial_call %} (partial call){% endif %} | {{ c.variant.consequence or '?' }} | {{ c.annotation.clinvar_significance or '—' }} | {{ c.annotation.gnomad_af | pct }} | {{ c.annotation.abraom_af | pct }} | {{ c.annotation.hpo_match_score if c.annotation.hpo_match_score is not none else '—' }} | **{{ c.tier }}** |
+| {{ c.variant.gene or '?' }} | {{ c.variant.transcript or '—' }} | {{ [c.variant.hgvs_c, c.variant.hgvs_p] | select | join(' ') or c.variant.key }} | {{ c.variant.zygosity or '?' }}{% if c.variant.partial_call %} (partial call){% endif %} | {{ c.variant.consequence or '?' }} | {{ c.annotation.clinvar_significance or '—' }} | {{ c.annotation.gnomad_af | pct }} | {{ c.annotation.local_cohort_af | pct }} | {{ c.annotation.hpo_match_score if c.annotation.hpo_match_score is not none else '—' }} | **{{ c.tier }}** |
 {% endfor %}
 {% else %}
 _None._

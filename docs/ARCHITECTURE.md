@@ -15,7 +15,7 @@ src/vcf2report/
 ├── cli.py           headless CLI (also the `vcf2report` console script)
 ├── mcp_server.py    FastMCP tool wrappers for Claude Desktop
 ├── vcf/             parse (pure-python + cyvcf2 fallback), qc, filter (tiering)
-├── annotate/        gnomad, clinvar, abraom, hpo, alphamissense, extra (constraint/in-silico), cache
+├── annotate/        gnomad, clinvar, local_cohort, hpo, alphamissense, extra (constraint/in-silico), cache
 ├── acmg/            criteria (28 evaluators), rules (Richards 2015 Table 5), engine
 ├── report/          assemble (ReportModel), render (Jinja2 + built-in fallback)
 └── concordance.py   ClinVar-vs-engine validation panel (see docs/CONCORDANCE.md)
@@ -31,12 +31,12 @@ Desktop **MCP server** (natural-language chat).
    split multiallelics, detect genome build.
 2. **qc** — drop by FILTER, DP, GQ, het allele balance; record reasons.
 3. **annotate** — merge gnomAD (popmax AF + filtering AF, homozygotes), ClinVar
-   (significance, accession), ABraOM (Brazilian AF), gene constraint (pLI/LOEUF),
+   (significance, accession), an optional local cohort AF, gene constraint (pLI/LOEUF),
    in-silico (**AlphaMissense** at ClinGen-calibrated PP3/BP4 strength, with
    REVEL/CADD as fallback), HPO phenotype match. Every field records its source.
    (AlphaMissense is looked up lazily — only for the surviving candidates.)
-4. **filter** — funnel: rarity (gnomAD **and** ABraOM) → coding/splice impact →
-   phenotype ranking. ClinVar P/LP bypass the funnel. Records ABraOM-specific drops.
+4. **filter** — funnel: rarity (gnomAD **and** local cohort) → coding/splice impact →
+   phenotype ranking. ClinVar P/LP bypass the funnel. Records local cohort-specific drops.
 5. **acmg** — evaluate all 28 criteria: **17 decided by the engine**, **5 surfaced for
    expert/model adjudication** (PS3, PS4, BS3, BP3, BP5 — they need wet-lab or whole-case
    data), and **6 reported N/A** (PS2, PM3, PM6, PP1, BP2, BS4 — trio / segregation /
@@ -63,7 +63,7 @@ the code stays capable of real calls.
 |---|---|---|
 | gnomAD | GraphQL (`gnomad_r4`) | `data/gnomad/gnomad_cache.json` |
 | ClinVar | NCBI (full local store) | `data/clinvar/clinvar_grch38_slice.tsv` (tabix, ~4.2M variants, offline; built by `scripts/build_clinvar_local.py`) + optional live E-utilities |
-| ABraOM | — (static dataset) | `data/abraom/abraom_sabe.tsv` — **demo stub (2 variants); full ABraOM SABE not installed yet, obtain from IB-USP** |
+| local cohort | — (static dataset) | `data/local_cohort/frequencies.tsv` — **demo stub (2 variants); full a local cohort not installed yet, obtain from IB-USP** |
 | HPO | ontology.jax.org | `data/hpo/genes_to_phenotype.tsv.gz` |
 
 ## Auditability

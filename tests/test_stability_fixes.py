@@ -1,13 +1,13 @@
 """Regression tests for the stability/adversarial-audit fixes."""
 from vcf2report.acmg.engine import classify
 from vcf2report.acmg.rules import VUS
-from vcf2report.annotate import abraom, gnomad_remote
+from vcf2report.annotate import local_cohort, gnomad_remote
 from vcf2report.models import Annotation, Variant
 
 
 def _rare(**kw):
     base = dict(gene_lof_intolerant=True, gnomad_af=0.0, gnomad_faf95=0.0,
-                abraom_af=0.0, source={})
+                local_cohort_af=0.0, source={})
     base.update(kw)
     return Annotation(**base)
 
@@ -57,7 +57,7 @@ def test_remote_both_callsets_absent_is_zero(monkeypatch):
     assert r is not None and r["af"] == 0.0   # both opened, absent -> genuine 0.0
 
 
-# L1 — ABraOM miss is UNKNOWN (None), not a fabricated checked 0.0.
-def test_abraom_miss_is_unknown():
-    r = abraom.lookup(Variant(chrom="99", pos=1, ref="A", alt="T"))
+# L1 — local cohort miss is UNKNOWN (None), not a fabricated checked 0.0.
+def test_local_cohort_miss_is_unknown():
+    r = local_cohort.lookup(Variant(chrom="99", pos=1, ref="A", alt="T"))
     assert r["af"] is None

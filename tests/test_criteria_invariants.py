@@ -51,7 +51,7 @@ def test_pp3_and_bp4_never_both_fire_on_revel_cadd(revel, cadd):
 # --- frequency: rarity and commonness are exclusive -------------------------
 @pytest.mark.parametrize("af", [0.0, 1e-6, 1e-5, 1e-4, 1e-3, 0.01, 0.03, 0.05, 0.1, 0.5])
 def test_at_most_one_frequency_criterion_fires(af):
-    fired = _fired(_missense(), Annotation(gnomad_af=af, gnomad_faf95=af, abraom_af=0.0))
+    fired = _fired(_missense(), Annotation(gnomad_af=af, gnomad_faf95=af, local_cohort_af=0.0))
     assert len(fired & {"PM2", "BS1", "BA1"}) <= 1, f"af={af} fired {fired}"
 
 

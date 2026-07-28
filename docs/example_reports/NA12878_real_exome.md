@@ -1,5 +1,11 @@
 # Example report — NA12878 (real whole exome, fully offline)
 
+> **Historical snapshot.** Generated before the ABraOM-specific cohort was removed in
+> favour of an operator-supplied local cohort, so the frequency column and the funnel
+> section below name a source this project no longer ships. Re-run the pipeline for a
+> current report.
+
+
 _Auto-generated from a real run; not hand-edited. This is a **concise excerpt** (funnel + performance + the non-VUS calls); the full run classifies every candidate. Reproduce with a local gnomAD Parquet store (`scripts/fetch_gnomad_parquet.sh` or `build_gnomad_parquet.py`) and:_
 
 ```bash

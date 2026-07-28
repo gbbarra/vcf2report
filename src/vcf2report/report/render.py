@@ -103,12 +103,12 @@ def _render_markdown_builtin(report: ReportModel) -> str:
         for note in q.qc_rescued:
             L.append(f"- ⚠️ {note}")
         L.append("")
-    if q.abraom_filtered:
-        L.append("### Brazilian-frequency filtering (ABraOM)")
+    if q.local_cohort_filtered:
+        L.append("### Local-cohort frequency filtering")
         L.append("")
         L.append("Spurious candidates a gnomAD-only pipeline would have kept, removed "
-                 "using ABraOM (SABE) local frequencies:")
-        for note in q.abraom_filtered:
+                 "using the operator's local cohort frequencies:")
+        for note in q.local_cohort_filtered:
             L.append(f"- {note}")
         L.append("")
 
@@ -154,14 +154,14 @@ def _render_markdown_builtin(report: ReportModel) -> str:
             L.append("_None._")
             L.append("")
             return
-        L.append("| Gene | Transcript | Variant (c./p.) | Zyg | Consequence | ClinVar | gnomAD AF | ABraOM AF | HPO | ACMG |")
+        L.append("| Gene | Transcript | Variant (c./p.) | Zyg | Consequence | ClinVar | gnomAD AF | local cohort AF | HPO | ACMG |")
         L.append("|---|---|---|---|---|---|---|---|---|---|")
         for c in rows:
             v, a = c.variant, c.annotation
             hgvs = " ".join(x for x in [v.hgvs_c, v.hgvs_p] if x) or v.key
             L.append(
                 f"| {v.gene or '?'} | {v.transcript or '—'} | {hgvs} | {_zyg(v)} | {v.consequence or '?'} "
-                f"| {a.clinvar_significance or '—'} | {_fmt_af(a.gnomad_af)} | {_fmt_af(a.abraom_af)} "
+                f"| {a.clinvar_significance or '—'} | {_fmt_af(a.gnomad_af)} | {_fmt_af(a.local_cohort_af)} "
                 f"| {a.hpo_match_score if a.hpo_match_score is not None else '—'} | **{c.tier}** |"
             )
         L.append("")

@@ -71,7 +71,7 @@ def readiness() -> dict:
         "sample_vcf": config.SAMPLE_VCF.exists(),
         "clinvar_slice": config.CLINVAR_LOCAL.exists(),
         "gnomad_snapshot": config.GNOMAD_LOCAL.exists(),
-        "abraom": config.ABRAOM_LOCAL.exists(),
+        "local_cohort": config.LOCAL_COHORT.exists(),
         "hpo": config.HPO_GENES_LOCAL.exists(),
     }
     return {

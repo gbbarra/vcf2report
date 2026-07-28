@@ -47,7 +47,7 @@ def build_report(sample_id: str, hpo_terms: list[str], qc: QCSummary,
         "qc_thresholds": {"min_DP": QC_MIN_DP, "min_GQ": QC_MIN_GQ},
         "rarity_cutoff_popmax_af": AF_RECESSIVE_MAX,
         "ba1_cutoff": AF_BA1,
-        "databases": ["ClinVar", "gnomAD r4", "ABraOM (SABE)", "HPO", "gnomAD constraint"],
+        "databases": ["ClinVar", "gnomAD r4", "local cohort", "HPO", "gnomAD constraint"],
         "standards": [
             "ACMG/AMP variant classification (Richards et al., Genet Med 2015)",
             "ClinGen SVI criteria refinements",

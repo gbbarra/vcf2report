@@ -24,7 +24,7 @@ from . import inspect as _inspect
 from . import status as _status
 from .acmg.engine import classify as _classify
 from .annotate import annotate_variant
-from .annotate import abraom as _abraom
+from .annotate import local_cohort as _local_cohort
 from .annotate import clinvar as _clinvar
 from .annotate import gnomad as _gnomad
 from .annotate import hpo as _hpo
@@ -95,9 +95,9 @@ def clinvar_lookup(chrom: str, pos: int, ref: str, alt: str) -> dict:
 
 
 @mcp.tool()
-def abraom_frequency(chrom: str, pos: int, ref: str, alt: str) -> dict:
-    """ABraOM (Brazilian SABE cohort) allele frequency — local population check."""
-    return _abraom.lookup(_mk_variant(chrom, pos, ref, alt))
+def local_cohort_frequency(chrom: str, pos: int, ref: str, alt: str) -> dict:
+    """Allele frequency from the operator-supplied local cohort, if one is configured."""
+    return _local_cohort.lookup(_mk_variant(chrom, pos, ref, alt))
 
 
 @mcp.tool()
@@ -142,7 +142,7 @@ def run_report(vcf_path: str, hpo_terms: Optional[list[str]] = None,
         "report_path": str(fp),
         "results_json": str(results_json_for(fp)),
         "candidates": report.qc.candidates,
-        "abraom_filtered": report.qc.abraom_filtered,
+        "local_cohort_filtered": report.qc.local_cohort_filtered,
         "tiers": [{"gene": c.variant.gene, "variant": c.variant.hgvs_p or c.variant.key,
                    "tier": c.tier, "rule_path": c.rule_path} for c in report.classifications],
         "markdown": render_markdown(report),

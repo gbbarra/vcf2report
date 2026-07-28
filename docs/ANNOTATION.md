@@ -10,7 +10,7 @@ annotation. A raw VCF from a caller (GATK, DeepVariant) has no gene / consequenc
 |---|---|---|---|
 | Normalize | **bcftools norm** | MIT | split multiallelics, left-align indels |
 | Consequence + HGVS | **SnpEff** | MIT | `INFO/ANN` (gene, consequence, HGVS c./p.) |
-| Population + clinical | **vcfanno** | MIT | gnomAD AF, ClinVar, REVEL/CADD, ABraOM from local files |
+| Population + clinical | **vcfanno** | MIT | gnomAD AF, ClinVar, REVEL/CADD, local cohort from local files |
 
 (Ensembl **VEP** — Apache-2.0 — is a fine alternative to SnpEff; vcf2report reads
 its `CSQ` too. Avoid ANNOVAR: not open-source.)
@@ -33,14 +33,14 @@ python scripts/run_headless.py out.annotated.vcf.gz --hpo patient_hpo_terms.txt
 
 `scripts/vcfanno.conf.toml` maps each data file's fields to the INFO names
 vcf2report expects (`config.INFO_ALIASES`): `gnomad_AF`, `CLNSIG`, `CLNREVSTAT`,
-`CLNDN`, `ABraOM_AF`, `REVEL`, `CADD_PHRED`. If your annotation uses different
+`CLNDN`, `LOCAL_AF`, `REVEL`, `CADD_PHRED`. If your annotation uses different
 INFO keys, add them to `INFO_ALIASES` — no code change needed elsewhere.
 
 ## Data files (GRCh38, free)
 
 - **gnomAD v4 sites VCF** — https://gnomad.broadinstitute.org/downloads
 - **ClinVar weekly VCF** — https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/
-- **ABraOM (SABE)** — http://abraom.ib.usp.br/ (convert to a bgzipped, tabix VCF)
+- **a local cohort** — http://local_cohort.ib.usp.br/ (convert to a bgzipped, tabix VCF)
 - **REVEL / CADD** (optional) — from their sites or dbNSFP; build a small VCF.
 
 ## Expected timing (real exome, local)

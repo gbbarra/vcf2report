@@ -49,7 +49,11 @@ def _resolve_gnomad_parquet():
 
 
 GNOMAD_PARQUET = _resolve_gnomad_parquet()
-ABRAOM_LOCAL = DATA_DIR / "abraom" / "abraom_sabe.tsv"
+# A local cohort the OPERATOR supplies; this project ships none. See
+# annotate/local_cohort.py for the format.
+LOCAL_COHORT = Path(os.environ.get("VCF2REPORT_LOCAL_COHORT")) \
+    if os.environ.get("VCF2REPORT_LOCAL_COHORT") \
+    else DATA_DIR / "local_cohort" / "frequencies.tsv"
 HPO_GENES_LOCAL = DATA_DIR / "hpo" / "genes_to_phenotype.tsv.gz"
 HPO_GRAPH_LOCAL = DATA_DIR / "hpo" / "hpo_graph.tsv.gz"  # ontology + IC (build_hpo_graph.py)
 # Report routing: a gene is "phenotype-related" (-> primary findings) when its
@@ -311,7 +315,7 @@ INFO_ALIASES = {
     "gnomad_ac": ["gnomad_AC", "gnomAD_AC", "gnomad_ac"],
     "gnomad_an": ["gnomad_AN", "gnomAD_AN", "gnomad_an"],
     "gnomad_hom": ["gnomad_nhomalt", "gnomAD_nhomalt", "gnomad_hom", "nhomalt"],
-    "abraom_af": ["ABraOM_AF", "abraom_AF", "ABRAOM_AF", "abraom_af"],
+    "local_cohort_af": ["LOCAL_AF", "local_AF", "LOCAL_COHORT_AF", "local_cohort_af"],
     "clinvar_sig": ["CLNSIG", "clinvar_CLNSIG", "clinvar_sig"],
     "clinvar_review": ["CLNREVSTAT", "clinvar_CLNREVSTAT"],
     "clinvar_disease": ["CLNDN", "clinvar_CLNDN"],

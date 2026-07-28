@@ -27,7 +27,7 @@ Each falls into exactly one class:
 | `PS3` | strong | model | Well-established functional studies show a damaging effect |
 | `PS4` | strong | model | Prevalence in affected significantly increased vs controls |
 | `PM1` | moderate | engine | Located in a mutational hotspot / critical functional domain |
-| `PM2` | moderate | engine | Absent or ultra-rare in population databases (gnomAD + ABraOM) |
+| `PM2` | moderate | engine | Absent or ultra-rare in population databases (gnomAD + local cohort) |
 | `PM3` | moderate | N/A | Detected in trans with a pathogenic variant (recessive) |
 | `PM4` | moderate | engine | Protein length change (in-frame indel / stop-loss) in a non-repeat region |
 | `PM5` | moderate | engine | Novel missense at a residue where a different pathogenic missense is known |
@@ -59,7 +59,7 @@ Each falls into exactly one class:
 
 | data source | criteria |
 |---|---|
-| gnomAD allele frequency (+ ABraOM) | `PM2`, `BA1`, `BS1`, `BS2` |
+| gnomAD allele frequency (+ local cohort) | `PM2`, `BA1`, `BS1`, `BS2` |
 | gnomAD per-gene LoF constraint (pLI / LOEUF) + ClinGen dosage + HPO inheritance | `PVS1` |
 | gnomAD per-gene **missense** constraint (`mis_z`, `oe_mis_upper`) | `PP2`, `BP1` |
 | ClinVar — the variant's **own** assertion | `PP5`, `BP6` |
