@@ -285,13 +285,13 @@ def missing_evidence(data: dict[str, Any], gene: str | None = None) -> list[dict
                    and (cr.get("applies") is False or cr.get("adjudicated_by") == "model")]
 
         # The hypothetical must carry a code the combiner routes to the intended side: rules.combine
-        # decides pathogenic-vs-benign by CODE membership, not by any flag, so a made-up benign code
-        # would be scored as pathogenic. Borrow a real code from each side that this variant has not
-        # already met, so the simulated line is additive rather than a double count.
-        free_benign = sorted(rules.BENIGN_CODES - met_codes)
-        sides = [("pathogenic", "PP_HYPOTHETICAL", _PATHOGENIC_LADDER)]
-        if free_benign:
-            sides.append(("benign", free_benign[0], _BENIGN_LADDER))
+        # decides pathogenic-vs-benign by CODE membership, not by any flag. Both sides therefore use
+        # a RESERVED code that no evaluator emits (rules.HYPOTHETICAL_*). The benign side used to
+        # borrow a real code — BA1, picked alphabetically — and walk it up a ladder BA1 cannot
+        # occupy, so the printed rule path cited BA1 at Supporting/Strong and named rules the engine
+        # would never produce for it.
+        sides = [("pathogenic", rules.HYPOTHETICAL_PATHOGENIC, _PATHOGENIC_LADDER),
+                 ("benign", rules.HYPOTHETICAL_BENIGN, _BENIGN_LADDER)]
         steps = []
         for side, code, ladder in sides:
             for strength in ladder:

@@ -336,7 +336,12 @@ INFO_ALIASES = {
 # before any clinical use. Native AlphaMissense classes: <0.34 likely_benign,
 # 0.34-0.564 ambiguous, >0.564 likely_pathogenic.
 # ---------------------------------------------------------------------------
-AM_PP3_STRONG = 0.99        # >= this -> PP3 at Strong (with PM2 -> Likely Pathogenic)
+# NOTE on the Strong tier: PP3_Strong + PM2 reaches Likely Pathogenic only when PM2 is at
+# Moderate (LP-2, "1 Strong + 1-2 Moderate"). The shipped default is PM2 at SUPPORTING
+# (pm2_strength(), tuned separately against the specificity benchmark), and Strong + Supporting
+# satisfies no Table 5 rule — so with stock settings this pair yields VUS, not Likely
+# Pathogenic. Set VCF2REPORT_PM2_STRENGTH=moderate to get the behaviour described here.
+AM_PP3_STRONG = 0.99        # >= this -> PP3 at Strong
 AM_PP3_MODERATE = 0.90      # >= this -> PP3 at Moderate
 AM_PP3_SUPPORTING = 0.564   # >= this -> PP3 at Supporting (tool's likely_pathogenic)
 # Richards 2015 Table 5 has no benign "moderate" bucket, so AlphaMissense benign
