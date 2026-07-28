@@ -29,19 +29,24 @@ export OFFLINE=1                      # dress-rehearsal: no network needed
    - **SCN1A p.Arg612Ter → Pathogenic**, with the criterion table: PVS1 (LoF in a
      LoF-intolerant gene) + PM2 (absent in gnomAD **and** ABraOM) + PP4 (phenotype
      match 1.0) + PP5 (reviewed ClinVar). Not a score — a sourced derivation.
-   - **Secondary findings, gated on ACMG SF v3.2** — **LDLR p.Arg350Ter →
-     Likely Pathogenic** (PVS1 + PM2) is unrelated to the seizures but LDLR is an
-     ACMG SF gene (familial hypercholesterolemia), so it is reported as an
-     **actionable secondary finding**. Meanwhile **PAX6 p.Arg68Ter** (also LP,
-     aniridia) is *not* on the
+   - **Secondary findings, gated on ACMG SF v3.2** — **RB1 p.Arg320Ter →
+     Likely Pathogenic** (PVS1 + PM2) is unrelated to the seizures but RB1 is an
+     ACMG SF gene (retinoblastoma), so it is reported as an **actionable secondary
+     finding**. Meanwhile **PAX6 p.Arg68Ter** (also LP, aniridia) is *not* on the
      SF list, so it is routed to "Other", not returned. Shows real SF gating, not
      a loose "any incidental P/LP" claim.
    - **ABraOM callout**: *OBSCN was dropped — absent from gnomAD but 3.2% in
      Brazilians. A gnomAD-only pipeline would have chased it.*
-   - **KCNQ2 → VUS even though ClinVar says Pathogenic** — the engine derives the
-     tier independently and counts a reviewed ClinVar assertion as *supporting*
-     (PP5), not strong, so it does not rubber-stamp ClinVar. This transparency is
-     the point: most real candidates are VUS, and the tool shows exactly why.
+   - **KCNQ2 p.Arg213Trp → Likely Pathogenic, and ClinVar is only one line of five**
+     — the rule path reads `PM1 + PM2 + PP3 + PP4 + PP5`. ClinVar's Pathogenic
+     assertion contributes **PP5, Supporting** — the engine does not rubber-stamp it.
+     The tier is carried by independent evidence, chiefly **PM1**: the residue index
+     finds a pathogenic-missense hotspot around this position that is denser than
+     KCNQ2's own baseline. Open the criterion table and read the count.
+   - **CACNA1A p.Ser34Pro → VUS** — the restraint beat. Rare (PM2), in a
+     missense-constrained gene (PP2), phenotype-matched (PP4), and the engine still
+     refuses to call it: three Supporting-or-Moderate lines reach no Table 5 rule.
+     Most real candidates land here, and the report shows exactly what is missing.
 
 ## Option B — headless (proves it without the LLM)
 
@@ -54,7 +59,7 @@ conversational interface and judgment adjudication, but the clinical logic is
 deterministic and testable.
 
 ```bash
-pytest        # 276 tests (~16s)
+pytest        # the full suite, ~25s
 ```
 
 ## One-liner takeaways

@@ -47,8 +47,12 @@ ZSTD-compressed. At run time `gnomad_parquet.prime()` performs **one vectorised 
 `LEFT JOIN`** of the entire post-QC variant set against `read_parquet(...)` — the whole exome is
 annotated in a single query rather than one lookup per variant. Two safety gates matter:
 
-- **PASS-only.** The join keeps only `filter = 'PASS'` gnomAD records, so a filtered artifact
-  (AS_VQSR / AC0) can never mask a real variant's frequency (the ClinGen filtering-AF standard).
+- **PASS-aware, applied AFTER the join — not as a join gate.** The join matches on locus
+  regardless of `filter`, then decides. Gating the join instead turns a present-but-filtered
+  common variant (a 99.98% AS_VQSR record, say) into a *fake absence* → spurious PM2 → over-call;
+  that was a real bug, measured on NA12878 (29 → 23 P/LP) and removed. A matched non-PASS record
+  therefore serves `AF = None` — "frequency unavailable", so PM2/BA1/BS1 all decline — rather than
+  either a trusted frequency or a fabricated zero.
 - **Region-aware absence (`mode`).** A `_meta.json` sidecar declares the store's coverage:
   `partial` (default) *never* asserts absence; `full` asserts AF=0 on any covered contig;
   `bed` asserts absence only for a variant **inside a covered exome-BED interval**. The BED is a
@@ -103,8 +107,11 @@ PS1/PM5/PM1 report *index unavailable* rather than a fabricated match.
 
 **HPO phenotype matching — PP4 & routing.** Gene↔phenotype similarity uses the HPO `is_a` graph
 with **Lin/Information-Content semantic similarity** (best-match-average) when the ontology graph
-is present, falling back to exact term overlap. The average match feeds **PP4** (≥0.60); the
-single strongest match routes a variant into the primary/secondary findings (≥0.50).
+is present, falling back to exact term overlap. The best-match **average** feeds **PP4** (≥0.60)
+and is *also* what routes a variant into the primary/secondary findings (`HPO_RELATED_MIN`, 0.60).
+The single strongest match (`hpo_best_match`) is reported for context but decides nothing: a random
+unrelated phenotype clears the max on one broad term far too often, and switching routing off the
+max cut the decoy false-match rate from 62% to 22% (see BENCHMARK).
 
 **ABraOM (Brazilian frequencies).** The SABE admixed-Brazilian cohort is checked alongside
 gnomAD: a variant absent from gnomAD but common in Brazilians must **not** earn PM2 — a real,
@@ -187,10 +194,24 @@ AlphaMissense(candidates only) → classify(ACMG) → build report
 ```
 
 The **filter funnel** keeps variants that are rare (max gnomAD/ABraOM AF ≤ 0.005) **and**
-coding/splice — but **ClinVar P/LP bypasses rarity and impact** so a known pathogenic variant is
-never dropped. A genome-build guard skips all coordinate-keyed annotation on a confirmed non-
-GRCh38 input rather than mis-annotate; a loud warning fires if a configured gnomAD store resolves
-0 of ≥50 variants (an over-calling guard).
+coding/splice — but **ClinVar P/LP bypasses rarity and impact**, so a known pathogenic variant is
+never dropped *by the filter*.
+
+**QC is an earlier and separate gate**, and it is the one that can remove a known pathogenic
+variant. A variant dropped there on quality — DP/GQ/AB, or the caller's own FILTER — is **not**
+re-admitted as a candidate, but if ClinVar classifies it P/LP with criteria-backed (≥1★) review it
+is named in a *"Removed by QC, but known to ClinVar"* section and in the conclusion. That bar is
+one step below the ≥2★ do-not-dismiss net, deliberately: the net triages among variants the reader
+can already see in the ranked table, whereas a QC drop is invisible. A **non-carrier** genotype is
+excluded — there is no allele to report. On the six committed exomes the rescue names nothing, so
+it is a flag rather than a source of noise.
+
+A genome-build guard skips all coordinate-keyed annotation on a confirmed non-GRCh38 input rather
+than mis-annotate — including values already present in the VCF's own INFO column, which also
+takes the ClinVar safety flag and the QC rescue offline for that run. A loud warning fires if a
+configured gnomAD store resolves 0 of ≥50 variants (an over-calling guard), if QC removes the
+entire callset, if ≥90% of variants are dropped as non-carriers (a sites-only VCF), or if no
+post-QC variant carries a consequence annotation at all.
 
 ### Local engine vs Claude — the two-phase analysis
 
@@ -274,9 +295,10 @@ phenotype" is strong evidence that LoF causes disease there, but it is not ClinG
 dosage curation, and it does not distinguish *which* of a gene's diseases is recessive — a gene with
 an AD gain-of-function disease **and** an AR LoF disease currently opens the AR route on the whole
 gene. The fix needs disease-scoped inheritance, which the local HPO table cannot supply (it was
-deduplicated at build time and dropped `disease_id`). (6) **Late-onset dominants stay blind:** TP53
-(LOEUF 0.469) is neither constraint-intolerant nor recessive, so PVS1 does not fire on a TP53 null
-even though LoF is its established mechanism. (7) The gene-constraint table's **pLI column is empty**,
+deduplicated at build time and dropped `disease_id`). (6) **Population constraint alone would miss the late-onset dominants**
+— TP53 (LOEUF 0.469) is neither constraint-intolerant nor recessive — which is why the ClinGen
+Haploinsufficiency route exists; PVS1 *does* fire on a TP53 null, via curated HI=3 rather than via
+constraint. Genes with neither constraint, an AR phenotype, nor an HI curation remain blind. (7) The gene-constraint table's **pLI column is empty**,
 so `lof_intolerant` is decided by LOEUF alone. (8) Carrier routing needs zygosity from the VCF; a
 sites-only VCF (no genotype) cannot be triaged this way — the pipeline now *warns* loudly instead
 of reporting the resulting empty shortlist as "no finding". (9) **Splice-adjacent variants are

@@ -211,14 +211,21 @@ def is_hom_absent_artifact(c) -> bool:
     A QC caution only — the ACMG tier is untouched; it is just not presented as a confident
     diagnostic finding. Heterozygous variants (incl. genuine novel dominant LoF) are unaffected.
 
-    ``AN`` is REQUIRED. Annotators write ``gnomAD_AF=0`` alongside ``gnomAD_AN=0`` wherever
-    gnomAD has no coverage at all — AF is 0/0, undefined, not a survey that found nothing.
-    Reading that as a vouched absence turns missing data into evidence, and demotes exactly
-    the recessive candidates that live in gnomAD-uncovered regions. That case is
+    The absence must be VOUCHED. Annotators write ``gnomAD_AF=0`` alongside ``gnomAD_AN=0``
+    wherever gnomAD has no coverage at all — AF is 0/0, undefined, not a survey that found
+    nothing. Reading that as a vouched absence turns missing data into evidence, and demotes
+    exactly the recessive candidates that live in gnomAD-uncovered regions. That case is
     :func:`is_hom_gnomad_uncovered` and carries a different, weaker caveat.
+
+    ``gnomad_absence_vouched`` carries the distinction because ``AN`` cannot: the Parquet
+    store's vouched-absence sentinel has no gnomAD row and therefore no AN, so testing
+    ``AN > 0`` silently disabled this guard on the Parquet path — the production fast path —
+    while the report simultaneously claimed gnomAD "does not survey" a locus the store had
+    explicitly vouched for.
     """
-    return (c.variant.zygosity == "hom") and (c.annotation.gnomad_af == 0.0) \
-        and bool(c.annotation.gnomad_an)
+    a = c.annotation
+    return (c.variant.zygosity == "hom") and (a.gnomad_af == 0.0) \
+        and (a.gnomad_absence_vouched or bool(a.gnomad_an))
 
 
 def is_hom_gnomad_uncovered(c) -> bool:
@@ -227,8 +234,12 @@ def is_hom_gnomad_uncovered(c) -> bool:
 
     Worth a caveat (uncovered sites are typically the same difficult regions that generate
     artifacts) but NOT a demotion: a genuine novel recessive allele in a poorly-surveyed
-    region looks exactly like this, and no evidence exists either way."""
-    return (c.variant.zygosity == "hom") and not c.annotation.gnomad_an
+    region looks exactly like this, and no evidence exists either way.
+
+    A store-vouched absence is NOT uncovered, even though it also carries AN=0 — see
+    :func:`is_hom_absent_artifact`."""
+    a = c.annotation
+    return (c.variant.zygosity == "hom") and not a.gnomad_an and not a.gnomad_absence_vouched
 
 
 def clinvar_stars(review_status) -> int:

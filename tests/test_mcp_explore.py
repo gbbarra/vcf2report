@@ -72,3 +72,23 @@ def test_explore_evidence_sources_views(run):
 
 def test_explore_evidence_sources_rejects_an_unknown_view(run):
     assert "error" in M.explore_evidence_sources(run["results_json"], "nonsense")
+
+
+def test_setup_doc_lists_every_registered_mcp_tool():
+    """SETUP.md's "Which tools the MCP server exposes" named 9 of 17 — the four explore_* tools
+    SKILL.md stage 8 depends on were all missing. Assert BOTH directions so the list cannot go
+    stale in either: nothing registered is unlisted, nothing listed is unregistered."""
+    import pathlib
+    import re
+
+    server = pathlib.Path("src/vcf2report/mcp_server.py").read_text()
+    registered = set(re.findall(r"@mcp\.tool\(\)\s*\ndef\s+(\w+)", server))
+    assert registered, "no @mcp.tool() functions found — has the decorator changed?"
+
+    doc = pathlib.Path("docs/SETUP.md").read_text()
+    section = doc.split("## Which tools the MCP server exposes", 1)[1].split("\n## ", 1)[0]
+    listed = set(re.findall(r"`(\w+)`", section))
+
+    assert not registered - listed, f"registered but undocumented: {sorted(registered - listed)}"
+    assert not (listed - registered) - {"tests/test_mcp_explore.py"}, \
+        f"documented but not registered: {sorted(listed - registered)}"

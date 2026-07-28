@@ -132,6 +132,10 @@ ClinVar 69 MB (4,195,020 rows), AlphaMissense 509 MB (71,034,269 loci, 0 duplica
   lookups (a larger win when network ClinVar would otherwise be hit). The tabix clients remain the
   offline / no-duckdb fallback and are not retired.
 
-> ⚠️ **AlphaMissense license:** the source file header declares **CC BY-NC-SA 4.0** (non-commercial,
-> share-alike), while `scripts/fetch_alphamissense.sh` states CC BY 4.0. Resolve which is authoritative
-> before redistributing any derived store. The `am_parquet` store is git-ignored regardless.
+> **AlphaMissense license — resolved.** The predictions this project downloads
+> (`AlphaMissense_hg38.tsv.gz` from `storage.googleapis.com/dm_alphamissense`) are **CC BY 4.0**.
+> DeepMind relicensed them in March 2024, lifting the earlier non-commercial restriction; older
+> file headers and third-party references still carry the superseded **CC BY-NC-SA 4.0**, which
+> belongs to a *different* artifact — the AlphaMissense **Database** (AlphaFold structures
+> carrying AlphaMissense scores, Zenodo 10255502), which this project does not use. Attribution
+> is still required. The `am_parquet` store is git-ignored regardless.

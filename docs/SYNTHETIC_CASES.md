@@ -64,7 +64,7 @@ FASTA steps require the real inputs and are meant to run on your machine.
 tabix — it reads a **DRAGEN 4.4.7** per-sample VCF (bucket `1000genomes-dragen-v4-4-7`)
 by HTTPS range queries and keeps PASS variants inside the MANE/GENCODE exome BED, no 440 MB
 download and no bcftools. A full NA12878 exome (~24.8k real variants) builds in
-~30 s. It was used to generate `docs/EXAMPLE_REPORT_SYN-001.md` end-to-end:
+~30 s. It was used to generate `docs/example_reports/SYN-001.md` end-to-end:
 
 ```bash
 VCF2REPORT_ALLOW_NETWORK=1 python scripts/build_dragen_exome.py --sample NA12878 \

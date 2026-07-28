@@ -94,6 +94,11 @@ class Annotation:
     gnomad_homozygotes: Optional[int] = None
     gnomad_popmax_pop: Optional[str] = None
     gnomad_faf95: Optional[float] = None    # filtering AF (95% CI lower bound, grpmax) — BS1/BA1
+    # True only when a source SURVEYED this locus and observed zero alleles. AN cannot express
+    # this: the Parquet store's vouched-absence sentinel has no record and therefore no AN, so
+    # `gnomad_an == 0` covers both "surveyed, found nothing" and "never surveyed". Consumers that
+    # must not read missing data as evidence (is_hom_absent_artifact) need the distinction.
+    gnomad_absence_vouched: bool = False
 
     abraom_af: Optional[float] = None       # Brazilian (SABE) allele frequency
 
