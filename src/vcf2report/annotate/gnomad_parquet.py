@@ -31,6 +31,35 @@ _duckdb = None
 _duckdb_tried = False
 _primed: dict[str, dict] = {}
 _lock = threading.Lock()
+# Keys whose REF/ALT were not left-aligned+trimmed, so the store could not be asked about them
+# under a canonical representation. Collected so the pipeline can say the input needs
+# `bcftools norm` instead of silently reporting those variants as absent from gnomAD.
+_unnormalised: set[str] = set()
+# How the last prime() actually resolved. `matched` counts real gnomAD rows; the pipeline's
+# safety net needs that, NOT the total, because a total join failure under mode=full still
+# writes a vouched-absence sentinel per variant and would otherwise look like full coverage.
+_stats: dict[str, int] = {"queried": 0, "matched": 0, "vouched_absent": 0}
+
+
+def _is_canonical(key: str) -> bool:
+    """True when a variant key's REF/ALT are minimal (no shared leading or trailing base).
+
+    A gnomAD store is keyed on normalised alleles. `1-100-CAGG-CG` and `1-100-CAG-C` are the
+    same biological deletion, and only the second will match — so treating the first as
+    "surveyed, found nothing" converts a representation difference into a positive false
+    observation. SNVs and already-trimmed indels are canonical by construction.
+    """
+    parts = key.split("-")
+    if len(parts) != 4:
+        return True
+    ref, alt = parts[2], parts[3]
+    if len(ref) == 1 and len(alt) == 1:          # SNV — always canonical
+        return True
+    if not ref or not alt:
+        return True
+    if ref[0] == alt[0] and len(ref) > 1 and len(alt) > 1:
+        return False                              # shared leading base -> untrimmed
+    return not (ref[-1] == alt[-1] and len(ref) > 1 and len(alt) > 1)
 
 
 def _get_duckdb():
@@ -54,6 +83,16 @@ def _norm_chrom(chrom: str) -> str:
     """Match the parquet's 'chr'-prefixed contig naming."""
     c = str(chrom)
     return c if c.lower().startswith("chr") else f"chr{c}"
+
+
+# The STORE's own contig column is normalised in SQL, not just the query. Every other client
+# tolerates both namings (gnomad_local tries both, clinvar strips, alphamissense tries both);
+# this was the one client allowed to VOUCH an absence and the only one assuming a single
+# naming. A store written with bare contigs ('1') therefore matched nothing while
+# `chrom in covered` stayed true, so mode=full wrote the absent sentinel for EVERY variant —
+# a whole exome of fabricated vouched absences, PM2 firing throughout, BA1/BS1 unable to fire.
+_CHROM_SQL = ("CASE WHEN lower(CAST(g.chrom AS VARCHAR)) LIKE 'chr%' "
+              "THEN CAST(g.chrom AS VARCHAR) ELSE 'chr' || CAST(g.chrom AS VARCHAR) END")
 
 
 def _q(path: str) -> str:
@@ -188,7 +227,7 @@ def prime(variants) -> int:
                    {col('ac')}, {col('an')}, {col('nhomalt')},
                    TRY_CAST({col('faf95')} AS DOUBLE), {col('grpmax_pop')}
             FROM q LEFT JOIN {src} g
-              ON g.chrom = q.chrom AND g.pos = q.pos
+              ON {_CHROM_SQL} = q.chrom AND g.pos = q.pos
              AND upper(g.ref) = q.ref AND upper(g.alt) = q.alt
         """).fetchall()
     except Exception:
@@ -210,7 +249,7 @@ def prime(variants) -> int:
     # present but not PASS: the variant EXISTS in gnomAD (so not absent -> no PM2), but its AF is
     # not filtering-AF-authoritative -> serve None so PM2/BA1/BS1 all read 'frequency unavailable'.
     filtered = {"af": None, "ac": None, "an": None, "hom": None, "faf95": None, "pop": None}
-    n = 0
+    n = matched = 0
     with _lock:
         for chrom, q_pos, key, g_pos, g_filter, af, af_grpmax, ac, an, nhomalt, faf95, pop in rows:
             if g_pos is not None:          # a gnomAD row matched at this locus
@@ -221,6 +260,16 @@ def prime(variants) -> int:
                 else:                      # present but filtered -> not absent, AF untrusted
                     _primed[key] = dict(filtered)
                 n += 1
+                matched += 1
+            elif not _is_canonical(key):
+                # An un-normalised allele (a shared leading/trailing base between REF and ALT)
+                # is a DIFFERENT STRING for the same biological variant. Coverage of a contig
+                # justifies vouching for a LOCUS, never for an arbitrary representation, so
+                # absence must not be asserted here — leave it unprimed and fall through.
+                # parse.py documents that indels are not left-aligned/trimmed and frames the
+                # cost as "keys won't match" (a miss); on a full/bed store the cost was a
+                # fabricated POSITIVE observation: a 31%-frequency indel read as surveyed-zero.
+                _unnormalised.add(key)
             elif mode == "full" and chrom in covered:
                 # a whole-exome/genome build vouches for this contig -> genuine absence.
                 _primed[key] = dict(absent)
@@ -230,12 +279,25 @@ def prime(variants) -> int:
                 _primed[key] = dict(absent)
                 n += 1
             # else -> leave unprimed so gnomad.lookup falls through (never a fake 0.0).
+        _stats["queried"] = len(rows)
+        _stats["matched"] = matched
+        _stats["vouched_absent"] = n - matched
     return n
 
 
 def get(key: str) -> Optional[dict]:
     """A primed frequency dict for a variant key, or None (fall through)."""
     return _primed.get(key)
+
+
+def stats() -> dict:
+    """How the last prime() resolved: queried / matched / vouched_absent."""
+    return dict(_stats)
+
+
+def unnormalised_keys() -> set:
+    """Variant keys skipped because their REF/ALT were not minimal (see _is_canonical)."""
+    return set(_unnormalised)
 
 
 def clear_primed() -> None:
@@ -251,11 +313,15 @@ def clear_primed() -> None:
     """
     with _lock:
         _primed.clear()
+        _unnormalised.clear()
+        _stats.update(queried=0, matched=0, vouched_absent=0)
 
 
 def _reset_for_tests() -> None:
     global _duckdb, _duckdb_tried
     with _lock:
         _primed.clear()
+        _unnormalised.clear()
+        _stats.update(queried=0, matched=0, vouched_absent=0)
         _bed_cache.clear()
         _duckdb, _duckdb_tried = None, False

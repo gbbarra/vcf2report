@@ -80,7 +80,12 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
   > mechanism (it drives the OBSCN/TTN drops in the examples). For real use, obtain
   > the full ABraOM SABE dataset from IB-USP (<http://abraom.ib.usp.br>) and populate
   > that file, or annotate the VCF with `ABraOM_AF`. A variant not in the table is
-  > treated as *unknown*, never a fabricated Brazilian absence.
+  > reported as *unknown* — the trail says "ABraOM not consulted", the criterion name
+  > drops the ABraOM leg, and PM2's confidence falls to moderate. It does **not** block
+  > PM2: absence from gnomAD is real evidence on its own, and requiring a Brazilian
+  > observation would disable the criterion everywhere the table is incomplete. With the
+  > demo stub that is essentially every variant, so read the ABraOM leg as *not yet
+  > applied* rather than as *checked and clear*.
 - **Calibrated AlphaMissense (optional).** Missense pathogenicity uses AlphaMissense
   (CC BY 4.0) at a **ClinGen-calibrated evidence strength** (PP3/BP4), validated to
   recover pathogenic missense **without** ever flipping a benign variant (below).

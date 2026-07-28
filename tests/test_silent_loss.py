@@ -359,13 +359,39 @@ def test_per_allele_frequency_is_not_broadcast_at_a_multiallelic_site(tmp_path):
     assert got == {"G": 0.42, "T": None}
 
 
-def test_per_site_faf95_still_applies_to_every_allele(tmp_path):
-    """fafmax_faf95_max is per-SITE in gnomAD v4.1 — the strict rule must not eat it."""
+def test_a_site_level_faf95_is_not_attributed_to_an_individual_allele(tmp_path):
+    """This test previously asserted the opposite, and the premise was wrong.
+
+    fafmax_faf95_max is per-SITE: the MAXIMUM filtering AF across the site's alleles. But
+    `_benign_af` returns faf95 ahead of the allele's own AF, so handing the site maximum to
+    every ALT called a rare allele Benign on a neighbour's frequency — an allele at AF 1e-5
+    met BA1 from a site faf95 of 0.29, in a trail that also reported PM2 ("absent from
+    population databases"). A filtering AF is derived from one allele's AC/AN, so a site
+    maximum cannot be attributed to a specific allele: leave it unset and let BA1/BS1 use
+    this allele's own AF."""
     p = _write(tmp_path, "faf.vcf", """
         chr1\t100\t.\tA\tG,T\t50\tPASS\tgnomad_AF=0.4,0.01;gnomad_faf95=0.3;GENE=X;CSQ=missense_variant\tGT:AD\t1/2:0,20,20\t
         """)
     got = {v.alt: from_vcf.extract(v).get("gnomad_faf95") for v in parse_vcf(p)[0]}
-    assert got == {"G": 0.3, "T": 0.3}
+    assert got == {"G": None, "T": None}
+
+
+def test_a_single_alt_site_still_uses_its_faf95(tmp_path):
+    """With one ALT the site value and the allele value are the same thing — the stricter
+    rule must not throw away the filtering AF that BA1/BS1 are calibrated on."""
+    p = _write(tmp_path, "faf1.vcf", """
+        chr1\t100\t.\tA\tG\t50\tPASS\tgnomad_AF=0.4;gnomad_faf95=0.3;GENE=X;CSQ=missense_variant\tGT:AD\t0/1:20,20\t
+        """)
+    assert from_vcf.extract(parse_vcf(p)[0][0])["gnomad_faf95"] == 0.3
+
+
+def test_a_per_allele_faf95_array_is_indexed_by_allele(tmp_path):
+    """An annotator that DOES emit one faf95 per ALT should be believed, per allele."""
+    p = _write(tmp_path, "faf2.vcf", """
+        chr1\t100\t.\tA\tG,T\t50\tPASS\tgnomad_AF=0.4,0.01;gnomad_faf95=0.3,0.008;GENE=X;CSQ=missense_variant\tGT:AD\t1/2:0,20,20\t
+        """)
+    got = {v.alt: from_vcf.extract(v).get("gnomad_faf95") for v in parse_vcf(p)[0]}
+    assert got == {"G": 0.3, "T": 0.008}
 
 
 def test_half_call_is_kept_as_a_flagged_het_not_dropped(tmp_path):
@@ -473,3 +499,68 @@ def test_a_filter_dropped_known_pathogenic_is_named(tmp_path):
     from vcf2report.report.render import _render_markdown_builtin, render_markdown
     for md in (render_markdown(r), _render_markdown_builtin(r)):
         assert "KCNQ2" in md
+
+
+# --------------------------------------------------------------------------------------
+# 19-22. The annotate-layer follow-ups: a store that cannot be asked must not answer.
+# --------------------------------------------------------------------------------------
+
+def test_a_multiallelic_site_does_not_share_its_clinvar_assertion(tmp_path):
+    """CLNSIG carries literal commas so it cannot be allele-indexed. Applying the site value
+    to every ALT was not a harmless approximation: a 21%-frequency synonymous allele inherited
+    a 2-star Pathogenic assertion, bypassed the rarity gate through filter.py's ClinVar P/LP
+    rescue, and reached the report's do-not-dismiss net."""
+    p = _write(tmp_path, "cvmulti.vcf", """
+        chr2\t166003360\t.\tC\tT,A\t50\tPASS\tGENE=SCN1A;CSQ=missense_variant;CLNSIG=Pathogenic;CLNREVSTAT=reviewed_by_expert_panel;gnomad_AF=0.00001,0.21\tGT:AD\t1/2:0,20,20\t
+        """)
+    for v in parse_vcf(p)[0]:
+        assert from_vcf.extract(v).get("clinvar_significance") is None
+
+
+def test_a_single_alt_site_still_reads_clinvar_from_info(tmp_path):
+    """The stricter rule must not disable the pre-annotated fast path for ordinary records."""
+    p = _write(tmp_path, "cvone.vcf", """
+        chr2\t166003360\t.\tC\tT\t50\tPASS\tGENE=SCN1A;CSQ=missense_variant;CLNSIG=Pathogenic;CLNREVSTAT=reviewed_by_expert_panel;gnomad_AF=0.00001\tGT:AD\t0/1:20,20\t
+        """)
+    got = from_vcf.extract(parse_vcf(p)[0][0])
+    assert got["clinvar_significance"] == "Pathogenic"
+
+
+@pytest.mark.parametrize("key,canonical", [
+    ("1-100-A-T", True),                 # SNV
+    ("1-100-CAG-C", True),               # already trimmed deletion
+    ("1-100-C-CAG", True),               # already trimmed insertion
+    ("1-100-CAGG-CG", False),            # shared leading AND trailing base
+    ("1-100-AGA-A", True),               # trimmed
+    ("1-100-CCA-CTA", False),            # shared leading base, both length>1
+])
+def test_untrimmed_alleles_are_recognised(key, canonical):
+    """A store is keyed on normalised alleles, so an un-normalised key is a different string
+    for the same variant. Vouching absence for it converts a representation difference into a
+    positive false observation — a 31%-frequency indel read as surveyed-zero."""
+    from vcf2report.annotate.gnomad_parquet import _is_canonical
+    assert _is_canonical(key) is canonical
+
+
+def test_pm2_does_not_claim_abraom_was_consulted_when_it_was_not():
+    """README promised a variant absent from the ABraOM table is treated as unknown. The
+    decision converted the honest None to 0.0, and the criterion name advertised both
+    databases — across the real inputs, 100% of PM2 grants rested on an unsurveyed leg.
+    PM2 still fires (gnomAD absence is real evidence) but no longer overstates its basis."""
+    from vcf2report.acmg.criteria import all_criteria
+
+    pm2 = all_criteria()["PM2"]
+    v = Variant(chrom="1", pos=1, ref="A", alt="T", gene="SCN1A")
+
+    unchecked = pm2(v, Annotation(gnomad_af=0.0, gnomad_an=152000, abraom_af=None))
+    assert unchecked.met is True                       # still fires on gnomAD alone
+    assert "ABraOM not consulted" in unchecked.name
+    assert unchecked.confidence == "moderate"
+    assert unchecked.evidence["abraom_checked"] is False
+
+    checked = pm2(v, Annotation(gnomad_af=0.0, gnomad_an=152000, abraom_af=0.0))
+    assert checked.met is True and "gnomAD + ABraOM" in checked.name
+    assert checked.confidence == "high" and checked.evidence["abraom_checked"] is True
+
+    common_in_brazil = pm2(v, Annotation(gnomad_af=0.0, gnomad_an=152000, abraom_af=0.032))
+    assert common_in_brazil.met is False               # the differentiator still works

@@ -391,11 +391,22 @@ def pm2(v: Variant, a: Annotation) -> CriterionResult:
     value-add: a variant absent from gnomAD but common in admixed Brazilians
     must NOT earn PM2, which prevents a real class of local misclassifications.
     """
-    name = "Absent or ultra-rare in population databases (gnomAD + ABraOM)"
+    # The name states which databases were ACTUALLY consulted for THIS variant. The Brazilian
+    # leg is the project's differentiator, but the shipped ABraOM table is a 2-variant demo
+    # stub, so on real input the leg is almost never surveyed — and a name promising
+    # "gnomAD + ABraOM" over a decision taken on gnomAD alone is the claim README makes and
+    # the code does not keep. Firing on gnomAD alone is right (absence there is real
+    # evidence); presenting it as a two-database result is not.
+    abraom_checked = a.abraom_af is not None
+    name = ("Absent or ultra-rare in population databases (gnomAD + ABraOM)" if abraom_checked
+            else "Absent or ultra-rare in population databases (gnomAD; ABraOM not consulted)")
     # gnomAD AF None means 'frequency unavailable' (lookup failed), NOT absence —
     # PM2 must not fire because we cannot assert the variant is rare.
     gnomad_unknown = a.gnomad_af is None
-    baf = a.abraom_af if a.abraom_af is not None else 0.0
+    # An unsurveyed ABraOM cannot BLOCK PM2 (that would disable the criterion wherever the
+    # Brazilian table is incomplete, i.e. almost everywhere), but it must not be reported as
+    # a checked zero either — see the confidence downgrade and the reasoning text below.
+    baf = a.abraom_af if abraom_checked else 0.0
     cites = [c for c in (a.source.get("gnomad"), a.source.get("abraom")) if c]
     if gnomad_unknown:
         return CriterionResult(
@@ -423,7 +434,12 @@ def pm2(v: Variant, a: Annotation) -> CriterionResult:
     return CriterionResult(
         "PM2", name, "moderate", applies=True, met=met,
         applied_strength=config.pm2_strength() if met else None,
+        # Rarity established on one population database rather than two is weaker evidence,
+        # and the reader should see that without reading the trail. Nothing decides on
+        # confidence — it is signal, not a gate.
+        confidence="high" if abraom_checked else "moderate",
         evidence={"gnomad_af": a.gnomad_af, "abraom_af": a.abraom_af,
+                  "abraom_checked": abraom_checked,
                   "ceiling": ceiling, "moi": moi, "strength_model": config.acmg_model()},
         citation=cites, reasoning=reason,
     )
