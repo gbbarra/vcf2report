@@ -182,6 +182,16 @@ Surface QC as its own step: the funnel (total → PASS → QC-passing → candid
 **gnomAD-store / coverage safety-net warning**. Code: from the run output / `report.qc`; Desktop:
 `parse_vcf` + `run_report`'s `report.qc`.
 
+**Two `report.qc` fields must never be dropped when they are non-empty** — they describe variants
+that are *not* in any candidate table, so if you omit them the reader has no other way to learn
+they exist:
+
+- **`qc.qc_rescued`** — variants QC removed on quality that ClinVar nevertheless classifies
+  Pathogenic / Likely Pathogenic. Render each verbatim, with the ⚠️ weight the Markdown report
+  gives them. This is the one place a *known* pathogenic allele can be missing from the laudo.
+- **`qc.near_splice_excluded`** — the count of rare splice-*adjacent* variants the impact filter
+  set aside by design. State it as a sensitivity limit of the shortlist, not as a QC statistic.
+
 ### 8 · 🤖 Laudo — the auditable report (Artifact)
 1. Read `<OUT>/<name>_report.md` (**Desktop:** use `run_report`'s inline `markdown`).
 2. Build a self-contained HTML laudo and publish it with the **Artifact** tool, using

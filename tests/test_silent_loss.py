@@ -458,3 +458,18 @@ def test_a_store_vouched_absence_is_not_mistaken_for_missing_coverage():
         variant=v, annotation=Annotation(gnomad_af=0.0, gnomad_ac=0, gnomad_an=125000),
         criteria=[], tier="Likely Pathogenic", rule_path="")
     assert is_hom_absent_artifact(surveyed) and not is_hom_gnomad_uncovered(surveyed)
+
+
+def test_a_filter_dropped_known_pathogenic_is_named(tmp_path):
+    """A caller FILTER is a categorical rejection, so the variant is correctly not re-admitted
+    as a candidate — but it must not vanish. A 3-star expert-panel ClinVar Pathogenic dropped
+    on FILTER used to leave no trace anywhere in the report."""
+    p = _write(tmp_path, "filterdrop.vcf", """
+        chr11\t2444000\t.\tC\tT\t50\tLowQual\tGENE=KCNQ2;CSQ=stop_gained;CLNSIG=Pathogenic;CLNREVSTAT=reviewed_by_expert_panel\tGT:AD:DP:GQ\t0/1:20,20:40:60\t
+        """)
+    r = run_pipeline(p)
+    assert "KCNQ2" not in [c.variant.gene for c in r.classifications]   # not re-admitted...
+    assert any("KCNQ2" in s and "FILTER=LowQual" in s for s in r.qc.qc_rescued)   # ...but named
+    from vcf2report.report.render import _render_markdown_builtin, render_markdown
+    for md in (render_markdown(r), _render_markdown_builtin(r)):
+        assert "KCNQ2" in md

@@ -107,7 +107,7 @@ bash scripts/fetch_syn_cohort.sh
 
 # v2 faithful/expanded:
 bash scripts/run_cohort_v2_loop.sh         # SYN-101..200 (detached, resumable)
-bash scripts/build_v2_biallelic.py --plan data/synthetic_cohort/v2_faithful_plan_101_200.json --out <dir>
+python3 scripts/build_v2_biallelic.py --plan data/synthetic_cohort/v2_faithful_plan_101_200.json --out <dir>
 bash scripts/fetch_syn_cohort_v2.sh        # or fetch the prebuilt v2 corpus
 ```
 

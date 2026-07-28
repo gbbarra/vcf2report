@@ -79,7 +79,7 @@ a real production bug plus two harness-fidelity issues that had inflated an earl
   gnomAD genomes but not exomes) was 0/12 empirically; a joint (exomes+genomes) MANE build
   closes it fully.
 - **CALIBRATED — PM2 Supporting is now the default (ClinGen SVI 2020).** A 200-case cohort
-  measured three combining configs (`scripts/model_compare.py`, method validated 15/15 recompute
+  measured three combining configs (a one-off comparison harness, method validated 15/15 recompute
   vs the real env): **(A)** Table-5 + PM2 *Moderate* (the old default) — 180/200 diagnostic,
   over-call median 3, healthy HG00097 3 P/LP incl. the two incidental *missense* calls DISP3 &
   HSPA12A; **(B)** the ClinGen/Tavtigian *points* combiner — floods over-call to median 13
@@ -370,7 +370,7 @@ session reproduce 177.
 | store | release | rows | built | subset method |
 |---|---|---:|---|---|
 | gnomAD | v4.1 (exomes, MANE-sliced) | 69,898,057 | frozen | AF fields only, MANE exome BED — `data/gnomad/NOTICE.md` |
-| AlphaMissense | hg38 2023 (CC BY-NC-SA 4.0) | 71,034,269 | 2026-07-22 | complete |
+| AlphaMissense | hg38 2023 (CC BY 4.0) | 71,034,269 | 2026-07-22 | complete |
 | ClinVar | GRCh38 weekly | 4,195,020 | 2026-07-14 | complete (ftp.ncbi ClinVar) |
 
 Reproduce: `bash scripts/fetch_benchmark.sh` → `bash scripts/setup_stores.sh` →
@@ -427,6 +427,11 @@ reproduced the consequence: a **gnomAD-common nonsense** (BS1 firing) reaching *
 on CADD alone, defeating the design intent stated in `acmg/rules.py` that *"PVS1 ALONE stays VUS —
 which is what keeps incidental het LoF from flooding a healthy exome."*
 
+> **The BS1 half of this is now fixed.** The conflicting-evidence gate keys on evidence rather than
+> on which rules fired, so a lone Strong-benign line can no longer be outvoted in silence:
+> `PVS1 + PP3 + PP4 + BS1` returns **VUS (conflicting)**, not Likely Pathogenic. Pinned by
+> `tests/test_conflict_gate.py`. The single-predictor PP3 question below is unaffected and open.
+
 Left unchanged deliberately: requiring two concordant predictors is a **calibration** decision, not
 a correctness fix, and its effect on sensitivity cannot be judged without running the 200-case
 benchmark. The AlphaMissense path (which takes precedence when present) is a single predictor *by
@@ -436,8 +441,10 @@ Two things to measure when the stores are available:
 
 1. `--compare` a run with PP3/BP4 requiring both predictors (when both exist) against the current
    177/200, watching the LoF subset specifically.
-2. Whether a lone **BS1** should engage the combiner's conflict check. Richards Table 5 defines no
-   rule for a single Strong-benign line, so `combine` currently ignores it when a pathogenic rule
-   fires — which is faithful to the guideline but lets Strong benign evidence be outvoted silently.
-   The ClinGen/Tavtigian points model (`VCF2REPORT_ACMG_MODEL=clingen`) scores BS1 at -4 and does
-   not have this gap; whether that should become the default is the same measurement.
+2. ~~Whether a lone **BS1** should engage the combiner's conflict check.~~ **Closed.** It now does:
+   Richards defaults to VUS when the *evidence* conflicts, not when two *rules* collide, and Table 5
+   simply has no rule for a single Strong-benign line. The gate fires when the side that reached no
+   rule still holds Strong-or-above evidence — deliberately not on any mixed evidence, so PM2
+   alongside BP4/BP6 still resolves to Likely Benign. What remains to measure is the effect on the
+   200-case benchmark: the change is strictly more conservative, so specificity should improve or
+   hold, but that is reasoning rather than measurement.

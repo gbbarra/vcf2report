@@ -37,27 +37,34 @@ Desktop **MCP server** (natural-language chat).
    (AlphaMissense is looked up lazily — only for the surviving candidates.)
 4. **filter** — funnel: rarity (gnomAD **and** ABraOM) → coding/splice impact →
    phenotype ranking. ClinVar P/LP bypass the funnel. Records ABraOM-specific drops.
-5. **acmg** — evaluate 20 of the 28 criteria (the rest need trio/segregation/
-   phasing data unavailable from a single proband and are reported N/A), apply
-   the combining rules → 5-tier call
-   with the full auditable trail.
+5. **acmg** — evaluate all 28 criteria: **17 decided by the engine**, **5 surfaced for
+   expert/model adjudication** (PS3, PS4, BS3, BP3, BP5 — they need wet-lab or whole-case
+   data), and **6 reported N/A** (PS2, PM3, PM6, PP1, BP2, BS4 — trio / segregation /
+   phasing, unavailable from a single proband). Then apply the combining rules → 5-tier
+   call with the full auditable trail. Conflicting evidence defaults to VUS, including
+   when the losing side holds Strong-or-above evidence that reaches no Table 5 rule.
 6. **report** — assemble a `ReportModel`, render Markdown (native in Claude Desktop).
 
 ## Real APIs + local fallback
 
-Each annotator resolves: on-disk cache (`data/cache/`) → live API (unless
-`OFFLINE=1`) → bundled local snapshot. The live gnomAD (GraphQL) and ClinVar
-(E-utilities) clients use only the standard library (`urllib`), so real calls need
-no extra dependency. Set `OFFLINE=1` to force cache/local-only.
+**Network is opt-in, not opt-out.** Nothing leaves the machine unless
+`VCF2REPORT_ALLOW_NETWORK=1` is set; the default run is fully offline.
+
+Each annotator resolves **authoritative local sources first**: Parquet store → local
+tabix → on-disk cache (`data/cache/`) → live API (only when network is enabled) →
+bundled local snapshot → `unknown`. The cache sits *after* the local stores on purpose —
+it is a flat unversioned JSON and must never shadow a fresh Parquet/tabix answer. The
+live gnomAD (GraphQL) and ClinVar (E-utilities) clients use only the standard library
+(`urllib`), so real calls need no extra dependency.
 `scripts/warm_cache.py` pre-fills the cache so a demo is network-independent while
 the code stays capable of real calls.
 
 | Source | Live | Local fallback |
 |---|---|---|
 | gnomAD | GraphQL (`gnomad_r4`) | `data/gnomad/gnomad_cache.json` |
-| ClinVar | NCBI (full local store) | `data/clinvar/clinvar_grch38.tsv.gz` (tabix, ~4.2M variants, offline; built by `scripts/build_clinvar_local.py`) + optional live E-utilities |
+| ClinVar | NCBI (full local store) | `data/clinvar/clinvar_grch38_slice.tsv` (tabix, ~4.2M variants, offline; built by `scripts/build_clinvar_local.py`) + optional live E-utilities |
 | ABraOM | — (static dataset) | `data/abraom/abraom_sabe.tsv` — **demo stub (2 variants); full ABraOM SABE not installed yet, obtain from IB-USP** |
-| HPO | ontology.jax.org | `data/hpo/genes_to_phenotype.tsv` |
+| HPO | ontology.jax.org | `data/hpo/genes_to_phenotype.tsv.gz` |
 
 ## Auditability
 

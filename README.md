@@ -66,10 +66,11 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
 ### What makes it different
 
 - **Auditable ACMG, not a black box.** You see *why* a variant is Pathogenic — the
-  ~20 criteria determinable from a single-proband VCF are evaluated deterministically
-  (including the missense criteria **PP2/BP1** and **PS1/PM5**, now data-driven — see
-  below); the trio/segregation/phasing ones (PS2/PM3/PM6/…) are honestly marked **N/A**;
-  the residual judgment calls (PS3/PS4/PM1) are tagged for expert/model review.
+  **17** criteria determinable from a single-proband VCF are evaluated deterministically
+  (including the missense criteria **PP2/BP1** and **PS1/PM5/PM1**, now data-driven — see
+  below); the trio/segregation/phasing ones (PS2/PM3/PM6/PP1/BP2/BS4) are honestly marked
+  **N/A**; the residual judgment calls (PS3/PS4/BS3/BP3/BP5) are tagged for expert/model
+  review.
 - **Brazilian population frequencies (ABraOM).** Alongside gnomAD it checks the
   ABraOM (SABE) admixed-Brazilian cohort, so a variant *absent from gnomAD but
   common in Brazilians* is correctly dropped — the report names the spurious
@@ -108,14 +109,17 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
   `scripts/fetch_gnomad_parquet.sh` (download a checksummed copy) **or**
   `scripts/build_gnomad_parquet.py` (rebuild from the public bucket — prove it on one
   chromosome in minutes). A reduced-tabix path (`build_gnomad_local.py`) and GRCh37
-  liftover (`liftover_to_grch38.py`) also exist. A safety model makes a false-absence
-  impossible (partial stores never assert absence; a configured-but-missing store warns
-  loudly instead of silently over-calling). See
+  liftover (`liftover_to_grch38.py`) also exist. A safety model attacks false absences at
+  the point the tool controls: a partial store never asserts absence, a matched non-PASS
+  record serves "unavailable" rather than a fabricated zero, and a configured-but-missing
+  store warns loudly instead of silently over-calling. (The *store itself* can still be
+  incomplete — the shipped build is exomes-only, so a variant present in gnomAD genomes
+  alone reads as absent; measured and tracked in BENCHMARK.) See
   [docs/LOCAL_ANNOTATION.md](docs/LOCAL_ANNOTATION.md) · gnomAD ODbL-1.0:
   [data/gnomad/NOTICE.md](data/gnomad/NOTICE.md).
 - **Private by default.** Runs fully offline on bundled data; the VCF never leaves
   the machine, and outbound lookups are opt-in (`VCF2REPORT_ALLOW_NETWORK=1`).
-- **Auditable & tested.** 246 automated tests; the classification logic is validated
+- **Auditable & tested.** The classification logic is validated
   against real ClinVar ground truth (below) and was hardened by multi-agent
   adversarial review.
 
@@ -166,7 +170,7 @@ python3 -m pip install -e .            # core engine (only dependency: jinja2)
 
 That is enough to run the offline demo below — **all databases for it are already
 bundled** in `data/` (a tiny ClinVar fallback slice, gnomAD snapshot, ABraOM, HPO,
-gene constraint, in-silico; ~2 MB total, no download).
+gene constraint, in-silico; ~7 MB total, no download).
 
 ### Data stores — REQUIRED for real-exome analysis
 
@@ -182,7 +186,7 @@ bash scripts/setup_stores.sh
 |---|---|---|
 | **gnomAD v4.1** | ~1.3 GB | pre-built GitHub release — `fetch_gnomad_parquet.sh` (checksummed, frozen) |
 | **ClinVar GRCh38** | ~60 MB | pre-built GitHub release — `fetch_clinvar_parquet.sh` (checksummed, rebuilt **weekly**) |
-| **AlphaMissense hg38** | ~1 GB | fetched from DeepMind + built locally — **CC BY-NC-SA 4.0, not redistributed** |
+| **AlphaMissense hg38** | ~1 GB | fetched from DeepMind + built locally — **CC BY 4.0, not redistributed** |
 
 Prereqs: `gh` (GitHub CLI), `zstd`, and `duckdb` (`pip install duckdb`); AlphaMissense also needs
 htslib/tabix (`brew install htslib` / `conda install -c bioconda htslib`). Check each store's
@@ -218,11 +222,12 @@ python3 scripts/run_headless.py
 
 ```
 Report written to data/out/sample_exome_report.md
+  explorable data: data/out/sample_exome_results.json
   candidates classified: 5
   - SCN1A: Pathogenic
+  - KCNQ2: Likely Pathogenic
   - PAX6: Likely Pathogenic
   - RB1: Likely Pathogenic
-  - KCNQ2: Uncertain Significance (VUS)
   - CACNA1A: Uncertain Significance (VUS)
 ```
 
@@ -313,7 +318,7 @@ GA4GH Phenopackets.
 
 ```bash
 python3 -m pip install -e ".[dev]"
-python3 -m pytest -q        # 246 tests
+python3 -m pytest -q
 ```
 
 ## License

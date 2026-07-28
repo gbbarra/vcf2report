@@ -134,3 +134,37 @@ def test_reserved_simulation_codes_are_not_real_criteria():
         assert code not in all_criteria()
     assert rules.side_of(rules.HYPOTHETICAL_BENIGN) == "benign"
     assert rules.side_of(rules.HYPOTHETICAL_PATHOGENIC) == "pathogenic"
+
+
+def _codes_in(text, prefix_ok=("PVS", "PS", "PM", "PP", "BA", "BS", "BP")):
+    import re
+    return {c for c in re.findall(r"\b(?:PVS|PS|PM|PP|BA|BS|BP)\d\b", text)}
+
+
+def test_rendered_report_criterion_lists_match_the_registry():
+    """The laudo's own limitations section enumerates the N/A and judgment criteria. Both lists
+    were hand-written and both drifted: the Jinja template named 5 N/A codes (BP2 missing) and
+    listed PM1/PM5/PP2 as judgment criteria while the criterion table three lines above printed
+    `engine` for all three. Pin both against the registry, in BOTH renderers."""
+    import pathlib
+
+    from vcf2report.models import Annotation, Variant
+    from vcf2report.acmg.engine import evaluate_criteria
+
+    results = evaluate_criteria(Variant(chrom="1", pos=1, ref="A", alt="T"), Annotation())
+    na = {c.code for c in results if not c.applies}
+    model = {c.code for c in results if c.applies and c.adjudicated_by == "model"}
+
+    template = pathlib.Path("templates/report.md.j2").read_text()
+    for line in template.splitlines():
+        if "reported as N/A" in line:
+            assert _codes_in(line) == na, f"template N/A list {_codes_in(line)} != registry {na}"
+        if "Judgment criteria" in line:
+            assert _codes_in(line) == model, \
+                f"template judgment list {_codes_in(line)} != registry {model}"
+
+    from vcf2report.report import render
+    builtin = pathlib.Path(render.__file__).read_text()
+    for line in builtin.splitlines():
+        if "reported as N/A" in line:
+            assert _codes_in(line) == na, f"builtin renderer N/A list != registry {na}"

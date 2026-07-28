@@ -34,13 +34,17 @@ def passes_qc(v: Variant) -> tuple[bool, str]:
 
 
 def is_metric_drop(reason: str) -> bool:
-    """True when a variant was dropped for a *borderline quantitative* reason (DP/GQ/AB).
+    """True when a variant was dropped for a reason worth re-checking against ClinVar.
 
-    These are the recoverable drops: the call exists and the proband carries it, it just
-    sits under a threshold. A non-carrier genotype or an explicit caller FILTER is a
-    categorical rejection and is not reconsidered.
+    The proband carries the allele and the call exists — it was removed on quality, either
+    a borderline metric (DP/GQ/AB) or the caller's own FILTER. Neither is reconsidered for
+    the candidate list; the point is that such a drop must not be able to delete a *known*
+    pathogenic variant from the report in silence (see pipeline._qc_rescue).
+
+    A non-carrier genotype is different in kind: there is no allele to report, so it is
+    excluded here.
     """
-    return reason.startswith(("DP=", "GQ=", "AB="))
+    return reason.startswith(("DP=", "GQ=", "AB=", "FILTER="))
 
 
 def apply_qc(variants: list[Variant]) -> tuple[list[Variant], list[tuple[Variant, str]]]:

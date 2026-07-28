@@ -89,7 +89,7 @@ Reproduce both: `VCF2REPORT_ACMG_MODEL=clingen python scripts/run_concordance.py
 > **Read "equally safe" as a statement about this panel, not about the combiner.** The panel
 > cannot exercise most of where the two models diverge: with ClinVar withheld and no phenotype,
 > PP4, PP5, PS1, PM1, PM5 and BA1 never fire, and PM2 — which fires on 194 of 200 entries — is
-> mutually exclusive with BS1. Only 3 entries carry a Strong benign line at all, and 68 carry
+> mutually exclusive with BS1. Only 2 entries carry a Strong benign line at all, and 68 carry
 > exactly one benign line of any strength. Across randomly sampled criterion states the two
 > models disagree far more often than the table suggests, with two-tier gaps in both directions.
 > The agreement above is real and worth having; it is evidence about *these 200 variants*, not

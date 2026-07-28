@@ -15,6 +15,12 @@ and NOT for clinical diagnosis.**
   the engine, 5 left for expert/model adjudication, 6 reported N/A. See
   [ACMG_CRITERIA.md](ACMG_CRITERIA.md) for the per-criterion breakdown, the data
   behind each engine decision, and the documented approximations.
+- **AlphaMissense** predictions (`AlphaMissense_hg38.tsv.gz`, © Google DeepMind) are used
+  under **CC BY 4.0** — attribution required, no non-commercial restriction. They were
+  relicensed from CC BY-NC-SA 4.0 in March 2024; that older licence still applies to the
+  separate AlphaMissense **Database** (AlphaFold structures with scores, Zenodo 10255502),
+  which this project does not use. The file is downloaded by the operator and never
+  redistributed here.
 - The bundled sample data is **synthetic and de-identified** — not real patient
   data. Gene/variant coordinates in the sample are illustrative.
 - No patient-identifying information should be committed to this repository or sent

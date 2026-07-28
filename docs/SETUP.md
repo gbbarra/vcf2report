@@ -58,7 +58,7 @@ bash scripts/setup_stores.sh
 ```
 
 Downloads the **gnomAD v4.1 + ClinVar** Parquet stores (pre-built, checksummed GitHub releases)
-and builds **AlphaMissense** locally (CC BY-NC-SA 4.0 — not redistributed). Verify each store's
+and builds **AlphaMissense** locally (CC BY 4.0 — not redistributed). Verify each store's
 availability / version / build date / integrity anytime with `python3 scripts/check_stores.py`.
 (Skip it to run the **offline synthetic demo** — the bundled `data/` already has everything for that.)
 
@@ -109,10 +109,38 @@ setup, the MCP tool descriptions still drive the flow.
    tools for up-to-the-minute confirmation.
 5. Review, correct, and sign out in the lab's template.
 
+## Environment variables
+
+All optional. Paths default to `data/` inside the repo; set these to put a multi-GB store on
+another disk, or to point at a lab-specific build.
+
+| Variable | Purpose |
+|---|---|
+| `VCF2REPORT_ALLOW_NETWORK=1` | Enable live gnomAD/ClinVar lookups. **Off by default** — nothing leaves the machine unless you set this. (`OFFLINE=1` forces offline regardless.) |
+| `VCF2REPORT_DATA` | Root of the bundled/downloaded databases. |
+| `VCF2REPORT_OUT` | Default output directory for reports. |
+| `VCF2REPORT_CACHE` | On-disk lookup cache. |
+| `VCF2REPORT_TEMPLATES` | Directory holding `report.md.j2` — point this at your lab's own sign-out layout. |
+| `VCF2REPORT_GNOMAD_PARQUET` / `VCF2REPORT_GNOMAD_TABIX` | gnomAD store overrides. |
+| `VCF2REPORT_CLINVAR_PARQUET` / `VCF2REPORT_CLINVAR_RESIDUE` | ClinVar per-variant and residue-index store overrides. |
+| `VCF2REPORT_ALPHAMISSENSE` / `VCF2REPORT_ALPHAMISSENSE_PARQUET` | AlphaMissense store overrides. |
+| `VCF2REPORT_ACMG_MODEL` | `richards` (default) or `clingen` — see [CONCORDANCE.md](CONCORDANCE.md). |
+| `VCF2REPORT_PM2_STRENGTH` | Override PM2's strength (default `supporting`). |
+| `NCBI_API_KEY` / `NCBI_EMAIL` | Raise NCBI E-utilities rate limits when network is enabled. |
+
+`tests/test_docs_reality.py` asserts this table stays in step with what the code reads.
+
 ## Which tools the MCP server exposes
 
-`data_status`, `annotate_and_report`, `run_report`, `parse_vcf`,
-`classify_variant`, `gnomad_frequency`, `clinvar_lookup`, `abraom_frequency`,
-`hpo_phenotype_match`. Bulk annotation is local (fast, private); the live
-gnomAD/ClinVar tools are for last-mile freshness on the shortlist — see
-[ANNOTATION.md](ANNOTATION.md) for why local scales and live doesn't.
+**Pipeline:** `parse_vcf`, `annotate_vcf`, `annotate_and_report`, `run_report`,
+`classify_variant`.
+**Per-variant lookups:** `gnomad_frequency`, `clinvar_lookup`, `abraom_frequency`,
+`hpo_phenotype_match`.
+**Environment:** `data_status`, `check_stores`, `inspect_vcf`, `analysis_capabilities`.
+**Exploring a finished report:** `explore_case`, `explore_gene`,
+`explore_missing_evidence`, `explore_evidence_sources`.
+
+Bulk annotation is local (fast, private); the live gnomAD/ClinVar tools are for
+last-mile freshness on the shortlist — see [ANNOTATION.md](ANNOTATION.md) for why
+local scales and live doesn't. `tests/test_mcp_explore.py` asserts this list stays
+in step with what the server actually registers.
