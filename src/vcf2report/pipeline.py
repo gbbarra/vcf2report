@@ -175,7 +175,7 @@ def run_pipeline(
         build_trusted = False
         qc.warnings.append(
             f"VCF build detected as {build}, expected {config.GENOME_BUILD}; "
-            "coordinate-based annotation (gnomAD/ClinVar/ABraOM) was SKIPPED — "
+            "coordinate-based annotation (gnomAD/ClinVar/local cohort) was SKIPPED — "
             "re-lift to GRCh38 before clinical use."
         )
     if build is None:
@@ -266,7 +266,7 @@ def run_pipeline(
     qc.after_rarity = funnel.after_rarity
     qc.after_impact = funnel.after_impact
     qc.candidates = funnel.candidates
-    qc.abraom_filtered = funnel.abraom_filtered
+    qc.local_cohort_filtered = funnel.local_cohort_filtered
     qc.near_splice_excluded = funnel.near_splice_excluded
     _mark("filter_s")
 

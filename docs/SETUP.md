@@ -103,7 +103,7 @@ setup, the MCP tool descriptions still drive the flow.
    - already annotated (ANN/CSQ or gnomAD in INFO) → classify directly;
    - raw VCF + tools + a GRCh38 reference → annotate locally (SnpEff + vcfanno)
      first.
-3. Get the draft report inline (tiers, auditable ACMG per variant, ABraOM
+3. Get the draft report inline (tiers, auditable ACMG per variant, local cohort
    callout, per-stage timings).
 4. Drill into any candidate with the live `clinvar_lookup` / `gnomad_frequency`
    tools for up-to-the-minute confirmation.
@@ -134,7 +134,7 @@ another disk, or to point at a lab-specific build.
 
 **Pipeline:** `parse_vcf`, `annotate_vcf`, `annotate_and_report`, `run_report`,
 `classify_variant`.
-**Per-variant lookups:** `gnomad_frequency`, `clinvar_lookup`, `abraom_frequency`,
+**Per-variant lookups:** `gnomad_frequency`, `clinvar_lookup`, `local_cohort_frequency`,
 `hpo_phenotype_match`.
 **Environment:** `data_status`, `check_stores`, `inspect_vcf`, `analysis_capabilities`.
 **Exploring a finished report:** `explore_case`, `explore_gene`,

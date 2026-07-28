@@ -19,10 +19,10 @@ disclaimers stay consistent; adjust wording to the lab's style in
   versions/dates, and a prominent **"DRAFT — not for clinical use"** banner.
 - **Clinical context:** indication + patient HPO terms.
 - **QC & filtering funnel:** the variant counts at each step, including the
-  **ABraOM (Brazilian-frequency) filtering** callout — name the variants a
+  **local-cohort filtering** callout (when a cohort is configured) — name the variants a
   gnomAD-only pipeline would have wrongly kept.
 - **Reportable findings table:** gene, HGVS (c. and p.), zygosity, consequence,
-  ClinVar, gnomAD AF, ABraOM AF, phenotype match, final ACMG tier.
+  ClinVar, gnomAD AF, local cohort AF, phenotype match, final ACMG tier.
 - **Per-variant ACMG rationale:** include the auditable criterion table
   **verbatim** — code, met/not/N-A, strength, evidence value, source, engine-vs-
   model, reasoning — plus the combining-rule path to the tier. This is the point

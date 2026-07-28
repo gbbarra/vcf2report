@@ -57,7 +57,7 @@ def test_pvs1_tree_gated_on_exon():
 # Criterion wiring (applied_strength + met)
 # ---------------------------------------------------------------------------
 def _ann(**kw):
-    base = dict(gene_lof_intolerant=True, abraom_af=0.0, gnomad_af=0.0,
+    base = dict(gene_lof_intolerant=True, local_cohort_af=0.0, gnomad_af=0.0,
                 gnomad_faf95=0.0, source={})
     base.update(kw)
     return Annotation(**base)

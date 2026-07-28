@@ -26,7 +26,7 @@ def _pick(x: Optional[str], idx: int, n_alts: int = 1, per_allele: bool = False
     """The idx-th comma element of a multi-value INFO field.
 
     ``per_allele=True`` marks a VCF ``Number=A`` field — gnomAD AF/AC/AN/nhomalt and
-    ABraOM AF, one value per ALT. For those, a LONE value at a multiallelic site is not a
+    local cohort AF, one value per ALT. For those, a LONE value at a multiallelic site is not a
     site-wide constant: it means the annotator resolved only one allele, and applying it to
     the others hands ALT #2 ALT #1's frequency (a rare allele inheriting a common one's AF
     can flip BA1/BS1). Return None so the caller falls back to the local snapshot.
@@ -121,9 +121,9 @@ def extract(variant: Variant) -> dict:
             if n == 1 or per_allele_faf:
                 out["gnomad_faf95"] = _num(faf, i, n, per_allele=per_allele_faf)
 
-    abaf = _first(info, A["abraom_af"])
+    abaf = _first(info, A["local_cohort_af"])
     if abaf is not None:
-        out["abraom_af"] = _num(abaf, i, n, per_allele=True)
+        out["local_cohort_af"] = _num(abaf, i, n, per_allele=True)
 
     # ClinVar CLNSIG/CLNREVSTAT contain literal commas (e.g. "Pathogenic,_low_
     # penetrance"), so they cannot be comma-indexed by allele the way the numeric

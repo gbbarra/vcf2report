@@ -113,14 +113,15 @@ The single strongest match (`hpo_best_match`) is reported for context but decide
 unrelated phenotype clears the max on one broad term far too often, and switching routing off the
 max cut the decoy false-match rate from 62% to 22% (see BENCHMARK).
 
-**ABraOM (Brazilian frequencies).** The SABE admixed-Brazilian cohort is checked alongside
-gnomAD: a variant absent from gnomAD but common in Brazilians must **not** earn PM2 — a real,
-local source of misclassification the tool guards against. A miss returns `None` (unknown), never
-a fabricated Brazilian absence. **Note — the full ABraOM dataset is not installed yet:** the repo
-ships only a 2-variant demo stub (`data/abraom/abraom_sabe.tsv`) that demonstrates the mechanism
-(the OBSCN/TTN drops in the examples). Real use requires the full ABraOM SABE from IB-USP
-(<http://abraom.ib.usp.br>) or `ABraOM_AF` in the VCF INFO; the mechanism is implemented, the
-population coverage is not yet loaded.
+**Local cohort — a slot for your own population.** Population databases are dominated by a
+few ancestries, so a variant that is rare or absent in gnomAD can be common in the population
+a lab actually serves — and rarity is exactly what earns PM2. An operator-supplied cohort is
+checked alongside gnomAD: a locally common variant must **not** earn PM2, and can trigger
+BA1/BS1. A miss returns `None` (unknown), never a fabricated local absence, and PM2's name
+and confidence say whether the leg was consulted at all. **This project ships no cohort** —
+the mechanism is here, the data is the operator's to supply under whatever terms govern it,
+via `VCF2REPORT_LOCAL_COHORT` (a `key⇥af⇥ac⇥an` TSV) or a `LOCAL_AF` INFO field. Nothing is
+downloaded and nothing is redistributed.
 
 **Gene constraint & pre-annotated INFO.** gnomAD LoF constraint (pLI ≥0.9 / LOEUF <0.35) drives
 **PVS1**; the same per-gene table's *missense* constraint drives the two missense criteria. **PP2**
@@ -193,7 +194,7 @@ gnomAD prime(one DuckDB join over the whole set) → annotate → filter →
 AlphaMissense(candidates only) → classify(ACMG) → build report
 ```
 
-The **filter funnel** keeps variants that are rare (max gnomAD/ABraOM AF ≤ 0.005) **and**
+The **filter funnel** keeps variants that are rare (max gnomAD/local cohort AF ≤ 0.005) **and**
 coding/splice — but **ClinVar P/LP bypasses rarity and impact**, so a known pathogenic variant is
 never dropped *by the filter*.
 

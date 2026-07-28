@@ -15,7 +15,7 @@ data; you **explain** them and **adjudicate** the judgment criteria.
 
 ## Division of labour
 - **Engine decides (adjudicated_by=engine):** PVS1 (LoF mechanics + gene
-  constraint), PM2 (gnomAD **and** ABraOM absence), PM4, PP3/BP4 (in-silico
+  constraint), PM2 (gnomAD **and** local cohort absence), PM4, PP3/BP4 (in-silico
   cutoffs, mutually exclusive), PP4 (HPO match), PP5 (reviewed ClinVar P/LP as a
   *supporting* reputable-source line), BA1/BS1/BS2 (frequency), BP7.
 - **You adjudicate (adjudicated_by=model):** PS1 (same aa change as a *different*

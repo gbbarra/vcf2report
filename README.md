@@ -71,21 +71,20 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
   below); the trio/segregation/phasing ones (PS2/PM3/PM6/PP1/BP2/BS4) are honestly marked
   **N/A**; the residual judgment calls (PS3/PS4/BS3/BP3/BP5) are tagged for expert/model
   review.
-- **Brazilian population frequencies (ABraOM).** Alongside gnomAD it checks the
-  ABraOM (SABE) admixed-Brazilian cohort, so a variant *absent from gnomAD but
-  common in Brazilians* is correctly dropped — the report names the spurious
-  candidates a gnomAD-only pipeline would have kept.
-  > ⚠️ **The full ABraOM dataset is not installed yet.** The repo ships only a
-  > **2-variant demo stub** (`data/abraom/abraom_sabe.tsv`) to demonstrate the
-  > mechanism (it drives the OBSCN/TTN drops in the examples). For real use, obtain
-  > the full ABraOM SABE dataset from IB-USP (<http://abraom.ib.usp.br>) and populate
-  > that file, or annotate the VCF with `ABraOM_AF`. A variant not in the table is
-  > reported as *unknown* — the trail says "ABraOM not consulted", the criterion name
-  > drops the ABraOM leg, and PM2's confidence falls to moderate. It does **not** block
-  > PM2: absence from gnomAD is real evidence on its own, and requiring a Brazilian
-  > observation would disable the criterion everywhere the table is incomplete. With the
-  > demo stub that is essentially every variant, so read the ABraOM leg as *not yet
-  > applied* rather than as *checked and clear*.
+- **A slot for your own population.** Population databases are dominated by a few
+  ancestries, so a variant that is rare in gnomAD can be common in the population your
+  lab actually serves — and rarity is exactly what earns PM2. The engine consults an
+  **operator-supplied local cohort** alongside gnomAD: a locally common variant is
+  blocked from PM2 and can trigger BA1/BS1, and the report names the spurious candidates
+  a gnomAD-only pipeline would have kept.
+  > **No cohort ships with this project** — the mechanism is here, the data is yours to
+  > supply under whatever terms govern it. Nothing is downloaded, nothing is
+  > redistributed. Point `VCF2REPORT_LOCAL_COHORT` at a TSV (`key⇥af⇥ac⇥an`) or write a
+  > `LOCAL_AF` INFO field in your own annotation step; see
+  > [`src/vcf2report/annotate/local_cohort.py`](src/vcf2report/annotate/local_cohort.py).
+  > Without one, PM2 decides on gnomAD alone, the criterion name says so, and its
+  > confidence drops to moderate — a variant absent from the table is reported as
+  > **unknown**, never as a checked zero.
 - **Calibrated AlphaMissense (optional).** Missense pathogenicity uses AlphaMissense
   (CC BY 4.0) at a **ClinGen-calibrated evidence strength** (PP3/BP4), validated to
   recover pathogenic missense **without** ever flipping a benign variant (below).
@@ -174,7 +173,7 @@ python3 -m pip install -e .            # core engine (only dependency: jinja2)
 ```
 
 That is enough to run the offline demo below — **all databases for it are already
-bundled** in `data/` (a tiny ClinVar fallback slice, gnomAD snapshot, ABraOM, HPO,
+bundled** in `data/` (a tiny ClinVar fallback slice, gnomAD snapshot, HPO,
 gene constraint, in-silico; ~7 MB total, no download).
 
 ### Data stores — REQUIRED for real-exome analysis
@@ -228,12 +227,13 @@ python3 scripts/run_headless.py
 ```
 Report written to data/out/sample_exome_report.md
   explorable data: data/out/sample_exome_results.json
-  candidates classified: 5
+  candidates classified: 6
   - SCN1A: Pathogenic
   - KCNQ2: Likely Pathogenic
   - PAX6: Likely Pathogenic
   - RB1: Likely Pathogenic
   - CACNA1A: Uncertain Significance (VUS)
+  - OBSCN: Uncertain Significance (VUS)
 ```
 
 Open `data/out/sample_exome_report.md` to read the full auditable report.
@@ -291,7 +291,7 @@ Terminal      ── scripts/run_headless.py ───────────�
                           vcf2report package
                           parse ▸ qc ▸ annotate ▸ filter ▸ ACMG ▸ report
                           ├─ live APIs (opt-in): gnomAD, ClinVar, HPO
-                          └─ local: ClinVar slice, gnomAD cache, ABraOM,
+                          └─ local: ClinVar slice, gnomAD cache,
                              HPO, gene constraint, AlphaMissense
 ```
 
@@ -329,4 +329,5 @@ python3 -m pytest -q
 ## License
 
 MIT (see [LICENSE](LICENSE)). Bundled/optional datasets keep their own licenses
-(AlphaMissense CC BY 4.0; ClinVar/gnomAD/HPO public; ABraOM per its terms).
+(AlphaMissense CC BY 4.0; ClinVar/gnomAD/HPO public). No population cohort is
+redistributed here.

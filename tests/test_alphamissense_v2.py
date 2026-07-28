@@ -17,7 +17,7 @@ from vcf2report.models import Annotation, Variant
 
 
 def _ann(**kw) -> Annotation:
-    base = dict(gene_lof_intolerant=False, abraom_af=0.0,
+    base = dict(gene_lof_intolerant=False, local_cohort_af=0.0,
                 source={"alphamissense": "test", "insilico": "test"})
     base.update(kw)
     return Annotation(**base)

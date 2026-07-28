@@ -542,8 +542,8 @@ def test_untrimmed_alleles_are_recognised(key, canonical):
     assert _is_canonical(key) is canonical
 
 
-def test_pm2_does_not_claim_abraom_was_consulted_when_it_was_not():
-    """README promised a variant absent from the ABraOM table is treated as unknown. The
+def test_pm2_does_not_claim_local_cohort_was_consulted_when_it_was_not():
+    """README promised a variant absent from the local cohort table is treated as unknown. The
     decision converted the honest None to 0.0, and the criterion name advertised both
     databases — across the real inputs, 100% of PM2 grants rested on an unsurveyed leg.
     PM2 still fires (gnomAD absence is real evidence) but no longer overstates its basis."""
@@ -552,15 +552,15 @@ def test_pm2_does_not_claim_abraom_was_consulted_when_it_was_not():
     pm2 = all_criteria()["PM2"]
     v = Variant(chrom="1", pos=1, ref="A", alt="T", gene="SCN1A")
 
-    unchecked = pm2(v, Annotation(gnomad_af=0.0, gnomad_an=152000, abraom_af=None))
+    unchecked = pm2(v, Annotation(gnomad_af=0.0, gnomad_an=152000, local_cohort_af=None))
     assert unchecked.met is True                       # still fires on gnomAD alone
-    assert "ABraOM not consulted" in unchecked.name
+    assert "local cohort not consulted" in unchecked.name
     assert unchecked.confidence == "moderate"
-    assert unchecked.evidence["abraom_checked"] is False
+    assert unchecked.evidence["local_cohort_checked"] is False
 
-    checked = pm2(v, Annotation(gnomad_af=0.0, gnomad_an=152000, abraom_af=0.0))
-    assert checked.met is True and "gnomAD + ABraOM" in checked.name
-    assert checked.confidence == "high" and checked.evidence["abraom_checked"] is True
+    checked = pm2(v, Annotation(gnomad_af=0.0, gnomad_an=152000, local_cohort_af=0.0))
+    assert checked.met is True and "gnomAD + local cohort" in checked.name
+    assert checked.confidence == "high" and checked.evidence["local_cohort_checked"] is True
 
-    common_in_brazil = pm2(v, Annotation(gnomad_af=0.0, gnomad_an=152000, abraom_af=0.032))
+    common_in_brazil = pm2(v, Annotation(gnomad_af=0.0, gnomad_an=152000, local_cohort_af=0.032))
     assert common_in_brazil.met is False               # the differentiator still works

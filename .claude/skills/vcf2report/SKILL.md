@@ -207,7 +207,7 @@ they exist:
      Claude exploration") → Other. The template's `{{BUCKET}}` lists all five.
    - In each met **PVS1** row, carry the mechanism basis (constraint / ClinGen HI=3 / AR phenotype).
 3. Give the Artifact link + a 2–3 line summary: the primary finding, any **carrier** or
-   **probable-pathogenic VUS** worth follow-up, secondary/ACMG-SF, any ABraOM-dropped.
+   **probable-pathogenic VUS** worth follow-up, secondary/ACMG-SF, any local cohort-dropped.
 4. **Persisted for conversational follow-up.** The run also writes `<OUT>/<name>_results.json` — the
    whole report (every variant + its full ACMG criterion trail, the routed buckets, the conclusion,
    the ClinVar do-not-dismiss list). After the laudo, answer follow-up questions **off this file, no

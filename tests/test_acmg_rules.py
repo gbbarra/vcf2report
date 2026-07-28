@@ -7,7 +7,7 @@ from vcf2report.models import Annotation, CriterionResult, Variant
 def _lof_variant():
     v = Variant(chrom="2", pos=166003360, ref="C", alt="T", gene="SCN1A",
                 consequence="stop_gained", hgvs_p="p.Arg612Ter", zygosity="het")
-    a = Annotation(gene_lof_intolerant=True, gnomad_af=0.0, abraom_af=0.0,
+    a = Annotation(gene_lof_intolerant=True, gnomad_af=0.0, local_cohort_af=0.0,
                    clinvar_significance="Pathogenic", clinvar_accession="VCV000012345",
                    hpo_match_score=1.0, hpo_matched_terms=["HP:0001250"])
     return v, a
@@ -20,31 +20,31 @@ def test_lof_absent_phenotype_match_is_pathogenic():
 
 def test_common_variant_is_benign():
     v = Variant(chrom="1", pos=1, ref="A", alt="G", gene="X", consequence="missense_variant")
-    a = Annotation(gnomad_af=0.12, abraom_af=0.10)
+    a = Annotation(gnomad_af=0.12, local_cohort_af=0.10)
     assert classify(v, a).tier == "Benign"
 
 
 def test_rare_missense_no_other_evidence_is_vus():
     v = Variant(chrom="3", pos=3, ref="A", alt="G", gene="Y", consequence="missense_variant")
-    a = Annotation(gnomad_af=0.0, abraom_af=0.0)
+    a = Annotation(gnomad_af=0.0, local_cohort_af=0.0)
     assert "VUS" in classify(v, a).tier
 
 
-def test_abraom_blocks_pm2():
-    """A variant absent from gnomAD but present in ABraOM must NOT earn PM2."""
+def test_local_cohort_blocks_pm2():
+    """A variant absent from gnomAD but present in local cohort must NOT earn PM2."""
     v = Variant(chrom="1", pos=228208000, ref="G", alt="A", gene="OBSCN",
                 consequence="missense_variant")
-    a = Annotation(gnomad_af=0.0, abraom_af=0.03)
+    a = Annotation(gnomad_af=0.0, local_cohort_af=0.03)
     result = classify(v, a)
     pm2 = next(c for c in result.criteria if c.code == "PM2")
-    assert pm2.met is False, "ABraOM presence should block PM2"
+    assert pm2.met is False, "local cohort presence should block PM2"
 
 
 def test_pm2_not_met_when_gnomad_frequency_unknown():
     """Unknown gnomAD AF (None) must not be treated as absence -> PM2 not met."""
     v = Variant(chrom="1", pos=228208000, ref="G", alt="A", gene="OBSCN",
                 consequence="missense_variant")
-    a = Annotation(gnomad_af=None, abraom_af=0.0)  # frequency unavailable
+    a = Annotation(gnomad_af=None, local_cohort_af=0.0)  # frequency unavailable
     result = classify(v, a)
     pm2 = next(c for c in result.criteria if c.code == "PM2")
     assert pm2.met is False
@@ -57,7 +57,7 @@ def test_pm2_ceiling_is_inheritance_aware():
     def _pm2(gene):
         v = Variant(chrom="1", pos=100, ref="A", alt="G", gene=gene,
                     consequence="missense_variant")
-        a = Annotation(gnomad_af=5e-4, abraom_af=0.0)
+        a = Annotation(gnomad_af=5e-4, local_cohort_af=0.0)
         return next(c for c in classify(v, a).criteria if c.code == "PM2")
     assert _pm2("CFTR").met is True     # AR ceiling 1e-3
     assert _pm2("SCN1A").met is False   # AD ceiling 1e-4
@@ -90,7 +90,7 @@ def test_bs1_cutoff_is_inheritance_aware():
                   consequence="missense_variant")
     rec = Variant(chrom="7", pos=100, ref="A", alt="G", gene="CFTR",   # AR
                   consequence="missense_variant")
-    a = Annotation(gnomad_af=0.003, abraom_af=0.0)
+    a = Annotation(gnomad_af=0.003, local_cohort_af=0.0)
     assert _bs1(dom, a).met is True
     assert _bs1(rec, a).met is False
 

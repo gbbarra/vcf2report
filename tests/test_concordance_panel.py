@@ -128,13 +128,13 @@ def test_gross_discordance_pathogenic_called_benign(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# The real engine path on controlled inputs (constraint / ABraOM patched)
+# The real engine path on controlled inputs (constraint / local cohort patched)
 # ---------------------------------------------------------------------------
-def _patch_local(monkeypatch, lof_intolerant, abraom_af=0.0):
+def _patch_local(monkeypatch, lof_intolerant, local_cohort_af=0.0):
     monkeypatch.setattr(concordance.extra, "gene_constraint",
                         lambda gene: {"lof_intolerant": lof_intolerant, "_source": "test"})
-    monkeypatch.setattr(concordance.abraom, "lookup",
-                        lambda v: {"af": abraom_af, "_source": "test"})
+    monkeypatch.setattr(concordance.local_cohort, "lookup",
+                        lambda v: {"af": local_cohort_af, "_source": "test"})
 
 
 def test_engine_calls_rare_lof_pathogenic(monkeypatch):

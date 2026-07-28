@@ -30,6 +30,8 @@ _GENERATED = (
     "data/gnomad/gnomad_parquet", "data/alphamissense", "data/clinvar/clinvar_parquet",
     "data/out/", "data/real/", "data/tools/", "synthetic_exomes/", "data/benchmark",
     "data/cache/", "data/clinvar/clinvar.tsv", "data/gnomad/gnomad.tsv",
+    # Operator-supplied, never shipped: this project redistributes no population cohort.
+    "data/local_cohort/",
 )
 
 

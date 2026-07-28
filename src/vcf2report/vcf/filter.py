@@ -62,10 +62,10 @@ class FilterFunnel:
     after_impact: int = 0
     candidates: int = 0
     notes: list[str] = None  # type: ignore
-    # Variants dropped as common in ABraOM despite being rare/absent in gnomAD —
+    # Variants dropped as common in local cohort despite being rare/absent in gnomAD —
     # i.e. spurious candidates a gnomAD-only pipeline would have kept. This is the
-    # concrete, per-run evidence for the Brazilian-frequency differentiator.
-    abraom_filtered: list[str] = None  # type: ignore
+    # concrete, per-run evidence that the local cohort earned its place in the funnel.
+    local_cohort_filtered: list[str] = None  # type: ignore
     # Rare variants set aside at the impact step because they are splice-ADJACENT rather
     # than canonical splice or coding (see NEAR_SPLICE). Counted so the report states the
     # limit instead of implying the shortlist covered every splice-relevant variant.
@@ -74,8 +74,8 @@ class FilterFunnel:
     def __post_init__(self):
         if self.notes is None:
             self.notes = []
-        if self.abraom_filtered is None:
-            self.abraom_filtered = []
+        if self.local_cohort_filtered is None:
+            self.local_cohort_filtered = []
 
 
 def _is_clinvar_plp(a: Annotation) -> bool:
@@ -87,7 +87,7 @@ def _is_clinvar_plp(a: Annotation) -> bool:
 
 
 def _is_rare(a: Annotation, max_af: float) -> bool:
-    af = max(a.gnomad_af or 0.0, a.abraom_af or 0.0)
+    af = max(a.gnomad_af or 0.0, a.local_cohort_af or 0.0)
     return af <= max_af
 
 
@@ -102,15 +102,15 @@ def filter_variants(
     rare = [(v, a) for v, a in annotated if _is_rare(a, max_af) or _is_clinvar_plp(a)]
     funnel.after_rarity = len(rare)
 
-    # Record variants dropped by ABraOM that a gnomAD-only filter would keep:
-    # rare/absent in gnomAD but common (> cutoff) in the Brazilian cohort.
+    # Record variants dropped by local cohort that a gnomAD-only filter would keep:
+    # rare/absent in gnomAD but common (> cutoff) in the operator's cohort.
     for v, a in annotated:
         gnomad_rare = (a.gnomad_af or 0.0) <= max_af
-        abraom_common = (a.abraom_af or 0.0) > max_af
-        if gnomad_rare and abraom_common and not _is_clinvar_plp(a):
-            funnel.abraom_filtered.append(
+        local_cohort_common = (a.local_cohort_af or 0.0) > max_af
+        if gnomad_rare and local_cohort_common and not _is_clinvar_plp(a):
+            funnel.local_cohort_filtered.append(
                 f"{v.gene or v.key} ({v.hgvs_p or v.key}): gnomAD AF={a.gnomad_af or 0.0:.6f} "
-                f"but ABraOM AF={a.abraom_af:.4f} — common in Brazilians, dropped"
+                f"but local cohort AF={a.local_cohort_af:.4f} — common locally, dropped"
             )
 
     # Step 2 — impact (coding/splice; ClinVar P/LP retained regardless).
@@ -130,7 +130,7 @@ def filter_variants(
         return (
             0 if _is_clinvar_plp(a) else 1,          # ClinVar P/LP first
             -(a.hpo_match_score or 0.0),             # higher phenotype match first
-            max(a.gnomad_af or 0.0, a.abraom_af or 0.0),  # rarer first
+            max(a.gnomad_af or 0.0, a.local_cohort_af or 0.0),  # rarer first
         )
 
     candidates = sorted(impactful, key=rank_key)

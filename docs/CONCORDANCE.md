@@ -11,7 +11,7 @@ The ACMG engine consumes ClinVar directly through **PP5** (a supporting line tha
 fires when ClinVar already reports Pathogenic). Scoring the engine against ClinVar
 *while feeding it ClinVar* would inflate agreement for free. So the panel runs
 every variant with ClinVar **withheld** from the annotation — the engine must
-recover the call from population frequency (gnomAD/ABraOM), LoF mechanics and
+recover the call from population frequency (gnomAD/local cohort), LoF mechanics and
 in-silico evidence alone. ClinVar is used only as the answer key.
 
 ## What the panel measures

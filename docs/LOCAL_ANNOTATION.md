@@ -199,7 +199,6 @@ Referenced by `scripts/vcfanno.conf.toml` — point each `file=` at your local p
 |---|---|---|
 | gnomAD v4.1 sites VCF | `gs://gcp-public-data--gnomad/release/4.1/vcf/exomes/` (or genomes) | big; `chr`-style. Subset to your exome BED to shrink. |
 | ClinVar GRCh38 VCF | `ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz` | `1`-style, tabixed. (Sandbox-reachable mirror: the Broad Funcotator copy — uncompressed; `bgzip`+`tabix` it.) |
-| ABraOM (optional, 🇧🇷) | `http://abraom.ib.usp.br/` | convert release to bgzipped VCF → the Brazilian-frequency differentiator |
 | REVEL/CADD (optional) | dbNSFP / REVEL / CADD | in-silico predictors for PP3/BP4 |
 
 ## 4. Run it
