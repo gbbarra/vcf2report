@@ -203,7 +203,12 @@ def run_pipeline(
     # silent, every variant looks absent from gnomAD: the rarity filter can no longer
     # exclude common variants (unknown AF is treated as 0) and BA1/BS1 can't fire to
     # down-weight them -> gross over-calling. Flag it loudly, don't ship a wrong report.
-    if config.GNOMAD_PARQUET and len(kept) >= 50 and primed == 0:
+    # Gate on MATCHED rows, not on the total. Under mode=full a total join failure still
+    # writes a vouched-absence sentinel per variant, so `primed` equals the callset size and
+    # the net stayed silent in exactly the dangerous case — the store contributing nothing
+    # while every variant reported a surveyed zero. `matched` counts real gnomAD rows.
+    _pq = gnomad_parquet.stats()
+    if config.GNOMAD_PARQUET and len(kept) >= 50 and _pq.get("matched", primed) == 0:
         from .annotate.gnomad_parquet import _get_duckdb
         store_present = Path(config.GNOMAD_PARQUET).exists()
         if store_present and _get_duckdb() is None:
@@ -218,6 +223,24 @@ def run_pipeline(
             f"resolved from it — {cause}. Population frequencies were NOT applied: the "
             "rarity filter cannot exclude common variants and BA1/BS1 cannot down-weight "
             "them, so the report likely OVER-calls."
+            + (f" WORSE: {_pq['vouched_absent']} variants were nevertheless recorded as "
+               "'absent from gnomAD' because the store declares full coverage — those are "
+               "fabricated observations, not survey results."
+               if _pq.get("vouched_absent") else "")
+        )
+
+    # An un-normalised REF/ALT is a different string for the same variant, so the store cannot
+    # be asked about it. Those keys are skipped rather than reported absent (see
+    # gnomad_parquet._is_canonical) — but the operator has to know their indels went
+    # unresolved, or a silently smaller denominator looks like clean data.
+    _unnorm = gnomad_parquet.unnormalised_keys()
+    if _unnorm:
+        qc.warnings.append(
+            f"{len(_unnorm)} variant(s) have non-minimal REF/ALT (a shared leading or trailing "
+            "base), so they could not be matched against gnomAD under a canonical "
+            f"representation and their frequency is UNKNOWN — e.g. {sorted(_unnorm)[0]}. "
+            "Run `bcftools norm -f <reference> -m -any` on the VCF and re-run; this pipeline "
+            "does not left-align or trim."
         )
     _mark("gnomad_prime_s")
     # ClinVar — the one source with no batch path — resolved in ONE chr-pruned DuckDB join

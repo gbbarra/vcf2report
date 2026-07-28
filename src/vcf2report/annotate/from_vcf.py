@@ -104,20 +104,43 @@ def extract(variant: Variant) -> dict:
         out["gnomad_ac"] = _int(_first(info, A["gnomad_ac"]), i, n, per_allele=True)
         out["gnomad_an"] = _int(_first(info, A["gnomad_an"]), i, n, per_allele=True)
         out["gnomad_hom"] = _int(_first(info, A["gnomad_hom"]), i, n, per_allele=True)
-        # fafmax_faf95_max is a single per-site value in gnomAD v4.1 (not per-allele), so
-        # a lone value here legitimately applies to every allele.
+        # fafmax_faf95_max is a single per-SITE value in gnomAD v4.1 — the maximum filtering
+        # AF across the site's alleles. `_benign_af` returns faf95 outright when it is
+        # present, ahead of the allele's own AF, so handing a site maximum to a rare ALT
+        # called it Benign on another allele's frequency: an allele at AF 1e-5 met BA1 from
+        # a site faf95 of 0.29, with a trail that reported PM2 ("absent from population
+        # databases") and "0.2900 exceeds 0.05" in the same breath.
+        #
+        # A filtering AF is derived from one allele's AC/AN, so a site maximum cannot be
+        # attributed to a specific allele. Use it only where the site has ONE ALT (where the
+        # two are the same thing) or where the array is genuinely per-allele; otherwise leave
+        # it unset and let BA1/BS1 fall back to this allele's own AF.
         faf = _first(info, A["gnomad_faf95"])
         if faf is not None:
-            out["gnomad_faf95"] = _num(faf, i, n)
+            per_allele_faf = len(str(faf).split(",")) == n
+            if n == 1 or per_allele_faf:
+                out["gnomad_faf95"] = _num(faf, i, n, per_allele=per_allele_faf)
 
     abaf = _first(info, A["abraom_af"])
     if abaf is not None:
         out["abraom_af"] = _num(abaf, i, n, per_allele=True)
 
     # ClinVar CLNSIG/CLNREVSTAT contain literal commas (e.g. "Pathogenic,_low_
-    # penetrance"), so do NOT comma-index by allele — take the whole value. (Real
-    # per-allele ClinVar disambiguation would key on CLNALLELEID, out of scope.)
-    sig = _first(info, A["clinvar_sig"])
+    # penetrance"), so they cannot be comma-indexed by allele the way the numeric
+    # Number=A fields are.
+    #
+    # At a MULTIALLELIC site that leaves no way to tell which ALT the assertion describes,
+    # and applying it to all of them is not a harmless approximation: a 21%-frequency
+    # synonymous allele inherited a 2-star Pathogenic assertion from the SNP beside it,
+    # bypassed the rarity/impact gate through filter.py's ClinVar P/LP rescue, and was
+    # presented to the reader in the report's do-not-dismiss net. The benign direction is
+    # symmetric — a novel frameshift inheriting BP6 from a common neighbour.
+    #
+    # So the site-level value is used only when the record has ONE ALT. Otherwise this
+    # returns nothing and annotate falls through to the allele-keyed ClinVar client, which
+    # answers for the exact variant or honestly reports no record. Per-allele disambiguation
+    # from CLNALLELEID would let INFO be used here too, and remains out of scope.
+    sig = _first(info, A["clinvar_sig"]) if n == 1 else None
     if sig is not None:
         out["clinvar_significance"] = str(sig).replace("_", " ")
         rev = _first(info, A["clinvar_review"])
