@@ -61,7 +61,12 @@ def test_full_covered_absence_is_zero(parquet):
     parquet(mode="full", contigs=("chr1",))
     gnomad_parquet.prime([_v("1", 999, "A", "T")])
     assert gnomad_parquet.get("1-999-A-T") == {
-        "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
+        "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None,
+        # A store that covers the locus and holds no row VOUCHES for the absence. It has
+        # no gnomAD record and therefore no AN, so AN cannot carry that meaning — the flag
+        # does. report.assemble.is_hom_absent_artifact reads it to tell a surveyed absence
+        # from a site gnomAD never surveyed.
+        "vouched_absent": True}
 
 
 def test_bed_mode_asserts_absence_only_inside_intervals(tmp_path, monkeypatch):
@@ -79,7 +84,12 @@ def test_bed_mode_asserts_absence_only_inside_intervals(tmp_path, monkeypatch):
                           _v("1", 5000, "A", "T")])   # off BED, absent -> unprimed
     assert gnomad_parquet.get("1-100-A-T")["af"] == 0.50
     assert gnomad_parquet.get("1-150-A-T") == {
-        "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
+        "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None,
+        # A store that covers the locus and holds no row VOUCHES for the absence. It has
+        # no gnomAD record and therefore no AN, so AN cannot carry that meaning — the flag
+        # does. report.assemble.is_hom_absent_artifact reads it to tell a surveyed absence
+        # from a site gnomAD never surveyed.
+        "vouched_absent": True}
     assert gnomad_parquet.get("1-5000-A-T") is None
     gnomad_parquet._reset_for_tests()
 
@@ -118,7 +128,12 @@ def test_bed_mode_non_pass_variant_is_not_a_false_absence(tmp_path, monkeypatch)
     rec = gnomad_parquet.get("1-120-G-GA")                 # present but non-PASS
     assert rec is not None and rec["af"] is None           # NOT a fake absence (af != 0.0)
     assert gnomad_parquet.get("1-130-A-T") == {            # truly absent in-BED -> real absence
-        "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
+        "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None,
+        # A store that covers the locus and holds no row VOUCHES for the absence. It has
+        # no gnomAD record and therefore no AN, so AN cannot carry that meaning — the flag
+        # does. report.assemble.is_hom_absent_artifact reads it to tell a surveyed absence
+        # from a site gnomAD never surveyed.
+        "vouched_absent": True}
     gnomad_parquet._reset_for_tests()
 
 

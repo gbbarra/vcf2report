@@ -81,6 +81,38 @@ jobs:
         # the extra failed to install and this job proved nothing.
         run: pytest -q -rs tests/test_mcp_explore.py
 
+  parquet:
+    # Same lesson as the MCP job, and it already cost us: duckdb is an optional extra, so the
+    # light-install job SKIPS every Parquet test — 34 of them, including the ones that guard
+    # when the store may assert a variant is ABSENT from gnomAD. A fabricated absence fires
+    # PM2 and over-calls, so that is the most safety-critical code in the annotation layer,
+    # and it was running nowhere. A change to the absence sentinel landed green because of it.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install with the parquet extra
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,parquet]"
+
+      - name: Run the Parquet tests (must not skip here)
+        # -rs reports skips; these are importorskip-guarded, so a silent skip would mean the
+        # extra failed to install and this job proved nothing.
+        run: pytest -q -rs tests/test_gnomad_parquet.py tests/test_parquet_guard.py
+             tests/test_parquet_wiring.py tests/test_build_gnomad_parquet.py
+
+      - name: The whole suite, with duckdb present
+        # The Parquet clients change behaviour when duckdb is importable, so the rest of the
+        # suite must also pass in that configuration — not only in the light install.
+        run: pytest -q
+
   cli-smoke:
     # Unit tests import the package directly, so they would not notice a broken console
     # entry point or a packaging mistake. This installs and invokes the CLI the way a user

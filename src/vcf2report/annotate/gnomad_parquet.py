@@ -238,6 +238,21 @@ def get(key: str) -> Optional[dict]:
     return _primed.get(key)
 
 
+def clear_primed() -> None:
+    """Drop the batch-primed answers.
+
+    `prime()` is a PER-RUN optimisation: it batch-resolves one variant set in a single join.
+    The dict holding the answers is module-level, so in a long-lived process — the MCP server
+    serves many requests from one interpreter — run N could read run N-1's entries. That is a
+    cross-request data path: with the store unmounted for the second run, a variant inherited
+    the earlier run's "vouched absent", flipping VUS -> Likely Pathogenic while the very same
+    report warned that population frequencies had NOT been applied. The pipeline clears this
+    at the start of every run so each run's answers come from that run's store.
+    """
+    with _lock:
+        _primed.clear()
+
+
 def _reset_for_tests() -> None:
     global _duckdb, _duckdb_tried
     with _lock:

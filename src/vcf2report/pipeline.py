@@ -12,6 +12,9 @@ from pathlib import Path
 from . import config
 from .acmg.engine import classify
 from .annotate import add_alphamissense, add_clinvar_residue, annotate_variant
+from .annotate import alphamissense as alphamissense_mod
+from .annotate import clinvar_parquet as clinvar_parquet_mod
+from .annotate import gnomad_parquet as gnomad_parquet_mod
 from .models import Classification, QCSummary
 from .report.assemble import ReportModel, build_report
 from .vcf import seqqc
@@ -139,6 +142,16 @@ def run_pipeline(
         now = time.perf_counter()
         timings[stage] = round(now - _t, 4)
         _t = now
+
+    # The batch-priming caches are module-level and survive between calls. In a long-lived
+    # process — mcp_server serves many run_report / classify_variant calls from one
+    # interpreter — that is a cross-REQUEST path: one run's store answers were being served
+    # for the next run's variants, stamped with a confident source, and a variant inherited an
+    # earlier run's "vouched absent" (VUS -> Likely Pathogenic) inside a report that
+    # simultaneously warned population frequencies had NOT been applied. Each run resolves
+    # against its own store.
+    for _mod in (gnomad_parquet_mod, clinvar_parquet_mod, alphamissense_mod):
+        _mod.clear_primed()
 
     variants, build, header = parse_vcf(vcf_path, sample=sample)
     _mark("parse_s")

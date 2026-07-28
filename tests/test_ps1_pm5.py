@@ -8,6 +8,8 @@
 The two are mutually exclusive by construction. Both read the residue index built by
 ``scripts/fetch_clinvar_residue.py`` (or the committed frozen slice).
 """
+import pytest
+
 import gzip
 
 from vcf2report.acmg.criteria import all_criteria
@@ -209,3 +211,65 @@ def test_annotate_variant_populates_residue_evidence_by_default():
     deferred = annotate_variant(v, [], with_clinvar_residue=False)
     assert deferred.clinvar_residue_available is None
     assert deferred.clinvar_hotspot is None
+
+
+def test_ps1_requires_the_reference_amino_acid_to_agree(monkeypatch):
+    """The index is keyed (gene, aa_pos, alt_aa) and stores ref_aa, but nothing compared it to
+    the query's. A query Ala265Glu therefore earned PS1 Strong from an index row for Gly265Glu —
+    and the reasoning string printed the INDEX's ref_aa, so the trail read "same amino-acid
+    change (Gly→Glu)" and was internally consistent. A reviewer could not see the mismatch."""
+    from vcf2report.annotate import clinvar_residue
+
+    idx = {"GENEX": {265: {"Glu": ("Gly", 2, "5-1-A-G", "VCV000000001")}}}
+    monkeypatch.setattr(clinvar_residue, "_index", idx)
+    monkeypatch.setattr(clinvar_residue, "_baselines", {"GENEX": 0.0})
+
+    assert clinvar_residue.lookup("GENEX", "p.Gly265Glu", "5-999-A-G")["ps1"]   # ref agrees
+    for wrong in ("p.Ala265Glu", "p.Trp265Glu", "p.Pro265Glu"):
+        r = clinvar_residue.lookup("GENEX", wrong, "5-999-A-G")
+        assert r["ps1"] is None and r["pm5"] is None, f"{wrong} matched a Gly265 row"
+
+
+@pytest.mark.parametrize("hgvs_p", [
+    "p.Arg97GlyfsTer26",        # VEP / ClinVar long frameshift form
+    "p.Ser330AsnfsTer5",
+    "p.Gly12ValfsTer3",
+])
+def test_vep_frameshift_notation_is_not_read_as_a_missense(hgvs_p):
+    """`_P_RE.search` matched the leading `p.Arg97Gly` of a frameshift. That fired PS1/PM5 on
+    frameshifts AND poisoned the index: scripts/fetch_clinvar_residue.py runs the same parser
+    over ClinVar's Name column, so indels were recorded as missense rows."""
+    from vcf2report.annotate.clinvar_residue import parse_hgvs_p
+    assert parse_hgvs_p(hgvs_p) is None
+
+
+@pytest.mark.parametrize("hgvs_p,expected", [
+    ("p.Gly265Glu", ("Gly", 265, "Glu")),
+    ("ENSP00000350283.3:p.Gln356Arg", ("Gln", 356, "Arg")),   # VEP writes a protein prefix
+    ("p.(Gly265Glu)", ("Gly", 265, "Glu")),                   # HGVS "predicted" parentheses
+])
+def test_real_missense_forms_still_parse(hgvs_p, expected):
+    """Anchoring the regex must not lose the forms real annotators emit."""
+    from vcf2report.annotate.clinvar_residue import parse_hgvs_p
+    assert parse_hgvs_p(hgvs_p) == expected
+
+
+def test_the_committed_residue_index_holds_no_indels():
+    """Three rows in the shipped frozen slice are indels recorded as missense (a genomic key
+    whose REF and ALT differ in length cannot be a substitution). They reached PS1 as Strong
+    evidence. Regenerate the slice with the anchored parser if this fails."""
+    import gzip
+    import pathlib
+
+    p = pathlib.Path("data/clinvar/clinvar_residue_frozen.tsv.gz")
+    if not p.exists():
+        pytest.skip("frozen residue slice not present")
+    bad = []
+    for line in gzip.open(p, "rt"):
+        if line.startswith("#"):
+            continue
+        for tok in line.rstrip("\n").split("\t"):
+            parts = tok.split("-")
+            if len(parts) == 4 and parts[1].isdigit() and len(parts[2]) != len(parts[3]):
+                bad.append(tok)
+    assert not bad, f"non-substitution genomic keys in the residue index: {bad}"

@@ -34,14 +34,21 @@ from .report.render import render_markdown, results_json_for, write_report
 from .vcf.parse import parse_vcf as _parse_vcf
 from .vcf.qc import apply_qc
 
+# The SDK renamed the server class in v2: `mcp.server.fastmcp.FastMCP` was removed in favour
+# of `mcp.server.MCPServer`. The decorator API (@mcp.tool()) is unchanged, so accept either
+# and let the installed SDK decide. Without this the module raised SystemExit on any machine
+# that resolved a v2 release — including CI, which does not pin.
 try:
-    from mcp.server.fastmcp import FastMCP
-except ImportError as exc:  # pragma: no cover
-    raise SystemExit(
-        "The MCP server needs the MCP SDK. Install it with: pip install 'mcp[cli]'"
-    ) from exc
+    from mcp.server.fastmcp import FastMCP as _Server        # SDK v1
+except ImportError:
+    try:
+        from mcp.server import MCPServer as _Server          # SDK v2
+    except ImportError as exc:  # pragma: no cover
+        raise SystemExit(
+            "The MCP server needs the MCP SDK. Install it with: pip install 'mcp[cli]'"
+        ) from exc
 
-mcp = FastMCP("vcf2report")
+mcp = _Server("vcf2report")
 
 
 def _mk_variant(chrom: str, pos: int, ref: str, alt: str, gene: Optional[str] = None,
