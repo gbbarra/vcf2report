@@ -23,10 +23,24 @@ def passes_qc(v: Variant) -> tuple[bool, str]:
         return False, f"DP={v.depth}<{QC_MIN_DP}"
     if v.gq is not None and v.gq < QC_MIN_GQ:
         return False, f"GQ={v.gq}<{QC_MIN_GQ}"
-    if v.zygosity == "het" and v.allele_balance is not None:
+    # The allele-balance window tests a HET expectation (~50%). A half-call ("./1") is
+    # recorded as het conservatively — the second allele was never called — so its balance
+    # has no expected value to test against, and applying the het window would drop the very
+    # carrier the half-call handling exists to keep.
+    if v.zygosity == "het" and not v.partial_call and v.allele_balance is not None:
         if not (QC_AB_MIN <= v.allele_balance <= QC_AB_MAX):
             return False, f"AB={v.allele_balance} outside [{QC_AB_MIN},{QC_AB_MAX}]"
     return True, "PASS"
+
+
+def is_metric_drop(reason: str) -> bool:
+    """True when a variant was dropped for a *borderline quantitative* reason (DP/GQ/AB).
+
+    These are the recoverable drops: the call exists and the proband carries it, it just
+    sits under a threshold. A non-carrier genotype or an explicit caller FILTER is a
+    categorical rejection and is not reconsidered.
+    """
+    return reason.startswith(("DP=", "GQ=", "AB="))
 
 
 def apply_qc(variants: list[Variant]) -> tuple[list[Variant], list[tuple[Variant, str]]]:

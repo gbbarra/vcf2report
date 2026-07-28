@@ -24,6 +24,36 @@ def parse_csq_format(header_lines: list[str]) -> Optional[list[str]]:
     return None
 
 
+# VEP field names that never appear in SnpEff's ANN spec. Their presence in the ANN
+# header is what distinguishes the two layouts.
+_VEP_ONLY = {"symbol", "hgvsc", "hgvsp", "consequence", "feature", "impact"}
+
+
+def parse_ann_format(header_lines: list[str]) -> Optional[list[str]]:
+    """Subfield names declared for ``ANN`` — or None when ANN is standard SnpEff.
+
+    VEP run with ``--vcf_info_field ANN`` writes VEP's own field order under the ``ANN``
+    key. Parsing that with SnpEff's fixed offsets is silently wrong rather than absent:
+    SnpEff position 9 is ``HGVS.c`` but VEP position 9 is ``INTRON``, and position 10 is
+    ``HGVS.p`` vs VEP's ``HGVSc`` — so the report renders an exon fraction as the cDNA
+    change and a ``c.`` string in the protein column. Returns the names only when they
+    are recognisably VEP's, so the SnpEff fast path is untouched.
+    """
+    for line in header_lines:
+        if not line.startswith("##INFO=<ID=ANN"):
+            continue
+        for marker in ("Format:", "annotations:", "Functional annotations:"):
+            if marker in line:
+                fmt = line.split(marker)[1].strip().rstrip('">').strip().strip("'").strip()
+                names = [f.strip().strip("'\"") for f in fmt.split("|")]
+                lower = {n.lower() for n in names}
+                # SnpEff spells these "Annotation" / "Gene_Name" / "HGVS.c"; VEP does not.
+                if len(lower & _VEP_ONLY) >= 3 and "annotation" not in lower:
+                    return names
+                return None
+    return None
+
+
 def _first_term(consequence: str) -> Optional[str]:
     # VEP/SnpEff join multiple consequences with "&"; the first is most severe.
     return (consequence.split("&")[0].strip() or None) if consequence else None
@@ -171,10 +201,16 @@ def parse_snpeff_eff(eff: str, alt_index: int = 0, n_alt: int = 1) -> Optional[d
 
 
 def extract(info: dict[str, str], alt: str, csq_format: Optional[list[str]] = None,
-            ref: str = "", alt_index: int = 0, n_alt: int = 1) -> Optional[dict]:
-    """Best consequence/HGVS from ANN, then legacy EFF, then CSQ, then plain keys."""
+            ref: str = "", alt_index: int = 0, n_alt: int = 1,
+            ann_format: Optional[list[str]] = None) -> Optional[dict]:
+    """Best consequence/HGVS from ANN, then legacy EFF, then CSQ, then plain keys.
+
+    ``ann_format`` is set only when the ANN header declares VEP's field order (see
+    :func:`parse_ann_format`); ANN is otherwise parsed with SnpEff's fixed offsets.
+    """
     if info.get("ANN"):
-        r = parse_snpeff(info["ANN"], alt, ref, n_alt)
+        r = (parse_vep(info["ANN"], alt, ann_format, ref, alt_index, n_alt) if ann_format
+             else parse_snpeff(info["ANN"], alt, ref, n_alt))
         if r and (r.get("gene") or r.get("consequence")):
             return r
     if info.get("EFF"):
@@ -187,9 +223,12 @@ def extract(info: dict[str, str], alt: str, csq_format: Optional[list[str]] = No
         r = parse_vep(csq, alt, csq_format, ref, alt_index, n_alt)
         if r and (r.get("gene") or r.get("consequence")):
             return r
-    # Plain keys (synthetic sample / simple pipelines).
+    # Plain keys (synthetic sample / simple pipelines). _first_term applies here too: a
+    # plain CSQ may still carry an "&"-joined term list, and passing the whole string
+    # through made downstream is_impactful() reject e.g. "stop_gained&splice_region_variant".
     simple = {"gene": info.get("GENE"),
-              "consequence": info.get("CSQ") if (info.get("CSQ") and "|" not in info["CSQ"]) else None,
+              "consequence": (_first_term(info["CSQ"])
+                              if (info.get("CSQ") and "|" not in info["CSQ"]) else None),
               "hgvs_c": info.get("HGVSC"), "hgvs_p": info.get("HGVSP"),
               "transcript": info.get("TRANSCRIPT") or info.get("FEATURE")}
     return simple if any(simple.values()) else None

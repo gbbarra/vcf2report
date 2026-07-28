@@ -20,6 +20,106 @@ from .vcf.parse import parse_vcf
 from .vcf.qc import apply_qc
 
 
+# A QC rescue re-annotates variants the gate dropped, so it is bounded: a real exome
+# yields ~100 of them, but a pathological input must not turn into an unbounded second
+# annotation pass. If the cap bites, the report says so rather than implying full coverage.
+QC_RESCUE_MAX = 500
+
+
+def _qc_loss_warnings(qc: QCSummary, variants: list, kept: list,
+                      dropped: list[tuple]) -> None:
+    """Warn when the QC gate, or the annotation upstream of it, silently ate the callset.
+
+    QC is the one stage that can remove EVERYTHING and still produce a clean-looking
+    report: the funnel prints ``0 candidates`` and the conclusion states there is no
+    finding. Each guard below turns a specific silent-loss mode into a loud warning, in
+    the same spirit as the gnomAD-parquet guard further down.
+    """
+    if not variants:
+        qc.warnings.append(
+            "The VCF contained no variant records — nothing was analysed. Check that the "
+            "file is a variant callset and not an empty or header-only VCF."
+        )
+        return
+
+    reasons: dict[str, int] = {}
+    for _v, reason in dropped:
+        key = reason.split("=")[0].split(" (")[0]
+        reasons[key] = reasons.get(key, 0) + 1
+    non_carrier = reasons.get("non-carrier", 0)
+
+    if not kept:
+        detail = ", ".join(f"{k}: {n}" for k, n in sorted(reasons.items(), key=lambda x: -x[1]))
+        qc.warnings.append(
+            f"ALL {len(variants)} variants were removed by per-variant QC ({detail}) — the "
+            "report below has nothing to analyse and its 'no finding' statements carry NO "
+            "evidential weight. Check the genotype/quality fields before reading further."
+        )
+    if non_carrier and non_carrier >= 0.9 * len(variants):
+        qc.warnings.append(
+            f"{non_carrier} of {len(variants)} variants ({non_carrier / len(variants):.0%}) were "
+            "dropped as non-carriers. That is the signature of a sites-only VCF (no FORMAT/sample "
+            "column) or of genotypes written as './.' — this pipeline analyses ONE proband and "
+            "needs that proband's genotypes. Re-export the VCF with the sample column."
+        )
+    if kept and not any(v.consequence for v in kept):
+        qc.warnings.append(
+            f"None of the {len(kept)} post-QC variants carry a consequence annotation "
+            "(SnpEff ANN / VEP CSQ / a plain CSQ key), so the impact filter can only drop "
+            "them: the candidate list will be empty or near-empty for a reason that is NOT "
+            "biological. Annotate the VCF (SnpEff or VEP) before running."
+        )
+
+
+def _qc_rescue(qc: QCSummary, dropped: list[tuple], hpo_terms: list[str],
+               build_trusted: bool) -> None:
+    """Name QC-dropped variants that ClinVar classifies P/LP with criteria-backed review.
+
+    The report's do-not-dismiss net (``assemble.clinvar_pathogenic_flags``) only sees
+    variants that survived to classification, and QC runs before annotation — so a
+    well-reviewed pathogenic allele one GQ point under threshold was deleted from the
+    report entirely while the conclusion announced 'no finding'. Only borderline
+    quantitative drops are reconsidered (see ``qc.is_metric_drop``); the ACMG tier is
+    NOT computed and nothing is re-admitted to the candidate list. This is a flag.
+
+    The bar is >=1 star (ClinVar "criteria provided"), one step below the report's
+    do-not-dismiss net. The net triages among variants the reader can already SEE in the
+    ranked table; a QC drop is invisible, so a criteria-backed pathogenic assertion is
+    worth naming even when only a single submitter made it.
+    """
+    from .report.assemble import clinvar_stars
+    from .vcf.filter import is_impactful
+    from .vcf.qc import is_metric_drop
+
+    pool = [(v, r) for v, r in dropped if is_metric_drop(r) and is_impactful(v.consequence)]
+    if not pool:
+        return
+    capped = len(pool) > QC_RESCUE_MAX
+    for v, reason in pool[:QC_RESCUE_MAX]:
+        # Resolve ClinVar through the SAME path the classified variants use (VCF INFO
+        # first, then the local/live client). Calling the DB client directly would miss
+        # every pre-annotated exome — the recommended production input.
+        a = annotate_variant(v, [], build_trusted=build_trusted,
+                             with_alphamissense=False, with_clinvar_residue=False)
+        sig = (a.clinvar_significance or "").lower().replace("_", " ")
+        stars = clinvar_stars(a.clinvar_review_status)
+        if not (sig.startswith("pathogenic") or sig.startswith("likely pathogenic")):
+            continue
+        if stars < 1:
+            continue
+        qc.qc_rescued.append(
+            f"{v.gene or v.key} {v.hgvs_p or v.hgvs_c or v.key} — ClinVar "
+            f"{a.clinvar_significance} ({stars}★) but dropped at QC ({reason}). NOT classified "
+            "and NOT counted as a candidate; confirm the call orthogonally (Sanger / "
+            "re-sequencing) before dismissing it."
+        )
+    if capped:
+        qc.warnings.append(
+            f"The QC-drop rescue examined the first {QC_RESCUE_MAX} of {len(pool)} borderline "
+            f"coding/splice drops; {len(pool) - QC_RESCUE_MAX} were NOT checked against ClinVar."
+        )
+
+
 def run_pipeline(
     vcf_path: str | Path,
     hpo_terms: list[str] | None = None,
@@ -74,8 +174,9 @@ def run_pipeline(
         1 for v in variants if v.filter_status in ("PASS", ".", "", None)
     )
 
-    kept, _dropped = apply_qc(variants)
+    kept, dropped = apply_qc(variants)
     qc.after_qc = len(kept)
+    _qc_loss_warnings(qc, variants, kept, dropped)
     _mark("qc_s")
 
     # gnomAD frequency is needed for the rarity filter across the WHOLE post-QC set, so
@@ -110,7 +211,13 @@ def run_pipeline(
     # over the post-QC set when a Parquet store is present; clinvar.lookup reads that cache
     # first, then falls back to the per-variant tabix / live / slice. No-op if unconfigured.
     from .annotate import clinvar_parquet
-    clinvar_parquet.prime(kept)
+    from .vcf.filter import is_impactful as _impactful
+    from .vcf.qc import is_metric_drop as _metric_drop
+    # The QC-drop rescue queries ClinVar for variants that never reach annotation, so they
+    # must ride along in the same primed join rather than falling back to per-variant lookups.
+    _rescue_pool = [v for v, r in dropped if _metric_drop(r) and _impactful(v.consequence)]
+    clinvar_parquet.prime(kept + _rescue_pool[:QC_RESCUE_MAX])
+    _qc_rescue(qc, dropped, hpo_terms, build_trusted)
     _mark("clinvar_prime_s")
     # AlphaMissense is deferred: it only feeds PP3/BP4 at classification, never the
     # filter, so we skip the (per-variant, ~1 GB tabix) lookup across the whole
@@ -124,6 +231,7 @@ def run_pipeline(
     qc.after_impact = funnel.after_impact
     qc.candidates = funnel.candidates
     qc.abraom_filtered = funnel.abraom_filtered
+    qc.near_splice_excluded = funnel.near_splice_excluded
     _mark("filter_s")
 
     if build_trusted:

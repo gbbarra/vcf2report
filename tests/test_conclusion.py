@@ -81,15 +81,38 @@ def test_hom_gnomad_absent_carries_caveat_but_still_surfaces_the_diagnosis():
     # matched is ALSO the textbook signature of a recessive DIAGNOSIS in an affected proband. So a
     # phenotype-matched P/LP hom-absent variant is surfaced in PRIMARY (the clinician must see the
     # candidate) WITH a "verify the genotype" caveat — not hidden in `other`.
+    # gnomad_an is REQUIRED for "absent": AF=0 with AN=0 is 0/0 (undefined), not a survey that
+    # found nothing. This fixture originally omitted AN and so did not express its own premise.
     from vcf2report.report.assemble import split_findings
     dx = Classification(
         variant=Variant(chrom="1", pos=1, ref="A", alt="AT", gene="GENEZ", zygosity="hom"),
-        annotation=Annotation(hpo_match_score=0.9, hpo_best_match=0.9, gnomad_af=0.0),
+        annotation=Annotation(hpo_match_score=0.9, hpo_best_match=0.9,
+                              gnomad_af=0.0, gnomad_ac=0, gnomad_an=152000),
         criteria=[], tier="Pathogenic", rule_path="")
     primary, _sec, _other = split_findings([dx])
     assert dx in primary                                  # the diagnosis is surfaced...
     txt = " ".join(summarize(_report([dx])))
     assert "Verify the genotype" in txt and "GENEZ" in txt  # ...with the confirm-the-call caveat
+
+
+def test_gnomad_uncovered_is_not_reported_as_a_vouched_absence():
+    # AF=0 alongside AN=0 is what annotators write where gnomAD has NO coverage. Calling that an
+    # artifact turns missing data into evidence and demotes exactly the recessive candidates that
+    # live in poorly-surveyed regions. It must instead read as "frequency unknown".
+    from vcf2report.report.assemble import (is_hom_absent_artifact, is_hom_gnomad_uncovered,
+                                            split_findings)
+    c = Classification(
+        variant=Variant(chrom="1", pos=1, ref="C", alt="G", gene="GENEU", zygosity="hom"),
+        annotation=Annotation(hpo_match_score=0.9, hpo_best_match=0.9,
+                              gnomad_af=0.0, gnomad_ac=0, gnomad_an=0),
+        criteria=[], tier="Uncertain Significance (VUS)", rule_path="")
+    assert not is_hom_absent_artifact(c)      # gnomAD never surveyed it — nothing is vouched
+    assert is_hom_gnomad_uncovered(c)
+    primary, _sec, other = split_findings([c])
+    assert c in primary and c not in other    # not demoted on absent evidence
+    txt = " ".join(summarize(_report([c])))
+    assert "unknown, not zero" in txt and "GENEU" in txt
+    assert "Verify the genotype" not in txt   # the artifact claim is NOT made
 
 
 def test_hom_gnomad_absent_without_phenotype_stays_demoted():

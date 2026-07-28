@@ -18,6 +18,31 @@ IMPACTFUL = {
     "stop_gained", "frameshift_variant", "splice_donor_variant",
     "splice_acceptor_variant", "start_lost", "stop_lost",
     "missense_variant", "inframe_insertion", "inframe_deletion",
+    # Whole-transcript / whole-exon loss. These are the MOST damaging consequences an
+    # annotator emits, and omitting them meant annparse translated SnpEff's EXON_DELETED
+    # into "transcript_ablation" only for this filter to discard it one step later.
+    "transcript_ablation", "exon_loss_variant",
+    # VEP's catch-all for a protein-length/sequence change it cannot type more precisely.
+    "protein_altering_variant",
+}
+
+
+# Splice-adjacent terms deliberately kept OUT of IMPACTFUL. They are NOT the canonical
+# +/-1,2 sites (those are splice_donor_variant / splice_acceptor_variant, which ARE
+# impactful) — they sit 3-8 bases into the intron or in the last 3 exonic bases. Excluding
+# them is a real sensitivity limit, so the funnel counts and reports it rather than leaving
+# the reader to assume the shortlist covered everything near a splice junction.
+#
+# Two facts make the exclusion defensible, both measured on the committed exomes:
+#   * a KNOWN pathogenic splice-region variant already reaches the shortlist through the
+#     ClinVar P/LP bypass in filter_variants, so nothing with evidence is lost;
+#   * admitting them adds ~28% more candidates, every one of which lands at VUS — no
+#     splice predictor (SpliceAI/MaxEntScan) is wired in, so the engine has no evidence
+#     with which to raise them.
+# Wire a splice predictor and this trade-off should be revisited.
+NEAR_SPLICE = {
+    "splice_region_variant", "splice_donor_5th_base_variant",
+    "splice_donor_region_variant", "splice_polypyrimidine_tract_variant",
 }
 
 
@@ -41,6 +66,10 @@ class FilterFunnel:
     # i.e. spurious candidates a gnomAD-only pipeline would have kept. This is the
     # concrete, per-run evidence for the Brazilian-frequency differentiator.
     abraom_filtered: list[str] = None  # type: ignore
+    # Rare variants set aside at the impact step because they are splice-ADJACENT rather
+    # than canonical splice or coding (see NEAR_SPLICE). Counted so the report states the
+    # limit instead of implying the shortlist covered every splice-relevant variant.
+    near_splice_excluded: int = 0
 
     def __post_init__(self):
         if self.notes is None:
@@ -50,7 +79,10 @@ class FilterFunnel:
 
 
 def _is_clinvar_plp(a: Annotation) -> bool:
-    sig = (a.clinvar_significance or "").lower()
+    # Underscores normalized first: raw ClinVar CLNSIG is underscore-delimited
+    # ("Likely_pathogenic"). This test guards the rarity/impact RESCUE, so failing it
+    # silently drops a known pathogenic variant from the candidate list entirely.
+    sig = (a.clinvar_significance or "").lower().replace("_", " ")
     return sig.startswith("pathogenic") or sig.startswith("likely pathogenic")
 
 
@@ -87,6 +119,10 @@ def filter_variants(
         if is_impactful(v.consequence) or _is_clinvar_plp(a)
     ]
     funnel.after_impact = len(impactful)
+    funnel.near_splice_excluded = sum(
+        1 for v, a in rare
+        if v.consequence in NEAR_SPLICE and not _is_clinvar_plp(a)
+    )
 
     # Step 3 — phenotype ranking: on-phenotype variants and ClinVar P/LP float up.
     def rank_key(pair: tuple[Variant, Annotation]) -> tuple:
