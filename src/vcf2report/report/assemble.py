@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from .. import __version__
+from .. import __version__, demo
 from ..config import (AF_BA1, AF_RECESSIVE_MAX, GENOME_BUILD, QC_MIN_DP,
                       QC_MIN_GQ)
 from ..models import Classification, QCSummary, SeqQuality
@@ -24,6 +24,10 @@ class ReportModel:
     methods: dict[str, Any] = field(default_factory=dict)
     timings: dict[str, float] = field(default_factory=dict)  # per-stage seconds
     seq_quality: Optional[SeqQuality] = None  # estimated from the VCF's variant sites
+    # Non-empty only when this run was NOT an ordinary full-store analysis — currently just
+    # demo mode (see vcf2report.demo). Carried on the model rather than derived at render time
+    # so every renderer, the JSON, and the Methods block stamp it from one source.
+    provenance: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -35,13 +39,15 @@ class ReportModel:
             "qc": self.qc.to_dict(),
             "seq_quality": self.seq_quality.to_dict() if self.seq_quality else None,
             "methods": self.methods,
+            "provenance": self.provenance,
             "timings": self.timings,
             "classifications": [c.to_dict() for c in self.classifications],
         }
 
 
 def build_report(sample_id: str, hpo_terms: list[str], qc: QCSummary,
-                 classifications: list[Classification]) -> ReportModel:
+                 classifications: list[Classification],
+                 provenance: Optional[dict] = None) -> ReportModel:
     methods = {
         "genome_build": GENOME_BUILD,
         "qc_thresholds": {"min_DP": QC_MIN_DP, "min_GQ": QC_MIN_GQ},
@@ -56,6 +62,17 @@ def build_report(sample_id: str, hpo_terms: list[str], qc: QCSummary,
             "GA4GH Phenopackets (phenotype exchange)",
         ],
     }
+    provenance = dict(provenance or {})
+    if provenance.get("mode") == "demo":
+        # Stamped in Methods as well as the conclusion: a reader who skips to "which databases
+        # was this run against?" must not find the ordinary answer.
+        absent = provenance.get("stores_absent") or []
+        methods["data_mode"] = (
+            "DEMONSTRATION — committed synthetic example VCF; full Parquet stores "
+            + (f"absent ({', '.join(absent)})" if absent else "present")
+        )
+        if provenance.get("criteria_degraded"):
+            methods["criteria_not_backed_by_full_stores"] = provenance["criteria_degraded"]
     # reportable = anything not benign, ordered by clinical relevance
     order = {"Pathogenic": 0, "Likely Pathogenic": 1,
              "Uncertain Significance (VUS)": 2, "Likely Benign": 3, "Benign": 4}
@@ -64,7 +81,8 @@ def build_report(sample_id: str, hpo_terms: list[str], qc: QCSummary,
     # Report the DETECTED build (qc.build), not the assumed default, so the header
     # can't disagree with the build-mismatch warning.
     return ReportModel(sample_id=sample_id, hpo_terms=hpo_terms, qc=qc, build=qc.build,
-                       classifications=ranked, methods=methods, generated=generated)
+                       classifications=ranked, methods=methods, generated=generated,
+                       provenance=provenance)
 
 
 _PLP = {"Pathogenic", "Likely Pathogenic"}
@@ -290,6 +308,13 @@ def summarize(report: "ReportModel") -> list[str]:
     """
     primary, secondary, other = split_findings(report.classifications)
     lines: list[str] = []
+
+    # BEFORE any finding: if this run only proceeded because it is a demonstration on a
+    # committed fixture, say so first. A reader who stops after one bullet must still have
+    # learned that this is not a patient result.
+    stamp = demo.stamp_line(report.provenance)
+    if stamp:
+        lines.append(stamp)
 
     # Every phenotype claim below is gated on a comparison having actually happened. With no
     # HPO terms (the CLI's --hpo is optional and MCP run_report defaults to None) the scores

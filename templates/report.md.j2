@@ -3,6 +3,17 @@
 
 > **DRAFT — for expert review. Not for clinical use.** Auto-generated candidate
 > interpretation to be verified and signed out by a qualified professional.
+{% if r.provenance and r.provenance.mode == 'demo' %}
+
+> 🧪 **DEMONSTRATION RUN — NOT A PATIENT RESULT.** Input `{{ r.provenance.vcf }}` is a synthetic
+> exome committed to this repository with a known planted diagnosis.
+{% if r.provenance.stores_absent %}
+> The full Parquet store(s) **{{ r.provenance.stores_absent | join(', ') }}** are **not present**, so
+> **{{ r.provenance.criteria_degraded | join(', ') }}** rest on the repository's frozen demo slices
+> rather than the complete databases. Every one of those criteria is unverified here. **Nothing in
+> this document may be used for, or compared against, a real case.**
+{% endif %}
+{% endif %}
 
 - **Genome build:** {{ r.build }}
 - **Pipeline:** vcf2report v{{ r.tool_version }}

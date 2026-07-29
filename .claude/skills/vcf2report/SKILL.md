@@ -65,8 +65,9 @@ that no-ops (already annotated, no phenotype) shows a visible "skipping" note, n
 
 On **Code**, after Stages 1–2 gather the VCF, drive Stages 1&3–8 with **one Workflow call** —
 `scriptPath: <repo>/.claude/skills/vcf2report/references/analyze.workflow.js`,
-`args: { repo, vcf, sample, hpo, phenotypeText, out, lift, chain, reference }` — its phases render
-as the Background-Tasks boxes. On **Desktop**, call the MCP tool named for each stage in order.
+`args: { repo, vcf, sample, hpo, phenotypeText, out, lift, chain, reference, demo }` — its phases
+render as the Background-Tasks boxes. On **Desktop**, call the MCP tool named for each stage in order.
+(`demo: true` only for a committed `data/example/` fixture — see the store gate in Stage 1.)
 
 ### 1 · 🖥️ Dependency check — FIRST; this opens the progress surface
 Before asking anything else, render the readiness + store gate **visually in the progress surface**,
@@ -97,6 +98,25 @@ completeness** in the progress surface (Background Tasks / show_widget / text):
 blocked, **STOP**: show the user which store failed + the fix (`build_gnomad_parquet.py` /
 `build_alphamissense_parquet.py` / `build_clinvar_parquet.py`, or `stamp_store_manifest.py`), and do
 NOT run the analysis. A merely **stale** ClinVar (past its weekly window) warns but does not block.
+
+**🧪 The one exemption — demo mode.** When the gate blocks, offer exactly one alternative: run a
+**committed example VCF** from `data/example/` as a stamped demonstration. This is what makes the
+guided flow showable on a machine without ~1 GB of stores (a fresh container, a cloud session driven
+from a phone), which is where a demo is most useful.
+- Pass `demo: true` in the analysis Workflow's `args` **only** when the VCF is under
+  `data/example/`. `check_stores.py --gate --demo <VCF>` **refuses** any other path (exit 1) — demo
+  mode is not a store override, so it can never be the reason a real exome ran with blind stores.
+- Everything downstream is stamped from `report.provenance` (built by `vcf2report.demo` from the VCF
+  that was parsed and the stores that were actually present, not from the flag): the conclusion's
+  first bullet, the Methods `data_mode` line, both Markdown renderers, and the Artifact's
+  `{{DEMO_BANNER}}`. **Never drop the banner** — a fixture laudo passing for a patient result is the
+  one failure this whole gate exists to prevent.
+- Say plainly which criteria are unverified: gnomAD absent → PM2/BA1/BS1/BS2; AlphaMissense →
+  PP3/BP4; ClinVar → PS1/PM1/PM5/PP5/BP6. In Stage 5 (triage) these are **UNVERIFIED**, never
+  "available".
+- The cases and their planted diagnoses are in `docs/SYNTHETIC_CASES.md`. If the user just wants to
+  see the pipeline work, `data/example/SYN-073.BBS2.annotated.vcf.gz` +
+  `data/example/SYN-073.hpo.txt` reaches a Pathogenic call and also exercises carrier triage.
 
 ### 2 · Ask for the VCF + phenotype
 - **VCF** — single-proband **GRCh38** `.vcf`/`.vcf.gz`. Warn on another build → set `lift: true`.

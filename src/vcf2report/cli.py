@@ -6,10 +6,11 @@ This is the same pipeline the MCP server exposes to Claude Desktop.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
-from . import config
+from . import config, demo
 from .pipeline import run_pipeline
 from .report.render import render_markdown, write_report
 
@@ -50,7 +51,22 @@ def main(argv: list[str] | None = None) -> int:
                         help="Print the Markdown report to stdout instead of writing a file.")
     parser.add_argument("--timing", action="store_true",
                         help="Print per-stage timings (parse/QC/annotate/filter/classify).")
+    parser.add_argument("--demo", action="store_true",
+                        help="Demonstration run on one of this repository's committed example "
+                             "VCFs (data/example/), so the flow can be shown without the full "
+                             "Parquet stores. Refused for any other path — it is not a store "
+                             "override. The laudo is stamped DEMONSTRATION RUN.")
     args = parser.parse_args(argv)
+
+    if args.demo:
+        # Refuse loudly here rather than letting the run proceed un-exempted: an operator who
+        # passed --demo believes the gate was relaxed, and silently doing an ordinary run would
+        # leave them thinking the stamp is missing because the data was fine.
+        decision = demo.decide(args.vcf, demo_requested=True)
+        if decision.refused:
+            print(f"error: {decision.reason}", file=sys.stderr)
+            return 2
+        os.environ["VCF2REPORT_DEMO"] = "1"
 
     hpo_path = args.hpo
     if hpo_path is None and args.vcf == str(config.SAMPLE_VCF):

@@ -60,7 +60,11 @@ bash scripts/setup_stores.sh
 Downloads the **gnomAD v4.1 + ClinVar** Parquet stores (pre-built, checksummed GitHub releases)
 and builds **AlphaMissense** locally (CC BY 4.0 — not redistributed). Verify each store's
 availability / version / build date / integrity anytime with `python3 scripts/check_stores.py`.
-(Skip it to run the **offline synthetic demo** — the bundled `data/` already has everything for that.)
+
+Skip it to run the **offline synthetic demo** — the bundled `data/` already has everything for that.
+The guided flow's Stage-1 gate still blocks a *real* exome without these stores, but a committed
+`data/example/` fixture runs through it as a stamped demonstration: see
+[DEMO_MODE.md](DEMO_MODE.md).
 
 ### 2b. Annotation toolchain — only to annotate a *raw* (un-annotated) VCF
 

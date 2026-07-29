@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from . import config
+from . import config, demo
 from .acmg.engine import classify
 from .annotate import add_alphamissense, add_clinvar_residue, annotate_variant
 from .annotate import alphamissense as alphamissense_mod
@@ -287,7 +287,11 @@ def run_pipeline(
     classifications: list[Classification] = [classify(v, a) for v, a in candidates]
     _mark("classify_s")
 
-    report = build_report(sample_id, hpo_terms, qc, classifications)
+    # Derived from the VCF that was actually parsed and the stores that were actually present —
+    # not from a caller-supplied flag — so a demo run cannot reach the renderers unstamped no
+    # matter which surface (CLI, headless script, MCP) drove it.
+    report = build_report(sample_id, hpo_terms, qc, classifications,
+                          provenance=demo.provenance(vcf_path))
     # Sequencing-quality estimate over ALL called variants (pre-filter callset).
     report.seq_quality = seqqc.estimate(variants)
     total = round(sum(timings.values()), 4)
