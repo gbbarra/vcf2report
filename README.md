@@ -14,6 +14,15 @@ VCF and the patient's phenotype (HPO terms) and it runs the whole pipeline —
 parse ▸ QC ▸ annotate ▸ prioritize ▸ classify ▸ report — and hands back a **draft
 for expert review**, with the full ACMG reasoning shown for every variant.
 
+**Phenotype→gene is already ontology-aware.** Candidate ranking and **PP4** use a
+**Lin / Information-Content similarity over the HPO `is_a` graph** — a patient term
+matches a *related* gene term (parent or child), weighted by how specific it is, and a
+best-match average means adding more explained phenotypes no longer dilutes the score.
+That is the failure mode of plain term-overlap on phenotype-rich cases.
+Details under [What makes it different](#what-makes-it-different); the code is
+[`src/vcf2report/annotate/hpo.py`](src/vcf2report/annotate/hpo.py) and the graph ships in
+`data/hpo/`.
+
 > ⚕️ **Draft-generation aid, not a diagnostic device.** Every report is a draft to
 > be verified and signed out by a qualified professional. See
 > [docs/DISCLAIMERS.md](docs/DISCLAIMERS.md).

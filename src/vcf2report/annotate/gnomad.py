@@ -62,6 +62,7 @@ def _from_payload(payload: dict) -> dict:
     pop_ac: dict[str, int] = {}
     pop_an: dict[str, int] = {}
     total_hom = 0
+    excluded_ac = 0          # copies seen ONLY in cohorts popmax deliberately drops
     for src in ("exome", "genome"):
         block = payload.get(src)
         if not block:
@@ -73,17 +74,45 @@ def _from_payload(payload: dict) -> dict:
             # ("nfe_xx"), 1KG/HGDP subsets ("1kg:pel", "hgdp:xx") and bottleneck
             # cohorts in one shot.
             if pid not in _POPMAX_INCLUDE:
+                # Bottleneck / founder cohorts (fin, asj, ami, mid) are excluded from
+                # popmax on purpose — ClinGen SVI excludes them for the same reason, a
+                # founder allele inflates popmax. But their COUNT still tells us gnomAD
+                # observed the allele, which is the opposite of "absent".
+                if pid and pid not in ("", "remaining"):
+                    excluded_ac += pop.get("ac") or 0
                 continue
             pop_ac[pid] = pop_ac.get(pid, 0) + (pop.get("ac") or 0)
             pop_an[pid] = pop_an.get(pid, 0) + (pop.get("an") or 0)
 
+    # A population only counts as SURVEYED once its AN clears the threshold; below it the
+    # frequency estimate is noise, not a small number.
+    surveyed = {pid: an for pid, an in pop_an.items() if an >= _MIN_AN}
+    if not surveyed:
+        # Previously this returned af=0.0 — a confident zero — in two situations where
+        # gnomAD had told us nothing of the kind:
+        #   * every included group is under-powered at this site (AN < _MIN_AN), and
+        #   * the allele exists ONLY in an excluded founder cohort (the Finnish-enriched
+        #     case: real, sometimes percent-level in FIN, invisible to popmax).
+        # Both then satisfied PM2 "absent from controls" on an allele gnomAD has actually
+        # seen, or has not looked at hard enough to say. AF is None so PM2 cannot fire;
+        # hom is kept because the homozygote count IS surveyed and BS2 may still use it.
+        why = ("observed only in cohorts excluded from popmax (founder/bottleneck)"
+               if excluded_ac else
+               f"no included population reached AN>={_MIN_AN} at this site")
+        return {"af": None, "ac": None, "an": None, "hom": total_hom, "pop": None,
+                "_freq_unknown": why}
+
     best = {"af": 0.0, "ac": 0, "an": 0, "hom": total_hom, "pop": None}
-    for pid, an in pop_an.items():
-        if an < _MIN_AN:
-            continue
+    for pid, an in surveyed.items():
         af = _af(pop_ac[pid], an)
         if af > best["af"]:
             best = {"af": af, "ac": pop_ac[pid], "an": an, "hom": total_hom, "pop": pid}
+    if best["pop"] is None:
+        # Every surveyed population has AC=0: a genuine, well-powered absence. Report the
+        # population that surveyed it most deeply, so the trail shows the evidence behind
+        # the zero rather than an anonymous 0.0.
+        pid = max(surveyed, key=lambda p: surveyed[p])
+        best = {"af": 0.0, "ac": 0, "an": surveyed[pid], "hom": total_hom, "pop": pid}
     return best
 
 

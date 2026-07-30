@@ -40,7 +40,17 @@ def detect_build(header_lines: list[str]) -> str | None:
     blob = "\n".join(header_lines).lower()
     if "grch38" in blob or "hg38" in blob:
         return "GRCh38"
-    if "grch37" in blob or "hg19" in blob or "b37" in blob or "g1k_v37" in blob:
+    # The GRCh37 token list must cover the names real reference FASTAs actually ship under,
+    # not just the assembly's formal name. Two very common ones were missing:
+    #   * hs37d5 — the 1000 Genomes phase-2 decoy reference, the default for a large share
+    #     of legacy exomes;
+    #   * Homo_sapiens_assembly19.fasta — the Broad/GATK bundle name.
+    # A header declaring only those fell through to None, so the pipeline reported "build
+    # not declared" instead of "this is GRCh37" — and a GRCh37 callset that slips past the
+    # build guard is classified against GRCh38 coordinates, which silently mismatches every
+    # store lookup. Unknown-build is the safe answer; wrongly-known would not be.
+    if ("grch37" in blob or "hg19" in blob or "b37" in blob or "g1k_v37" in blob
+            or "hs37d5" in blob or "assembly19" in blob or "hs37" in blob):
         return "GRCh37"
     return None
 

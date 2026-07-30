@@ -143,11 +143,19 @@ def query(variant: Variant) -> Optional[dict]:
             # can raise a header-parse error ("Invalid header") on a flaky remote
             # read — keep the whole record loop inside the guard so it falls back
             # cleanly instead of propagating and crashing the caller.
+            # Alleles compared case-INSENSITIVELY. The VCF spec treats bases as
+            # case-insensitive, and soft-masked references make lowercase calls ordinary
+            # in real callsets; vcf.parse deliberately does not rewrite the operator's
+            # alleles. A case-sensitive compare here turned "a" vs "A" into a gnomAD MISS,
+            # which is the dangerous direction: the variant then looks unobserved, and PM2
+            # fires on an allele gnomAD actually knows. alphamissense_parquet already
+            # upper-cases on the same join, so this was an asymmetry, not a policy.
+            v_ref, v_alt = variant.ref.upper(), variant.alt.upper()
             for rec in recs:
-                if rec.pos != pos or rec.ref != variant.ref:
+                if rec.pos != pos or (rec.ref or "").upper() != v_ref:
                     continue
-                alts = rec.alts or ()
-                if variant.alt not in alts:
+                alts = tuple((a or "").upper() for a in (rec.alts or ()))
+                if v_alt not in alts:
                     continue
                 cand = _best_from_record(rec)
                 if cand and (best is None or (cand["af"] or 0) > (best["af"] or 0)):

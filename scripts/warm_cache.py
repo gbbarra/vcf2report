@@ -22,14 +22,31 @@ def main() -> int:
     vcf = sys.argv[1] if len(sys.argv) > 1 else str(config.SAMPLE_VCF)
     variants, _build, _ = parse_vcf(vcf)
     n = 0
+    skipped = 0
     for v in variants:
+        # ONLY persist positive answers. Caching a "not found" sentinel writes an absence of
+        # data into a store that reads back as data: gnomad.lookup / clinvar.lookup return
+        # a dict either way, so a cached {significance: None} is indistinguishable from a
+        # real "ClinVar says nothing about this variant" — and it survives every later run,
+        # including ones where the store DOES have the record. Warming with a store
+        # unmounted, or before a weekly ClinVar refresh, poisoned those keys permanently.
+        # A miss simply stays uncached: the next lookup re-resolves it, which is the correct
+        # cost of not knowing.
         g = gnomad.lookup(v)
-        cache.put("gnomad", v.key, {k: g[k] for k in ("af", "ac", "an", "hom", "pop") if k in g})
+        if g.get("af") is not None:
+            cache.put("gnomad", v.key,
+                      {k: g[k] for k in ("af", "ac", "an", "hom", "pop") if k in g})
+        else:
+            skipped += 1
         cv = clinvar.lookup(v)
-        cache.put("clinvar", v.key, {k: cv.get(k) for k in
-                  ("significance", "review_status", "accession", "condition", "date")})
+        if cv.get("significance"):
+            cache.put("clinvar", v.key, {k: cv.get(k) for k in
+                      ("significance", "review_status", "accession", "condition", "date")})
         n += 1
     print(f"Warmed cache for {n} variants into {config.CACHE_DIR}")
+    if skipped:
+        print(f"  {skipped} variant(s) had no gnomAD frequency and were left UNCACHED "
+              f"(an unknown must not be persisted as an answer).")
     return 0
 
 
