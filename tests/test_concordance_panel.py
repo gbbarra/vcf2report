@@ -344,3 +344,49 @@ def test_panel_exercises_the_gene_constraint_criteria():
     # position, which is the leakage this panel exists to exclude.
     for code in ("PS1", "PM5", "PM1"):
         assert not any(code in r.met_codes for r in rows), f"{code} would leak ClinVar into the panel"
+
+
+# ------------------------------------------------- what the 61% floor is actually made of
+
+def test_every_missed_pathogenic_is_one_criterion_short():
+    """"61% sensitivity" invites the reading that the engine FAILS on 39 of 100. It does not.
+
+    Each miss is one line of evidence short of Likely Pathogenic, and none is misclassified
+    toward benign. If a future change made a miss need TWO additions, the engine would have
+    got genuinely worse in a way the headline percentage alone would not show.
+    """
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    from analyse_panel_misses import analyse
+
+    r = analyse()
+    assert r["n_missed"] > 0
+    assert "unreachable with one line" not in r["by_strength"], (
+        "a pathogenic panel entry is now more than one criterion from Likely Pathogenic")
+    assert sum(r["by_strength"].values()) == r["n_missed"]
+
+
+def test_phenotype_alone_recovers_the_cheapest_misses():
+    """The panel supplies no phenotype to anybody, so PP4 cannot fire — while every real case
+    has one. This pins that the floor is depressed by a panel-design choice, not by the
+    engine, so nobody 'fixes' the sensitivity by relaxing the combining rules."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    from analyse_panel_misses import analyse
+
+    recovered = analyse()["with_phenotype"]
+    assert recovered, "no miss is one Supporting away — has the panel or the combiner changed?"
+    for x in recovered:
+        assert x["before"].startswith("Uncertain")
+        assert x["after"] in ("Likely Pathogenic", "Pathogenic"), (
+            f"{x['gene']} {x['hgvs_p']} no longer recovers on phenotype alone: {x}")
+
+
+def test_concordance_doc_does_not_publish_the_floor_as_the_accuracy():
+    """The doc must say what the number excludes, or a reader takes 61% for the ceiling."""
+    doc = (Path(__file__).resolve().parents[1] / "docs/CONCORDANCE.md").read_text()
+    assert "floor" in doc.lower()
+    assert "no phenotype" in doc.lower() or "supplies **no" in doc.lower()
+    assert "analyse_panel_misses" in doc, "the doc must name how to reproduce the breakdown"
