@@ -116,6 +116,51 @@ since ClinVar is the answer key. Including them would measure a different, less
 independent thing, so the panel keeps them off and reports a floor. Their value is
 measured instead on the `hpo-spiked-exomes` benchmark (`docs/BENCHMARK.md`).
 
+## What the 39 missed pathogenics actually need
+
+"61% sensitivity" invites the reading that the engine fails on 39 of 100 pathogenic
+variants. It does not. Every one of the 39 is **exactly one criterion short of Likely
+Pathogenic** — none is far away, and none is misclassified toward benign (benign precision
+stays 100%). Reproduce with `scripts/analyse_panel_misses.py`:
+
+| what would raise it | n | supplied by |
+|---|---:|---|
+| one **Supporting** | 6 | PP4 — a phenotype match |
+| one **Moderate** | 11 | PM5 / PM1 (excluded here), or PM3 / PM6 (trio) |
+| one **Strong** | 15 | PS1 (excluded here), or PS3 / PS4 (assay, case-control) |
+| one **Very Strong** | 7 | PVS1 — these are missense; it will not come |
+
+32 of the 39 are missense and 31 already carry `PM2 + PP3` (15 also `PP2`). The engine is
+seeing the evidence; the combining rules simply do not reach LP on Supporting-only lines,
+which is Richards working as specified.
+
+**The floor is depressed by three deliberate exclusions, and two of them do not exist in
+real use.** The panel withholds ClinVar, excludes the residue index, and supplies **no
+phenotype** — so PP4 cannot fire for anybody. The six cheapest misses are five **PAX6**
+(aniridia) and one **RB1** (retinoblastoma) variants, all sitting at `PM2 + PP3`. Supply a
+phenotype and all six become Likely Pathogenic:
+
+```
+PAX6   p.Gln269Arg    VUS -> Likely Pathogenic
+PAX6   p.Ser133Arg    VUS -> Likely Pathogenic
+PAX6   p.Gly78Ser     VUS -> Likely Pathogenic
+PAX6   p.Val62Met     VUS -> Likely Pathogenic
+PAX6   p.Ile42Asn     VUS -> Likely Pathogenic
+RB1    p.Leu688Arg    VUS -> Likely Pathogenic
+```
+
+That is **61% → 67%** from phenotype alone, on a panel that measures a genotype-only run of
+a phenotype-driven engine. A further 11 sit one Moderate away, which is the strength PM5 and
+PM1 carry — the criteria this panel switches off for leakage. So the honest ceiling implied
+by these data is materially above 61%; what the panel measures is the engine stripped of its
+missense machinery and its phenotype, which is the conservative thing to publish and should
+not be read as the engine's accuracy.
+
+**Do not "fix" this by relaxing the combining rules.** Every one of the 39 is a variant the
+engine correctly declines to call on the evidence in front of it. The gap is missing
+*evidence*, not a mis-tuned threshold — and the run that supplies the evidence is the real
+one, not this panel.
+
 ## Building the panel (once, with network)
 
 The build harvests real ClinVar variants (coordinates and labels **always from
