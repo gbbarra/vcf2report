@@ -232,3 +232,45 @@ def test_published_concordance_headline_matches_the_frozen_panel(doc):
     for pct in (round(metrics["pathogenic_sensitivity"] * 100),
                 round(metrics["lof_pathogenic_sensitivity"] * 100)):
         assert f"{pct}%" in text, f"{doc} does not quote {pct}% from the live panel"
+
+
+# --------------------------------------------------------------------- invocable entry point
+
+def _slash_command_claims() -> list[Path]:
+    """Every repo file that tells a reader to type a `/name` slash command."""
+    candidates = list((ROOT / "docs").glob("*.md")) + [ROOT / "README.md", ROOT / "vcf2report.md"]
+    candidates += list((ROOT / ".claude/skills").rglob("SKILL.md"))
+    return [p for p in candidates if p.exists()]
+
+
+def test_every_advertised_slash_command_actually_exists():
+    """Four files told the reader to type `/vcf2report` while `.claude/commands/` did not exist,
+    so the app answered "Unknown command" — a skill under `.claude/skills/` is model-invoked and
+    does NOT register a typed slash command by itself. Any `/name` the repo advertises must have a
+    backing `.claude/commands/name.md`.
+    """
+    # Built-ins the harness provides; the repo may reference them without shipping a file.
+    builtin = {"clear", "help", "config", "init", "review", "compact", "model", "cost",
+               "doctor", "login", "logout", "memory", "vim", "terminal-setup", "loop"}
+    commands = {p.stem for p in (ROOT / ".claude/commands").glob("*.md")}
+    missing: dict[str, list[str]] = {}
+    for doc in _slash_command_claims():
+        for name in re.findall(r"`/([a-z][a-z0-9-]{2,})`", doc.read_text()):
+            if name in builtin or name in commands:
+                continue
+            missing.setdefault(name, []).append(str(doc.relative_to(ROOT)))
+    assert not missing, (
+        "slash commands advertised with no .claude/commands/<name>.md to back them "
+        f"(the app answers 'Unknown command'): {missing}")
+
+
+def test_the_vcf2report_command_delegates_to_the_skill():
+    """The command must POINT AT the skill, not restate the flow. Two copies of an 8-stage
+    clinical procedure is exactly the duplication that drifted everywhere else in this repo."""
+    cmd = ROOT / ".claude/commands/vcf2report.md"
+    assert cmd.exists(), "the /vcf2report slash command is the documented entry point"
+    text = cmd.read_text()
+    assert "vcf2report" in text and "Skill" in text, "must invoke the skill"
+    # A copy of the flow would have to re-list the stages; a pointer does not.
+    assert "SKILL.md" in text, "must name the skill as the source of truth"
+    assert len(text.splitlines()) < 60, "this should be a thin pointer, not a second copy"

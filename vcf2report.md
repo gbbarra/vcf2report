@@ -21,15 +21,27 @@ anything else yet; the skill does the rest on first use.
 
 ## Use it — just ask
 
-In any Claude Code session, type `/vcf2report` or just say, in plain language:
+Two ways in, and they land in the same place:
+
+**Type the command** — `/vcf2report [VCF] [phenotype]`, registered by
+`.claude/commands/vcf2report.md`. It is a thin pointer that invokes the skill; the
+flow itself lives only in the skill, so the two cannot drift apart.
+
+**Or just ask, in plain language** — the skill's own description triggers it, no
+slash needed:
 
 > *"Analyze this VCF for a patient with seizures: `/path/to/exome.vcf`"*
 > *"Set up vcf2report and run the demo."*
 > *"Gera um laudo desse exoma: `~/caso.vcf.gz`, HPO HP:0001250, HP:0011097."*
 
-Claude picks up the **`vcf2report`** skill (`.claude/skills/vcf2report/SKILL.md`)
-and acts as a guided harness — it sets up the environment, runs the pipeline, and
-renders an auditable ACMG report (laudo) inline.
+Either way Claude picks up the **`vcf2report`** skill
+(`.claude/skills/vcf2report/SKILL.md`) and acts as a guided harness — it sets up the
+environment, runs the pipeline, and renders an auditable ACMG report (laudo) inline.
+
+A skill under `.claude/skills/` is model-invoked; on its own it does **not** register a
+typed slash command. That is why the command file exists, and why
+`tests/test_docs_reality.py` now fails if any slash command this repo advertises has no
+matching file under `.claude/commands/` behind it.
 
 ## What it looks like
 
