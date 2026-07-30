@@ -178,14 +178,22 @@ def _live(variant: Variant) -> Optional[dict]:
 
 
 def lookup(variant: Variant) -> dict:
-    cached = cache.get(_SOURCE, variant.key)
-    if cached is not None:
-        return {**cached, "_source": "ClinVar (cache)"}
-
-    # Batch DuckDB/Parquet store (chr-pruned prime over the post-QC set) — checked before
-    # the per-variant tabix. Same fields, same _source; a miss returns None here and falls
-    # through exactly like a tabix miss (never a fabricated 'no record').
+    # Authoritative LOCAL stores FIRST, before the persisted disk cache — the same order
+    # gnomad.lookup documents and for a stronger reason. data/cache/ is a flat, unversioned
+    # JSON with no build date and no staleness window, while ClinVar is the ONE store this
+    # project refreshes weekly (stores.py exists to warn when it goes stale). A cache entry
+    # shadowing a fresh store answer therefore serves an assertion that may be months old,
+    # under a "_source" that says nothing about its age.
+    #
+    # It also closes a poisoning path: scripts/warm_cache.py used to persist the
+    # "no record" sentinel, so a key warmed while the store was unmounted returned
+    # "no ClinVar record" forever — through a later, correctly-built store — until someone
+    # deleted data/cache/ by hand. The cache no longer stores negatives, and this order
+    # means even a legacy poisoned cache file cannot outrank a real store answer.
     from . import clinvar_parquet
+
+    # Batch DuckDB/Parquet store (chr-pruned prime over the post-QC set). A miss returns
+    # None and falls through exactly like a tabix miss (never a fabricated 'no record').
     cp = clinvar_parquet.get(variant.key)
     if cp is not None and cp.get("significance"):
         return {**cp, "_source": "ClinVar (local)"}
@@ -195,6 +203,10 @@ def lookup(variant: Variant) -> dict:
     tb = _tabix_lookup(variant)
     if tb is not None and tb.get("significance"):
         return {**tb, "_source": "ClinVar (local)"}
+
+    cached = cache.get(_SOURCE, variant.key)
+    if cached is not None and cached.get("significance"):
+        return {**cached, "_source": "ClinVar (cache)"}
 
     if not config.offline():
         live = _live(variant)

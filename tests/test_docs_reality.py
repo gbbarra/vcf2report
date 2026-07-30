@@ -274,3 +274,36 @@ def test_the_vcf2report_command_delegates_to_the_skill():
     # A copy of the flow would have to re-list the stages; a pointer does not.
     assert "SKILL.md" in text, "must name the skill as the source of truth"
     assert len(text.splitlines()) < 60, "this should be a thin pointer, not a second copy"
+
+
+# ---------------------------------------------------------------- README discoverability
+
+def test_readme_surfaces_the_phenotype_algorithm_before_the_fold():
+    """A reader (or an agent) skimming the README must learn HOW phenotype→gene works
+    without scrolling past the feature list.
+
+    This is not cosmetic. The mechanism — Lin/IC similarity over the HPO `is_a` graph — was
+    documented only in a bullet ~100 lines down, so a session that had the repo but skimmed
+    the top proposed building "Exomiser-lite" as if phenotype scoring were missing. The
+    capability existed; the README did not say so where anyone would look.
+    """
+    text = (ROOT / "README.md").read_text()
+    fold = text.index("## What it does")
+    head = text[:fold].lower()
+    assert "hpo" in head
+    assert "lin" in head and "information-content" in head, (
+        "the README's opening does not name the phenotype-matching algorithm")
+    assert "is_a" in head, "the opening does not say the match is over the HPO graph"
+
+
+def test_readme_internal_anchors_resolve_to_real_headings():
+    """A `(#anchor)` link that matches no heading is a dead link that renders as one."""
+    text = (ROOT / "README.md").read_text()
+    headings = set()
+    for line in text.splitlines():
+        if line.startswith("#"):
+            title = line.lstrip("#").strip()
+            slug = re.sub(r"[^a-z0-9 -]", "", title.lower()).replace(" ", "-")
+            headings.add(slug)
+    broken = [a for a in re.findall(r"\]\(#([a-z0-9-]+)\)", text) if a not in headings]
+    assert not broken, f"README links to anchors with no matching heading: {broken}"

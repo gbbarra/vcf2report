@@ -113,22 +113,35 @@ def prime(variants) -> int:
     # loop; fall back to tabix when the store / duckdb is absent (behaviour-preserving).
     # The parquet returns dict-or-None per key, identical to _best, so lookup() is unchanged.
     from . import alphamissense_parquet
+    n = 0
+    unresolved = list(variants)
     if alphamissense_parquet.available():
         got = alphamissense_parquet.prime(variants)
         if got is not None:
-            n = 0
             with _lock:
                 for k, val in got.items():
-                    if k not in _primed:
+                    if k not in _primed and val is not None:
                         _primed[k] = val
                         n += 1
-            return n
+            # The store answers via LEFT JOIN, so it returns an entry for EVERY key —
+            # None for the ones it had no row for. Writing those Nones into _primed and
+            # returning here meant a store that merely lacks a contig (or was built on a
+            # different assembly) permanently silenced the tabix file that DOES carry the
+            # score, and the variant deferred to VUS with no trace of why. Unlike
+            # gnomad_parquet, this store has no vouched-absence machinery — it cannot tell
+            # "AlphaMissense has no score for this substitution" from "this store does not
+            # cover it" — so a miss here must fall through, not conclude.
+            unresolved = [v for v in variants if v.key not in _primed]
+            if not unresolved:
+                return n
     tabix = _open()
     if tabix is None:
-        return 0
-    n = 0
+        # No tabix either: record the store's misses so the run does not re-query per
+        # variant. They are genuine "no score" answers only in the sense that nothing on
+        # this machine can score them, which is what lookup() already reports.
+        return n
     with _lock:
-        for v in variants:
+        for v in unresolved:
             if v.key in _primed:
                 continue
             _primed[v.key] = _best(_fetch(tabix, v.chrom, v.pos), v)  # dict or None
