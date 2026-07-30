@@ -8,10 +8,20 @@
 > 🧪 **DEMONSTRATION RUN — NOT A PATIENT RESULT.** Input `{{ r.provenance.vcf }}` is a synthetic
 > exome committed to this repository with a known planted diagnosis.
 {% if r.provenance.stores_absent %}
-> The full Parquet store(s) **{{ r.provenance.stores_absent | join(', ') }}** are **not present**, so
-> **{{ r.provenance.criteria_degraded | join(', ') }}** rest on the repository's frozen demo slices
-> rather than the complete databases. Every one of those criteria is unverified here. **Nothing in
-> this document may be used for, or compared against, a real case.**
+> The Parquet store(s) **{{ r.provenance.stores_absent | join(', ') }}** are **not present** here, so
+> nothing below was looked up live.
+{% if r.provenance.criteria_from_fixture_info %}
+> **{{ r.provenance.criteria_from_fixture_info | join(', ') }}** rest on values **baked into this
+> fixture's own INFO fields** when the example was generated — read from the complete databases at
+> that time, so they are real numbers, but frozen, limited to this file's variants, and neither
+> re-verifiable nor version-checkable on this machine.
+{% endif %}
+{% if r.provenance.criteria_from_frozen_slice %}
+> **{{ r.provenance.criteria_from_frozen_slice | join(', ') }}** rest on the repository's **frozen
+> ClinVar residue slice**, which covers only the demo genes — for any other gene they report
+> *"not assessed"* rather than a negative.
+{% endif %}
+> **Nothing in this document may be used for, or compared against, a real case.**
 {% endif %}
 {% endif %}
 
