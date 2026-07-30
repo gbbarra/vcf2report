@@ -183,43 +183,109 @@ def provenance(vcf: str | Path | None = None, measure: bool = False) -> dict:
                    "planted diagnosis (docs/SYNTHETIC_CASES.md) — a demonstration fixture, "
                    "not patient data."),
         "stores_absent": absent,
+        # Kept apart because they fail differently — see the comment on _BAKED_INTO_FIXTURE.
+        "criteria_from_fixture_info": baked_criteria(absent),
+        "criteria_from_frozen_slice": sliced_criteria(absent),
         "criteria_degraded": degraded_criteria(absent),
     }
 
 
-# What each absent store costs, in criteria. Named explicitly so the demo stamp tells the
-# reader which lines of the trail to distrust instead of leaving them to guess.
-_STORE_COST = {
+# Where a demo run's evidence ACTUALLY comes from when a store is absent. These are two
+# different situations, and lumping them into one "frozen demo slices" phrase was the
+# imprecision worth fixing — they fail differently, so a reader needs them apart:
+#
+#  * BAKED INTO THE FIXTURE — scripts/make_annotated_example.py read the COMPLETE stores, on a
+#    machine where they were present, and wrote the values into the example VCF's own INFO
+#    fields (gnomad_AF/AC/AN/nhomalt/faf95, CLNSIG/CLNREVSTAT/CLNVI, am_pathogenicity). The
+#    engine's from_vcf path reads them straight back. So these are REAL measurements from the
+#    full databases — but frozen in the file at generation time, covering only this fixture's
+#    variants, and neither re-verifiable nor version-checkable on a machine without the stores.
+#  * FROM A FROZEN SLICE — the ClinVar residue index behind PS1/PM1/PM5 is NOT carried in the
+#    VCF. The repo ships a slice covering only the demo genes; for any other gene these three
+#    honestly report "index unavailable — not assessed".
+_BAKED_INTO_FIXTURE = {
     "gnomad": ("PM2", "BA1", "BS1", "BS2"),
     "alphamissense": ("PP3", "BP4"),
-    "clinvar": ("PS1", "PM1", "PM5", "PP5", "BP6"),
+    "clinvar": ("PP5", "BP6"),
+}
+_FROM_FROZEN_SLICE = {
+    "clinvar": ("PS1", "PM1", "PM5"),
 }
 
 
-def degraded_criteria(absent) -> list[str]:
+def _codes(mapping, absent) -> list[str]:
     out: list[str] = []
     for name in absent or ():
-        for code in _STORE_COST.get(name, ()):
+        for code in mapping.get(name, ()):
             if code not in out:
                 out.append(code)
     return out
 
 
+def baked_criteria(absent) -> list[str]:
+    """Criteria whose data was baked into the fixture's INFO from the complete stores."""
+    return _codes(_BAKED_INTO_FIXTURE, absent)
+
+
+def sliced_criteria(absent) -> list[str]:
+    """Criteria backed only by the repo's frozen demo-gene slice."""
+    return _codes(_FROM_FROZEN_SLICE, absent)
+
+
+def degraded_criteria(absent) -> list[str]:
+    """Every criterion not backed by a live, complete store — the union of the two above."""
+    return baked_criteria(absent) + sliced_criteria(absent)
+
+
 def stamp_line(prov: dict) -> str:
-    """The one-sentence banner every renderer puts at the top of a demo laudo."""
+    """The banner every renderer puts at the top of a demo laudo.
+
+    Says where the numbers came from, not just that something is missing. "Frozen demo slices"
+    was wrong for most of it: the frequency / predictor / ClinVar-assertion values are real
+    measurements from the complete stores, baked into the fixture when it was generated. What
+    they are NOT is re-verifiable here — which is the thing a reader has to know.
+    """
     if not prov:
         return ""
     absent = prov.get("stores_absent") or []
-    degraded = prov.get("criteria_degraded") or []
-    tail = (
-        f" The full Parquet store(s) {', '.join(absent)} are NOT present, so "
-        f"{', '.join(degraded)} rest on the repository's frozen demo slices rather than the "
-        "complete databases — treat every one of them as unverified."
-        if absent else
-        " Stores are present, but the input is still a fixture, not a patient."
-    )
-    return (
+    if not absent:
+        return (
+            "**DEMONSTRATION RUN — NOT A PATIENT RESULT.** This laudo was produced from "
+            f"`{prov.get('vcf', 'a committed example VCF')}`, a synthetic exome committed to "
+            "this repository with a known planted diagnosis. The stores are present, but the "
+            "input is still a fixture, not a patient."
+        )
+    baked = prov.get("criteria_from_fixture_info") or []
+    sliced = prov.get("criteria_from_frozen_slice") or []
+    parts = [
         "**DEMONSTRATION RUN — NOT A PATIENT RESULT.** This laudo was produced from "
         f"`{prov.get('vcf', 'a committed example VCF')}`, a synthetic exome committed to this "
-        "repository with a known planted diagnosis." + tail
-    )
+        "repository with a known planted diagnosis. The Parquet store(s) "
+        f"{', '.join(absent)} are NOT present here, so nothing below was looked up live:"
+    ]
+    if baked:
+        parts.append(
+            f" {', '.join(baked)} rest on values **baked into this fixture's own INFO fields** "
+            "when the example was generated — read from the complete databases at that time, so "
+            "they are real numbers, but frozen, limited to this file's variants, and neither "
+            "re-verifiable nor version-checkable on this machine."
+        )
+    if sliced:
+        parts.append(
+            f" {', '.join(sliced)} rest on the repository's **frozen ClinVar residue slice**, "
+            "which covers only the demo genes — for any other gene they report "
+            "\"not assessed\" rather than a negative."
+        )
+    if not (baked or sliced):
+        # Defensive: a provenance dict carrying only the union (an older persisted results.json,
+        # or a caller that built it by hand) must still NAME the criteria. Falling through with
+        # neither list would emit a banner that warns about nothing in particular — the failure
+        # direction this stamp exists to prevent.
+        fallback = prov.get("criteria_degraded") or degraded_criteria(absent)
+        if fallback:
+            parts.append(
+                f" {', '.join(fallback)} are not backed by a live, complete store here — treat "
+                "every one of them as unverified."
+            )
+    parts.append(" Nothing here may be used for, or compared against, a real case.")
+    return "".join(parts)
