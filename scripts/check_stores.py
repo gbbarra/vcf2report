@@ -10,6 +10,12 @@ build date + source version, and — by each source's cadence — whether a refr
     python3 scripts/check_stores.py --json        # machine-readable (monitoring)
     python3 scripts/check_stores.py --quick        # presence + size + freshness (no row scan)
     python3 scripts/check_stores.py clinvar         # one store
+    python3 scripts/check_stores.py --gate           # the analysis gate (exit 1 = do not run)
+    python3 scripts/check_stores.py --gate --demo data/example/SYN-073.BBS2.annotated.vcf.gz
+
+``--demo`` relaxes the gate for a committed example VCF only, so the guided flow can be shown
+without the ~1 GB stores; any other path is refused rather than honoured, and the resulting
+laudo is stamped DEMONSTRATION RUN (see ``vcf2report.demo``).
 
 Exit code is non-zero if any store is missing / corrupt / incomplete / stale, so it doubles
 as a cron / CI monitoring probe.
@@ -20,7 +26,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-from vcf2report import stores  # noqa: E402
+from vcf2report import demo, stores  # noqa: E402
 
 _ICON = {"ok": "OK ", "stale": "STALE", "incomplete": "BAD", "corrupt": "BAD", "missing": "—"}
 
@@ -33,6 +39,11 @@ def main() -> int:
     ap.add_argument("--gate", action="store_true",
                     help="analysis gate: exit non-zero ONLY if a store blocks (missing/corrupt/"
                          "incomplete); a merely-stale store warns but passes")
+    ap.add_argument("--demo", metavar="VCF",
+                    help="demo mode: relax the gate for one of this repository's committed "
+                         "example VCFs (data/example/*.vcf.gz), so the guided flow can be "
+                         "demonstrated without the ~1 GB stores. REFUSED for any other path — "
+                         "this is not a store override. The resulting laudo is stamped.")
     a = ap.parse_args()
 
     health = stores.store_health(name=a.store, measure=not a.quick)
@@ -74,14 +85,32 @@ def main() -> int:
     if a.gate:
         blocking = [n for n, e in health.items() if e["status"] in stores._BLOCKING]
         stale = [n for n, e in health.items() if e["status"] == "stale"]
+        d = demo.decide(a.demo, demo_requested=bool(a.demo))
+        # The exemption is applied here and nowhere else, so there is exactly one place where a
+        # blocking store can stop blocking — and it prints why, every time.
+        exempt = bool(blocking) and d.active
         if not a.json:
-            if blocking:
+            if d.refused:
+                print(f"  ⛔ {d.reason}\n")
+            elif blocking and exempt:
+                print(f"  🧪 DEMO MODE — {d.reason}")
+                print(f"     Store(s) {blocking} would normally BLOCK this run; the exemption "
+                      f"lets it proceed because the input is a repository fixture.")
+                print(f"     Criteria not backed by full stores: "
+                      f"{demo.degraded_criteria(blocking)}.")
+                print("     The laudo will be stamped DEMONSTRATION RUN. Do NOT compare it "
+                      "against a real case.\n")
+            elif blocking:
                 print(f"  ⛔ BLOCKED — parquet store(s) not available/intact: {blocking}. "
                       "Analysis must NOT run — build/repair them and re-run.\n")
             else:
                 warn = f"  (⚠ stale, update soon: {stale})" if stale else ""
-                print(f"  ✅ READY — all required parquet stores are available + intact.{warn}\n")
-        return 1 if blocking else 0
+                demo_note = "  🧪 (demo input — laudo still stamped)" if d.active else ""
+                print(f"  ✅ READY — all required parquet stores are available + intact."
+                      f"{warn}{demo_note}\n")
+        if d.refused:
+            return 1
+        return 1 if (blocking and not exempt) else 0
 
     bad = {n: e["status"] for n, e in health.items() if e["status"] != "ok"}
     if bad and not a.json:

@@ -310,6 +310,7 @@ GA4GH Phenopackets.
 | [vcf2report.md](vcf2report.md) | **Run it from Claude** — one-step skill install + the guided harness |
 | [SETUP.md](docs/SETUP.md) | Full install + Claude Desktop / MCP integration |
 | [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | Guided demo walkthrough |
+| [DEMO_MODE.md](docs/DEMO_MODE.md) | Running the bundled example exomes without the ~1 GB stores (and why the laudo is stamped) |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pieces fit together |
 | [CONCORDANCE.md](docs/CONCORDANCE.md) | The ClinVar validation panel + AlphaMissense calibration |
 | [LOCAL_ANNOTATION.md](docs/LOCAL_ANNOTATION.md) | Annotating a raw VCF with SnpEff |

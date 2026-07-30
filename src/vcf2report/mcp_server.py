@@ -162,13 +162,21 @@ def data_status() -> dict:
 
 
 @mcp.tool()
-def check_stores() -> dict:
+def check_stores(vcf_path: str | None = None, demo: bool = False) -> dict:
     """Full health + integrity scan of the annotation Parquet stores (gnomAD, AlphaMissense,
     ClinVar): presence, size, row count, integrity (reads cleanly), completeness vs the build
     manifest, build date + source version, and freshness by cadence (ClinVar weekly; gnomAD v4.1
-    / AlphaMissense frozen). ``data_status`` carries a quick summary; this does the row scan."""
+    / AlphaMissense frozen). ``data_status`` carries a quick summary; this does the row scan.
+
+    Pass ``demo=True`` with ``vcf_path`` pointing at one of the repository's committed
+    ``data/example/`` fixtures to get the gate's demo verdict — the exemption that lets the guided
+    flow be demonstrated without the full stores. It is REFUSED (``mode="refused"``, ``ready``
+    False) for any other path, and the resulting laudo is stamped either way."""
+    from . import demo as _demo_mod
     from . import stores as _stores_mod
-    return _stores_mod.store_health(measure=True)
+    if not (vcf_path or demo):
+        return _stores_mod.store_health(measure=True)
+    return _demo_mod.gate(vcf_path, demo_requested=demo, measure=True)
 
 
 @mcp.tool()

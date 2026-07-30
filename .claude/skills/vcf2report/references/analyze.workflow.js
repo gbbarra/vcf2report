@@ -16,11 +16,15 @@ export const meta = {
 }
 
 // args (from the vcf2report skill): { repo, vcf, sample, hpo?, phenotypeText?, out?, lift?,
-// chain?, reference? }. The skill fills these after locating the repo and the VCF.
+// chain?, reference?, demo? }. The skill fills these after locating the repo and the VCF.
+// `demo: true` is ONLY for the repo's committed data/example/ fixtures — check_stores refuses it
+// for anything else, so passing it cannot loosen the gate for a real exome.
 const a = (typeof args === 'string' ? JSON.parse(args) : args) || {}
 const REPO = a.repo || '.'
 const SAMPLE = a.sample || 'sample'
 const OUT = a.out || `out/${SAMPLE}`
+const DEMO = a.demo ? `--demo ${a.vcf}` : ''
+const DEMO_ENV = a.demo ? 'VCF2REPORT_DEMO=1 ' : ''
 
 if (!a.vcf) {
   log('No VCF path in args — nothing to analyze.')
@@ -39,17 +43,22 @@ const deps = await agent(
   { label: '🖥️ preflight', phase: '🖥️ Local · Dependency check' })
 // HARD GATE — availability + version + build date + integrity of the 3 Parquet stores.
 const gate = await agent(
-  `cd ${REPO} && python3 scripts/check_stores.py --gate; echo "STORES_EXIT=$?". Show the user the store ` +
+  `cd ${REPO} && python3 scripts/check_stores.py --gate ${DEMO}; echo "STORES_EXIT=$?". Show the user the store ` +
   `table VERBATIM — for EACH parquet (gnomAD · AlphaMissense · ClinVar): available? · version (source) · ` +
-  `BUILD DATE · integrity · complete — then the READY/BLOCKED banner and the STORES_EXIT line (do not omit it).`,
+  `BUILD DATE · integrity · complete — then the READY/BLOCKED/DEMO banner and the STORES_EXIT line (do not omit it).`,
   { label: '🖥️ parquet stores — availability + integrity GATE', phase: '🖥️ Local · Dependency check' })
 if (!/STORES_EXIT=0/.test(gate || '')) {
   log('⛔ ANALYSIS BLOCKED — the gnomAD / AlphaMissense / ClinVar Parquet stores are not all available and ' +
       'intact. Fix the flagged store(s) — build_gnomad_parquet.py / build_alphamissense_parquet.py / ' +
-      'build_clinvar_parquet.py (or stamp_store_manifest.py) — then re-run. No analysis was performed.')
+      'build_clinvar_parquet.py (or stamp_store_manifest.py) — then re-run. No analysis was performed. ' +
+      'To demonstrate the flow instead, re-run against a committed data/example/ VCF with demo: true.')
   return { error: 'stores_unavailable', deps, gate }
 }
-log('✅ Parquet stores available + intact — proceeding with the analysis.')
+const demoActive = /DEMO MODE/.test(gate || '')
+log(demoActive
+  ? '🧪 DEMONSTRATION RUN — a committed example VCF, stores exempted. The laudo will be stamped and MUST NOT ' +
+    'be read as a patient result or compared against a real case.'
+  : '✅ Parquet stores available + intact — proceeding with the analysis.')
 
 // 2 — 🖥️ INSPECT VCF — liftover first if needed, then detect build + whether it is annotated
 phase('🖥️ Local · Inspect VCF')
@@ -115,8 +124,13 @@ const triage = await agent(
   `State the capability gate for ${SAMPLE} as it stands NOW, after annotation: the VCF ` +
   `${isAnnotated ? 'IS functionally annotated (SnpEff MANE ran in Stage 4) — so PVS1/PM4/PP3/BP4 and HGVS ARE ' +
     'evaluable' : 'is NOT annotated — PVS1/PM4/PP3/BP4 and HGVS are unavailable (coordinate-only)'}. ` +
-  `The three required Parquet stores (gnomAD · AlphaMissense · ClinVar) PASSED the Stage-1 gate, so PM2/BA1/BS1, ` +
-  `PP3/BP4 and PS1/PM5/PP5 ARE available — do NOT say 'no stores'. (A reference FASTA is optional and only adds ` +
+  (demoActive
+    ? `This is a DEMONSTRATION run on a committed fixture: the three Parquet stores did NOT pass the gate, they ` +
+      `were EXEMPTED. Say so first. PM2/BA1/BS1/BS2, PP3/BP4 and PS1/PM1/PM5/PP5/BP6 therefore rest on the repo's ` +
+      `frozen demo slices, not the full databases — list them as UNVERIFIED, and never as 'available'. `
+    : `The three required Parquet stores (gnomAD · AlphaMissense · ClinVar) PASSED the Stage-1 gate, so PM2/BA1/BS1, ` +
+      `PP3/BP4 and PS1/PM5/PP5 ARE available — do NOT say 'no stores'. `) +
+  `(A reference FASTA is optional and only adds ` +
   `indel left-alignment; its absence does not disable any criterion.) Give a short list: which ACMG criteria ` +
   `this run CAN evaluate vs limited/NA, each with a one-line consequence (e.g. 'single-proband → PS2/PM3 N/A'). ` +
   `Be consistent with what the engine will actually do next — do not claim '0 criteria evaluable' when annotation ` +
@@ -148,7 +162,7 @@ const writeHpo = hpoIds.length ? `mkdir -p ${OUT} && printf '${hpoIds.join('\\n'
 // 6 — 🖥️ PRIORITIZE — the deterministic engine over gnomAD + AlphaMissense + ClinVar + HPO
 phase('🖥️ Local · Prioritize (gnomAD+AM+ClinVar+HPO)')
 const classify = await agent(
-  `cd ${REPO} && ${writeHpo}python3 scripts/run_headless.py ${vcf} ${HPO} --sample-id ${SAMPLE} ` +
+  `cd ${REPO} && ${writeHpo}${DEMO_ENV}python3 scripts/run_headless.py ${vcf} ${HPO} --sample-id ${SAMPLE} ` +
   `--out ${OUT} --timing 2>&1 | tail -40. Return: the RANKED candidate list (gene → tier, the phenotype- and ` +
   `tier-topped rows first), the funnel counts, and the per-stage timings. This runs the engine over gnomAD + ` +
   `AlphaMissense + ClinVar + HPO — all local + deterministic, no network, no LLM. ` +
@@ -178,7 +192,11 @@ const report = await agent(
   `held but that is phenotype-relevant + molecularly suggestive — list its signals, note it is ` +
   `prioritised for expert+Claude exploration, tier UNCHANGED), then OTHER; plus the Performance/timing ` +
   `lines. For each met PVS1, carry its mechanism basis (constraint / ClinGen HI=3 / AR phenotype). ` +
-  `Do NOT re-classify — report the engine's calls and routing faithfully.`,
+  `Do NOT re-classify — report the engine's calls and routing faithfully. ` +
+  `ALSO return the report's \`provenance\` block from ${SAMPLE}_results.json verbatim — when its mode is "demo" ` +
+  `the rendered laudo MUST carry the demo banner (see report_template.html {{DEMO_BANNER}}); dropping it would ` +
+  `let a fixture laudo pass for a patient result.`,
   { label: '🤖 synthesize laudo', phase: '🤖 Claude · Laudo' })
 
-return { sample: SAMPLE, out: OUT, hpo: hpoFile, annotated, deps, inspect, triage, classify, qc, report }
+return { sample: SAMPLE, out: OUT, hpo: hpoFile, annotated, demo: demoActive,
+         deps, inspect, triage, classify, qc, report }

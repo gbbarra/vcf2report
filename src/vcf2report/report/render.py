@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .. import config
+from .. import config, demo
 from .assemble import ReportModel, carrier_findings, split_findings, summarize
 from .vus_triage import probable_pathogenic_vus
 
@@ -61,6 +61,12 @@ def _render_markdown_builtin(report: ReportModel) -> str:
              "Auto-generated candidate interpretation to be verified and signed out "
              "by a qualified professional.")
     L.append("")
+    # The demo stamp is repeated here as a masthead banner, not only inside the conclusion
+    # bullets, because this renderer is what MCP and --stdout emit and a reader may see only
+    # the first screen.
+    if report.provenance.get("mode") == "demo":
+        L.append("> 🧪 " + demo.stamp_line(report.provenance))
+        L.append("")
     L.append(f"- **Genome build:** {report.build}")
     L.append(f"- **Pipeline:** vcf2report v{report.tool_version}")
     L.append(f"- **Generated:** {report.generated}")

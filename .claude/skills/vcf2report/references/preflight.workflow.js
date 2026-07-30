@@ -19,6 +19,10 @@ const deps = await agent(
   { label: '🖥️ preflight (python + tools)', phase: '🖥️ Local · Dependency check' })
 
 phase('🖥️ Local · Parquet store GATE')
+// No --demo here: preflight runs BEFORE the VCF is known, and the exemption is per-VCF by
+// design. So this phase reports the machine's true store state; if it blocks, the skill offers
+// the demo route (a committed data/example/ fixture) as an explicit alternative, and the
+// analysis workflow re-runs the gate with --demo once the fixture is chosen.
 const gate = await agent(
   `cd ${REPO} && python3 scripts/check_stores.py --gate; echo "STORES_EXIT=$?". Show the store table ` +
   `VERBATIM — for EACH parquet (gnomAD · AlphaMissense · ClinVar): available? · version · BUILD DATE · ` +
@@ -27,5 +31,6 @@ const gate = await agent(
 
 const ready = /STORES_EXIT=0/.test(gate || '')
 log(ready ? '✅ Stores available + intact — ready to analyze (waiting for VCF).'
-          : '⛔ Stores not ready — analysis blocked; fix the flagged store(s) and re-run.')
-return { ready, deps, gate }
+          : '⛔ Stores not ready — a real exome is blocked; fix the flagged store(s) and re-run. ' +
+            'A committed data/example/ VCF can still be run as a stamped DEMONSTRATION.')
+return { ready, demoAvailable: !ready, deps, gate }
