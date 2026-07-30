@@ -111,9 +111,15 @@ from a phone), which is where a demo is most useful.
   first bullet, the Methods `data_mode` line, both Markdown renderers, and the Artifact's
   `{{DEMO_BANNER}}`. **Never drop the banner** — a fixture laudo passing for a patient result is the
   one failure this whole gate exists to prevent.
-- Say plainly which criteria are unverified: gnomAD absent → PM2/BA1/BS1/BS2; AlphaMissense →
-  PP3/BP4; ClinVar → PS1/PM1/PM5/PP5/BP6. In Stage 5 (triage) these are **UNVERIFIED**, never
-  "available".
+- Say plainly which criteria are unverified, and **keep the two groups apart** — they are different
+  claims (see `docs/DEMO_MODE.md`):
+  - **baked into the fixture's INFO** by `make_annotated_example.py`, from the *complete* databases,
+    on a machine that had them — real numbers, but frozen, this file's variants only, and not
+    re-verifiable or version-checkable here: gnomAD → **PM2/BA1/BS1/BS2**; AlphaMissense →
+    **PP3/BP4**; ClinVar assertion → **PP5/BP6**;
+  - **from the frozen ClinVar residue slice** (15 demo genes only; any other gene reports
+    *"not assessed"*): **PS1/PM1/PM5**.
+  In Stage 5 (triage) all of them are **UNVERIFIED**, never "available".
 - The cases and their planted diagnoses are in `docs/SYNTHETIC_CASES.md`. If the user just wants to
   see the pipeline work, `data/example/SYN-073.BBS2.annotated.vcf.gz` +
   `data/example/SYN-073.hpo.txt` reaches a Pathogenic call and also exercises carrier triage.

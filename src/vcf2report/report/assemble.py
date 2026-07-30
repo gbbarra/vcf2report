@@ -68,11 +68,15 @@ def build_report(sample_id: str, hpo_terms: list[str], qc: QCSummary,
         # was this run against?" must not find the ordinary answer.
         absent = provenance.get("stores_absent") or []
         methods["data_mode"] = (
-            "DEMONSTRATION — committed synthetic example VCF; full Parquet stores "
-            + (f"absent ({', '.join(absent)})" if absent else "present")
+            "DEMONSTRATION — committed synthetic example VCF; Parquet stores "
+            + (f"absent ({', '.join(absent)}) — nothing looked up live" if absent else "present")
         )
-        if provenance.get("criteria_degraded"):
-            methods["criteria_not_backed_by_full_stores"] = provenance["criteria_degraded"]
+        # Two separate keys, because "baked into the fixture from the full databases" and
+        # "a slice covering only the demo genes" are different claims about the same laudo.
+        if provenance.get("criteria_from_fixture_info"):
+            methods["criteria_from_fixture_baked_info"] = provenance["criteria_from_fixture_info"]
+        if provenance.get("criteria_from_frozen_slice"):
+            methods["criteria_from_frozen_demo_slice"] = provenance["criteria_from_frozen_slice"]
     # reportable = anything not benign, ordered by clinical relevance
     order = {"Pathogenic": 0, "Likely Pathogenic": 1,
              "Uncertain Significance (VUS)": 2, "Likely Benign": 3, "Benign": 4}

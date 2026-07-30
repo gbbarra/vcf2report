@@ -142,15 +142,48 @@ def test_provenance_stamps_a_fixture_with_NO_flag_set(monkeypatch):
 
 
 def test_stamp_names_the_criteria_each_absent_store_costs():
-    prov = {"mode": "demo", "vcf": "data/example/x.vcf.gz",
-            "stores_absent": ["gnomad", "clinvar"],
-            "criteria_degraded": demo.degraded_criteria(["gnomad", "clinvar"])}
+    absent = ["gnomad", "clinvar"]
+    prov = {"mode": "demo", "vcf": "data/example/x.vcf.gz", "stores_absent": absent,
+            "criteria_from_fixture_info": demo.baked_criteria(absent),
+            "criteria_from_frozen_slice": demo.sliced_criteria(absent),
+            "criteria_degraded": demo.degraded_criteria(absent)}
     line = demo.stamp_line(prov)
     # A vague "demo data" note would leave the reader guessing which rows to distrust.
     for code in ("PM2", "BA1", "BS1", "PS1", "PM5", "PP5"):
         assert code in line
     # AlphaMissense was present, so its criteria must NOT be listed as degraded.
     assert "BP4" not in line
+
+
+def test_stamp_distinguishes_baked_values_from_the_frozen_slice():
+    """The two are different claims and must not be collapsed.
+
+    The frequency / predictor / ClinVar-assertion numbers are REAL measurements from the
+    complete databases, written into the fixture's INFO by make_annotated_example.py. Only the
+    residue index behind PS1/PM1/PM5 is a demo-gene slice. Calling all of it "frozen demo
+    slices" understated the first and overstated nothing — but it told the reader the wrong
+    thing about where 8 of the 11 criteria came from.
+    """
+    absent = ["gnomad", "alphamissense", "clinvar"]
+    line = demo.stamp_line({
+        "mode": "demo", "vcf": "data/example/x.vcf.gz", "stores_absent": absent,
+        "criteria_from_fixture_info": demo.baked_criteria(absent),
+        "criteria_from_frozen_slice": demo.sliced_criteria(absent),
+    })
+    baked_at = line.index("baked into this fixture's own INFO fields")
+    slice_at = line.index("frozen ClinVar residue slice")
+    # PM2 (a baked gnomAD number) must be described by the baked clause, PS1 by the slice one.
+    assert line.index("PM2") < baked_at < line.index("PS1") < slice_at
+    assert "not re-verifiable" in line or "neither\nre-verifiable" in line or "re-verifiable" in line
+
+
+def test_stamp_still_names_criteria_when_only_the_union_is_present():
+    """A banner that warns about nothing in particular is the failure this stamp prevents."""
+    line = demo.stamp_line({"mode": "demo", "vcf": "data/example/x.vcf.gz",
+                            "stores_absent": ["gnomad"],
+                            "criteria_degraded": ["PM2", "BA1", "BS1", "BS2"]})
+    for code in ("PM2", "BA1", "BS1", "BS2"):
+        assert code in line
 
 
 def test_stamp_line_is_empty_without_provenance():
@@ -162,13 +195,26 @@ def test_degraded_criteria_dedupes_and_is_stable():
     assert demo.degraded_criteria(["gnomad", "gnomad"]) == ["PM2", "BA1", "BS1", "BS2"]
 
 
+def test_the_two_criterion_groups_do_not_overlap():
+    """PS1/PM1/PM5 come from the residue index; PP5/BP6 from the baked CLNSIG. Same store,
+    different mechanism — a code in both lists would mean the split is wrong."""
+    absent = ["gnomad", "alphamissense", "clinvar"]
+    baked, sliced = set(demo.baked_criteria(absent)), set(demo.sliced_criteria(absent))
+    assert not (baked & sliced)
+    assert baked | sliced == set(demo.degraded_criteria(absent))
+    assert sliced == {"PS1", "PM1", "PM5"}
+
+
 # --------------------------------------------------------- the stamp reaches the reader
 
 def _demo_report():
     qc = QCSummary(total_variants=1, build="GRCh38")
     prov = {"mode": "demo", "vcf": "data/example/SYN-073.BBS2.annotated.vcf.gz",
-            "reason": "fixture", "stores_absent": ["gnomad"],
-            "criteria_degraded": ["PM2", "BA1", "BS1", "BS2"]}
+            "reason": "fixture", "stores_absent": ["gnomad", "clinvar"],
+            "criteria_from_fixture_info": ["PM2", "BA1", "BS1", "BS2", "PP5", "BP6"],
+            "criteria_from_frozen_slice": ["PS1", "PM1", "PM5"],
+            "criteria_degraded": ["PM2", "BA1", "BS1", "BS2", "PP5", "BP6",
+                                  "PS1", "PM1", "PM5"]}
     return build_report("SYN-073", ["HP:0000041"], qc, [], provenance=prov)
 
 
@@ -182,7 +228,10 @@ def test_conclusion_leads_with_the_demo_stamp():
 def test_methods_records_the_data_mode():
     r = _demo_report()
     assert "DEMONSTRATION" in r.methods["data_mode"]
-    assert r.methods["criteria_not_backed_by_full_stores"] == ["PM2", "BA1", "BS1", "BS2"]
+    # Two keys, not one — a reader skipping to Methods must still see which claim is which.
+    assert r.methods["criteria_from_fixture_baked_info"] == [
+        "PM2", "BA1", "BS1", "BS2", "PP5", "BP6"]
+    assert r.methods["criteria_from_frozen_demo_slice"] == ["PS1", "PM1", "PM5"]
 
 
 def test_methods_is_untouched_for_a_normal_run():
