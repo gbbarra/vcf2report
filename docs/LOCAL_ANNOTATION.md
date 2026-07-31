@@ -86,7 +86,7 @@ LEFT JOIN read_parquet('gnomad_parquet/**/data.parquet', hive_partitioning=true)
   ON g.chrom = v.chrom AND g.pos = v.pos AND g.ref = v.ref AND g.alt = v.alt;
 ```
 
-Measured: a single-variant lookup ~70 ms; a join against the full 29.6M-variant table
+Measured: a single-variant lookup ~70 ms; a join against the full 69.9M-variant table
 ~0.4 s. Point vcf2report at it with `VCF2REPORT_GNOMAD_PARQUET=<dir>`.
 
 ### End-to-end, measured (NA12878 whole exome, fully offline)

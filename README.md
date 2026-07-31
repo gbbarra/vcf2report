@@ -116,7 +116,7 @@ Given a single-proband GRCh38 VCF + HPO terms, it produces a Markdown report wit
   mode of plain term overlap on phenotype-rich cases. Falls back to exact overlap
   when the graph isn't built.
 - **Offline gnomAD, no 150 GB download.** A local **DuckDB/Parquet** store of gnomAD
-  v4.1 frequencies (29.6M variants) resolves a whole exome's frequencies in *one*
+  v4.1 frequencies (69,898,057 variants) resolves a whole exome's frequencies in *one*
   vectorised join — a real exome classifies **fully offline in ~7 s**. Get it two ways,
   same result, into the auto-detected local `data/gnomad/gnomad_parquet/`:
   `scripts/fetch_gnomad_parquet.sh` (download a checksummed copy) **or**
