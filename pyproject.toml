@@ -27,10 +27,16 @@ mcp = ["mcp[cli]>=1.2"]
 # gnomAD as a local DuckDB/Parquet store (scripts/build_gnomad_parquet.py + the
 # fast-path client); without it that path is simply off (tabix/remote still work).
 parquet = ["duckdb>=0.9"]
-# Live annotation clients (gnomAD / ClinVar) use only the standard library —
-# no extra deps required.
+# Indexed random access over bgzip+tabix files — htslib via pysam. Four annotate modules
+# import it (gnomad_local, gnomad_remote, clinvar, alphamissense): the whole local-tabix path
+# AND the remote range-query path that reads gnomAD's public bucket without downloading it.
+# It was undeclared until now, so `pip install -e ".[dev]"` never brought it, two whole test
+# modules silently skipped in CI, and docs/LOCAL_ANNOTATION.md called it "already a dep".
+tabix = ["pysam>=0.22"]
+# The live GraphQL/E-utilities clients use only the standard library.
 dev = ["pytest>=7.0", "hypothesis>=6.0"]
-all = ["cyvcf2>=0.30", "mcp[cli]>=1.2", "duckdb>=0.9", "pytest>=7.0", "hypothesis>=6.0"]
+all = ["cyvcf2>=0.30", "mcp[cli]>=1.2", "duckdb>=0.9", "pysam>=0.22",
+       "pytest>=7.0", "hypothesis>=6.0"]
 
 [project.scripts]
 vcf2report = "vcf2report.cli:main"
