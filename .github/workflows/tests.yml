@@ -150,6 +150,12 @@ jobs:
         env:
           VCF2REPORT_ALLOW_NETWORK: "1"
           VCF2REPORT_LIVE_GNOMAD: "1"
+          # pysam bundles its own libcurl, which does not inherit Python's CA store and on the
+          # runner found no bundle at all — "Libcurl reported error 77 (Problem with the SSL CA
+          # cert)". urllib worked fine over the same URL, which is why the module's own
+          # reachability pre-check passed while every test failed.
+          CURL_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+          SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
         run: pytest -q -rs tests/test_gnomad_live.py
 
   cli-smoke:

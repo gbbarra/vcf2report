@@ -34,22 +34,30 @@ pysam = pytest.importorskip("pysam", reason="the live path IS pysam")
 # BBS2 c.472-2A>G, the planted diagnosis in data/example/SYN-073. The committed fixture baked
 # gnomad_AF=8.99282e-07 / AN=1461862 / nhomalt=0 from the full store on another machine, so this
 # doubles as an independent check that the fixture is faithful.
+URL = ("https://storage.googleapis.com/gcp-public-data--gnomad/release/4.1/vcf/exomes/"
+       "gnomad.exomes.v4.1.sites.chr16.vcf.bgz")
 BBS2 = Variant(chrom="chr16", pos=56510923, ref="T", alt="C")
 BBS2_AF_GRPMAX = 8.9928198576672e-07
 
 
 @pytest.fixture(scope="module", autouse=True)
 def _network_or_fail():
-    """Fail loudly, not skip, when the bucket is unreachable."""
-    import urllib.request
-    url = ("https://storage.googleapis.com/gcp-public-data--gnomad/release/4.1/vcf/exomes/"
-           "gnomad.exomes.v4.1.sites.chr16.vcf.bgz")
-    req = urllib.request.Request(url, headers={"Range": "bytes=0-1023"})
+    """Fail loudly, not skip, when the bucket is unreachable — probing THE SAME TRANSPORT.
+
+    The first version of this used urllib. urllib rides Python's ssl module and the system CA
+    store; pysam rides htslib's own libcurl, which on a GitHub runner could not find a CA
+    bundle at all (``Libcurl reported error 77``). So the pre-check passed while every test
+    failed — a guard that verified a different transport from the one under test, which is the
+    same class of mistake as asserting against a hand-written stand-in.
+    """
     try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            assert r.status in (200, 206), f"bucket answered {r.status}"
+        vf = pysam.VariantFile(URL)
+        next(iter(vf.fetch("chr16", BBS2.pos - 1, BBS2.pos)))
     except Exception as e:                                      # noqa: BLE001
-        pytest.fail(f"gnomAD public bucket unreachable: {type(e).__name__}: {e}")
+        pytest.fail(
+            f"gnomAD public bucket not readable BY PYSAM: {type(e).__name__}: {e}\n"
+            "If this is 'Libcurl reported error 77', htslib cannot find a CA bundle — set "
+            "CURL_CA_BUNDLE / SSL_CERT_FILE (the tabix CI job does).")
 
 
 def test_live_query_returns_the_real_frequency():
@@ -76,9 +84,7 @@ def test_pysam_raises_on_an_undeclared_info_key():
     """Pin the library behaviour the whole bug rests on, against the real library and a real
     record — so the offline stand-in in test_annotate_absence.py can be checked against it
     rather than trusted."""
-    url = ("https://storage.googleapis.com/gcp-public-data--gnomad/release/4.1/vcf/exomes/"
-           "gnomad.exomes.v4.1.sites.chr16.vcf.bgz")
-    rec = next(iter(pysam.VariantFile(url).fetch("chr16", BBS2.pos - 1, BBS2.pos)))
+    rec = next(iter(pysam.VariantFile(URL).fetch("chr16", BBS2.pos - 1, BBS2.pos)))
 
     # declared and populated -> a value
     assert rec.info.get("AF_grpmax")[0] == pytest.approx(BBS2_AF_GRPMAX)
@@ -109,9 +115,7 @@ def test_the_offline_stand_in_matches_the_real_library():
     spec.loader.exec_module(mod)
     _FakeInfo = mod._FakeInfo
 
-    url = ("https://storage.googleapis.com/gcp-public-data--gnomad/release/4.1/vcf/exomes/"
-           "gnomad.exomes.v4.1.sites.chr16.vcf.bgz")
-    real = next(iter(pysam.VariantFile(url).fetch("chr16", BBS2.pos - 1, BBS2.pos))).info
+    real = next(iter(pysam.VariantFile(URL).fetch("chr16", BBS2.pos - 1, BBS2.pos))).info
     fake = _FakeInfo(declared={"AF_grpmax": (BBS2_AF_GRPMAX,), "fafmax_faf95_max": None},
                      undeclared={"faf95_grpmax", "faf95_max"})
 
