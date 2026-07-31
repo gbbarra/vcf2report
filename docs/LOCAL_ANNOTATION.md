@@ -6,7 +6,10 @@ of downloading all of it, vcf2report builds a **reduced tabix table** carrying o
 fields the ACMG engine cites (grpmax AF, AC/AN, homozygotes, the ClinGen filtering AF
 `faf95`), one row per gnomAD variant. This is the piece that turns a real exome from
 "11k VUS" into a short candidate list — the rarity filter can finally drop the common
-variants and BA1/BS1/BS2 can fire. Only `pysam` is needed (already a dep).
+variants and BA1/BS1/BS2 can fire. Only `pysam` is needed — install it with the **`tabix`
+extra**: `pip install -e ".[tabix]"`. (This line used to say "already a dep". It was not one:
+no extra declared pysam, so a documented install never brought it, and the two test modules
+covering this path skipped silently in CI.)
 
 ## End-to-end on a real exome
 

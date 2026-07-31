@@ -113,6 +113,51 @@ jobs:
         # suite must also pass in that configuration — not only in the light install.
         run: pytest -q
 
+  tabix:
+    # pysam was a hard import of four annotate modules and was declared by no extra, so
+    # `pip install -e ".[dev]"` never brought it and two whole test modules — the entire
+    # local-tabix path — skipped in every CI run. A skip reads as a pass. Same blind spot the
+    # parquet job above exists to close.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install with the tabix extra
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,tabix]"
+
+      - name: Run the tabix tests (must not skip here)
+        run: pytest -q -rs tests/test_gnomad_local.py tests/test_clinvar_local.py
+             tests/test_gnomad_remote.py tests/test_am_prime.py
+
+      - name: The whole suite, with pysam present
+        run: pytest -q
+
+      - name: LIVE gnomAD over the public bucket — no fixture, no fake
+        # Range-queries the real gnomAD v4.1 release with real pysam and asserts the real
+        # frequency. This is the only test that would have caught the bug it guards: every
+        # v4.1 lookup returned None because pysam RAISES on an undeclared INFO key, and a
+        # hand-written fake only ever proves the author's model of pysam.
+        # A network failure here fails the job on purpose — a skipped network test is exactly
+        # the artefact this whole job exists to stop shipping.
+        env:
+          VCF2REPORT_ALLOW_NETWORK: "1"
+          VCF2REPORT_LIVE_GNOMAD: "1"
+          # pysam bundles its own libcurl, which does not inherit Python's CA store and on the
+          # runner found no bundle at all — "Libcurl reported error 77 (Problem with the SSL CA
+          # cert)". urllib worked fine over the same URL, which is why the module's own
+          # reachability pre-check passed while every test failed.
+          CURL_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+          SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+        run: pytest -q -rs tests/test_gnomad_live.py
+
   cli-smoke:
     # Unit tests import the package directly, so they would not notice a broken console
     # entry point or a packaging mistake. This installs and invokes the CLI the way a user

@@ -368,3 +368,80 @@ def test_the_laudo_is_written_in_english():
                     "Limitations & disclaimers"):
         assert heading in tpl, f"the template no longer carries the English heading {heading!r}"
     assert "| Criterion | Applied | Strength | Evidence | Source | By | Reasoning |" in tpl
+
+
+# ------------------------------------------ every third-party import must be DECLARED
+
+def test_every_third_party_import_is_declared_in_pyproject():
+    """`pysam` was a hard import of four annotate modules and appeared in no extra.
+
+    So `pip install -e ".[dev]"` never brought it, two whole test modules — the entire
+    local-tabix path — skipped in every CI run, and LOCAL_ANNOTATION.md told operators it was
+    "already a dep". A skip reads as a pass, which is how it survived.
+
+    Anything imported by src/ that is neither stdlib nor first-party has to be findable in
+    pyproject.toml, whether as a runtime dep or an optional extra.
+    """
+    import sys
+
+    # Read the dependency ARRAYS, with comments stripped first.
+    #
+    # Two earlier versions of this were wrong. A plain substring search over the file was
+    # satisfied by the package name appearing in a COMMENT — which it does, right above the
+    # very extra that declares it — so the guard passed while that extra was empty. And
+    # tomllib would be the obvious parser, but it is Python 3.11+ and this project supports
+    # 3.10; CI caught that on the 3.10 job. Stripping comment lines and then reading the
+    # quoted specs out of the dependency arrays is version-independent and closes the hole.
+    text = (ROOT / "pyproject.toml").read_text()
+    body = "\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("#"))
+    arrays = re.findall(r"^(?:dependencies|[A-Za-z0-9_-]+)\s*=\s*\[(.*?)\]",
+                        body, re.M | re.S)
+    specs = [s for arr in arrays for s in re.findall(r"[\"']([^\"']+)[\"']", arr)]
+    declared = {re.split(r"[<>=!\[; ]", s, 1)[0].strip().lower().replace("-", "_")
+                for s in specs}
+
+    src = ROOT / "src/vcf2report"
+    first_party = {"vcf2report"} | {p.stem for p in src.rglob("*.py")} | {
+        p.name for p in src.iterdir() if p.is_dir()}
+    # Parse, do not grep. A regex over lines matched wrapped docstring prose — "…read from
+    # the complete databases…" — and reported 'the' as an undeclared dependency. A guard that
+    # cries wolf gets muted, which is worse than not having it.
+    import ast
+
+    seen: set[str] = set()
+    for py in src.rglob("*.py"):
+        for node in ast.walk(ast.parse(py.read_text())):
+            if isinstance(node, ast.Import):
+                tops = [a.name.split(".")[0] for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                # level > 0 is a relative import: first-party by construction.
+                tops = [] if node.level else [(node.module or "").split(".")[0]]
+            else:
+                continue
+            for top in tops:
+                if not top or top in sys.stdlib_module_names or top in first_party:
+                    continue
+                seen.add(top)
+
+    undeclared = sorted(m for m in seen if m.lower().replace("-", "_") not in declared)
+    assert not undeclared, (
+        f"imported by src/ but declared in no pyproject dependency table: {undeclared}. "
+        "An undeclared dep installs by accident, and its tests skip silently.")
+
+
+def test_the_tabix_extra_exists_and_carries_pysam():
+    """Pinned by name: four modules import pysam, and the CI job that stops them skipping
+    installs `.[dev,tabix]`."""
+    pyproject = (ROOT / "pyproject.toml").read_text()
+    assert re.search(r"^tabix\s*=.*pysam", pyproject, re.M), "the tabix extra lost pysam"
+    workflow = (ROOT / ".github/workflows/tests.yml").read_text()
+    assert "dev,tabix" in workflow, "no CI job installs the tabix extra"
+    assert "must not skip here" in workflow
+
+
+def test_the_live_gnomad_test_fails_rather_than_skips_in_ci():
+    """A skipped network test is the artefact this work exists to stop shipping, so the live
+    module must fail on an unreachable bucket instead of quietly passing."""
+    live = (ROOT / "tests/test_gnomad_live.py").read_text()
+    assert "pytest.fail" in live, "the live test skips instead of failing when offline"
+    assert "VCF2REPORT_LIVE_GNOMAD" in live
