@@ -87,7 +87,18 @@ def _best_from_record(rec) -> Optional[dict]:
     reported as AF 0.
     """
     def a0(key):
-        v = rec.info.get(key)
+        # rec.info.get() returns None for a key that IS declared in the header and simply has
+        # no value on this record — but RAISES ValueError("Invalid header") for a key the
+        # header never declares. faf95() probes three alternative spellings precisely because
+        # nobody knows which one a given release publishes, so probing an absent one is the
+        # normal case, not an error. Unguarded, the raise escaped _best_from_record, was
+        # swallowed by query()'s broad `except Exception: continue` — which also skips the
+        # `opened += 1` — and every v4.1 lookup came back None. The documented "live path that
+        # works in locked-down networks" had never returned a frequency.
+        try:
+            v = rec.info.get(key)
+        except (ValueError, KeyError):
+            return None
         if isinstance(v, (tuple, list)):
             return v[0] if v else None
         return v

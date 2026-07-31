@@ -248,3 +248,67 @@ def test_grch38_still_wins_and_unknown_stays_unknown():
     assert detect_build(["##fileformat=VCFv4.2"]) is None
     # The point of returning None is that a loose guess is worse than admitting ignorance.
     assert detect_build(["##source=someCaller_v38.1"]) is None
+
+
+# ------------------------------- 7 · pysam RAISES on an undeclared INFO key, and that killed
+#                                     every live gnomAD v4.1 lookup
+
+class _FakeInfo(dict):
+    """pysam's behaviour: a declared-but-empty key returns None; an UNDECLARED key raises.
+
+    That asymmetry is the whole bug. `rec.info.get(k)` reads like a safe dict lookup and is
+    not one.
+    """
+
+    def __init__(self, declared: dict, undeclared: set):
+        super().__init__(declared)
+        self._undeclared = undeclared
+
+    def get(self, key, default=None):
+        if key in self._undeclared:
+            raise ValueError("Invalid header")
+        return super().get(key, default)
+
+
+class _FakeRec:
+    def __init__(self, info):
+        self.info = info
+
+
+def _rec():
+    """A real gnomAD v4.1 chr16 record: grpmax is published, faf95_grpmax is NOT declared."""
+    return _FakeRec(_FakeInfo(
+        declared={"grpmax": ("nfe",), "AF_grpmax": (8.9928198576672e-07,),
+                  "AC_grpmax": (1,), "AN_grpmax": (1111998,), "nhomalt_grpmax": (0,),
+                  "fafmax_faf95_max": None,
+                  "AF": (1.3681200243809144e-06,), "AC": (2,), "AN": 1461862,
+                  "nhomalt": (0,)},
+        undeclared={"faf95_grpmax", "faf95_max"}))
+
+
+def test_an_undeclared_info_key_does_not_lose_the_frequency():
+    """Measured against live gnomAD v4.1: faf95() probes three spellings of the filtering-AF
+    field because releases disagree on the name. Probing an absent one is the NORMAL case.
+
+    Unguarded, the raise escaped _best_from_record, was swallowed by query()'s broad
+    `except Exception: continue` — which also skips `opened += 1` — and the function returned
+    None. The documented "live path that works in locked-down networks" had never returned a
+    frequency for v4.1.
+    """
+    from vcf2report.annotate import gnomad_remote
+
+    got = gnomad_remote._best_from_record(_rec())
+    assert got is not None, "an undeclared INFO key still discards the whole lookup"
+    assert got["af"] == pytest.approx(8.9928198576672e-07)
+    assert got["pop"] == "nfe"
+    # The probe found no filtering AF — that is a legitimate None, not an error.
+    assert got["faf95"] is None
+
+
+def test_a_declared_filtering_af_is_still_read():
+    """The guard must not swallow a real value."""
+    from vcf2report.annotate import gnomad_remote
+
+    rec = _rec()
+    rec.info["fafmax_faf95_max"] = (0.00016636999498587102,)
+    assert gnomad_remote._best_from_record(rec)["faf95"] == pytest.approx(0.000166369994985871)
