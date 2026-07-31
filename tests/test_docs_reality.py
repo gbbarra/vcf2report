@@ -307,3 +307,64 @@ def test_readme_internal_anchors_resolve_to_real_headings():
             headings.add(slug)
     broken = [a for a in re.findall(r"\]\(#([a-z0-9-]+)\)", text) if a not in headings]
     assert not broken, f"README links to anchors with no matching heading: {broken}"
+
+
+# ------------------------------------------------- the trail must not print Python literals
+
+def test_no_rendered_report_prints_the_word_None():
+    """`None` stood for six different things in the Evidence column at once.
+
+    Measured on the SYN-073 fixture: 2,202 evidence fields printing one token for "the index
+    was not built", "does not apply to this consequence", "the source was not consulted", "the
+    upstream value was unavailable", "the record has no such field", and "no such metric for
+    this gene". The Reasoning column tells all six apart — the engine knows. Evidence's job is
+    the concrete value, and a Python literal is not one.
+    """
+    from vcf2report.models import Annotation, Classification, CriterionResult, QCSummary, Variant
+    from vcf2report.report.assemble import build_report
+    from vcf2report.report.render import _render_markdown_builtin, render_markdown
+
+    v = Variant(chrom="chr1", pos=1, ref="A", alt="G", gene="GENE", consequence="missense_variant")
+    cr = CriterionResult(
+        code="PS1", name="n", applies=True, met=False, default_strength="strong",
+        evidence={"hgvs_p": None, "ps1_match": None, "own_clinvar_plp": True},
+        citation=[], reasoning="ClinVar residue index unavailable", adjudicated_by="engine")
+    c = Classification(variant=v, annotation=Annotation(), tier="Uncertain Significance (VUS)",
+                       rule_path="x", criteria=[cr])
+    report = build_report("S", [], QCSummary(total_variants=1, build="GRCh38"), [c])
+
+    for render in (render_markdown, _render_markdown_builtin):
+        md = render(report)
+        assert "=None" not in md, f"{render.__name__} still prints a Python None in the trail"
+        assert "hgvs_p=—" in md, f"{render.__name__} must show the field with no value"
+        assert "own_clinvar_plp=True" in md, "real values must be untouched"
+
+
+def test_the_json_keeps_null_for_machines():
+    """Only the human render changes: a machine reading results.json must still get null,
+    not an em dash it would have to parse."""
+    from vcf2report.models import Annotation, Classification, CriterionResult, QCSummary, Variant
+    from vcf2report.report.assemble import build_report
+
+    cr = CriterionResult(code="PS1", name="n", applies=True, met=False, default_strength="strong",
+                         evidence={"ps1_match": None}, citation=[], reasoning="r",
+                         adjudicated_by="engine")
+    c = Classification(variant=Variant(chrom="chr1", pos=1, ref="A", alt="G"),
+                       annotation=Annotation(), tier="Uncertain Significance (VUS)",
+                       rule_path="x", criteria=[cr])
+    d = build_report("S", [], QCSummary(total_variants=1, build="GRCh38"), [c]).to_dict()
+    assert d["classifications"][0]["criteria"][0]["evidence"]["ps1_match"] is None
+
+
+def test_the_laudo_is_written_in_english():
+    """The report template is the lab's sign-out layout and is deliberately English. A
+    half-translated clinical document is worse than either language, so the canonical section
+    headings are pinned here rather than left to drift one edit at a time."""
+    tpl = (ROOT / "templates/report.md.j2").read_text()
+    for heading in ("Conclusion (draft interpretation)",
+                    "Quality control & filtering funnel",
+                    "Primary (diagnostic) findings",
+                    "Per-variant ACMG rationale (auditable)",
+                    "Limitations & disclaimers"):
+        assert heading in tpl, f"the template no longer carries the English heading {heading!r}"
+    assert "| Criterion | Applied | Strength | Evidence | Source | By | Reasoning |" in tpl

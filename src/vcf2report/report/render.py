@@ -25,9 +25,7 @@ def render_markdown(report: ReportModel) -> str:
                 trim_blocks=True, lstrip_blocks=True, autoescape=False,
             )
             env.filters["pct"] = lambda x: "n/a" if x is None else f"{x:.6f}"
-            env.filters["kvjoin"] = lambda d: (
-                ", ".join(f"{k}={v}" for k, v in d.items()) or "—"
-            )
+            env.filters["kvjoin"] = kvjoin
             primary, secondary, other = split_findings(report.classifications)
             carriers = carrier_findings(report.classifications)
             # Carriers are routed into `other` by split_findings; pull them out so the
@@ -41,6 +39,26 @@ def render_markdown(report: ReportModel) -> str:
     except ImportError:
         pass
     return _render_markdown_builtin(report)
+
+
+def kvjoin(evidence) -> str:
+    """Render a criterion's evidence dict for the human-readable trail.
+
+    A missing value prints as an em dash, never as ``None``. Python's ``None`` is a single
+    token standing for at least six different things across this report — the index was not
+    built, the criterion does not apply to this consequence, the source was not consulted, the
+    upstream value was itself unavailable, the record was found but carries no such field, and
+    the metric does not exist for this gene. Measured on SYN-073: 2,202 evidence fields, all
+    printing the same word.
+
+    The Reasoning column already distinguishes all six correctly — the engine knows which is
+    which. Evidence's job is the concrete VALUE, and the truthful value here is "there was
+    none". Printing a Python literal in a clinical document also invites a reader to parse it
+    as data. The JSON keeps `null`, which is what a machine should see.
+    """
+    if not evidence:
+        return "—"
+    return ", ".join(f"{k}={'—' if v is None else v}" for k, v in evidence.items())
 
 
 def _zyg(v) -> str:
@@ -248,7 +266,7 @@ def _render_markdown_builtin(report: ReportModel) -> str:
             else:
                 state = "✅ met" if cr.met else "—"
             strength = cr.applied_strength or cr.default_strength
-            evidence = ", ".join(f"{k}={v2}" for k, v2 in cr.evidence.items()) or "—"
+            evidence = kvjoin(cr.evidence)   # same rule as the Jinja path — never "None"
             source = "; ".join(cr.citation) or "—"
             L.append(
                 f"| **{cr.code}** | {state} | {strength} | {evidence} | {source} "
