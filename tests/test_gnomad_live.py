@@ -19,6 +19,7 @@ Locally they are opt-in (the env var), so a developer offline is not blocked.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -96,7 +97,17 @@ def test_the_offline_stand_in_matches_the_real_library():
     behaviour it models changes underneath. Here the same probes run against both, and any
     divergence fails.
     """
-    from tests.test_annotate_absence import _FakeInfo
+    # Load the sibling module BY PATH. `from tests.… import` needs `tests` to be an importable
+    # package, which it is not — it has no __init__.py, and it only appeared to work locally
+    # because pytest had inserted the repo root. In CI the whole live module failed at import,
+    # before touching the network, so the job proved nothing about gnomAD at all.
+    import importlib.util
+
+    path = Path(__file__).with_name("test_annotate_absence.py")
+    spec = importlib.util.spec_from_file_location("_absence_mod", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    _FakeInfo = mod._FakeInfo
 
     url = ("https://storage.googleapis.com/gcp-public-data--gnomad/release/4.1/vcf/exomes/"
            "gnomad.exomes.v4.1.sites.chr16.vcf.bgz")

@@ -383,15 +383,20 @@ def test_every_third_party_import_is_declared_in_pyproject():
     pyproject.toml, whether as a runtime dep or an optional extra.
     """
     import sys
-    import tomllib
 
-    # Parse the actual dependency tables. A substring search over the file text would be
-    # satisfied by the package's name appearing in a COMMENT — which it does, right above the
-    # extra that declares it. That guard would have passed while the extra was empty.
-    proj = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
-    specs = list(proj.get("dependencies") or [])
-    for extra in (proj.get("optional-dependencies") or {}).values():
-        specs += list(extra)
+    # Read the dependency ARRAYS, with comments stripped first.
+    #
+    # Two earlier versions of this were wrong. A plain substring search over the file was
+    # satisfied by the package name appearing in a COMMENT — which it does, right above the
+    # very extra that declares it — so the guard passed while that extra was empty. And
+    # tomllib would be the obvious parser, but it is Python 3.11+ and this project supports
+    # 3.10; CI caught that on the 3.10 job. Stripping comment lines and then reading the
+    # quoted specs out of the dependency arrays is version-independent and closes the hole.
+    text = (ROOT / "pyproject.toml").read_text()
+    body = "\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("#"))
+    arrays = re.findall(r"^(?:dependencies|[A-Za-z0-9_-]+)\s*=\s*\[(.*?)\]",
+                        body, re.M | re.S)
+    specs = [s for arr in arrays for s in re.findall(r"[\"']([^\"']+)[\"']", arr)]
     declared = {re.split(r"[<>=!\[; ]", s, 1)[0].strip().lower().replace("-", "_")
                 for s in specs}
 
