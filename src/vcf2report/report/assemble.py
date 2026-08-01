@@ -340,6 +340,21 @@ def summarize(report: "ReportModel") -> list[str]:
                  " (phenotype overlap NOT assessed)")
         lines.append(f"Likely explanatory finding for the clinical indication: **{g}**"
                      f"{where} — confirm and review.")
+    elif not report.classifications and report.qc.total_variants == 0:
+        # "No pathogenic finding" is a RESULT. With nothing analysed there is no result — only
+        # an absence of input, which is the one thing this report may never dress up as
+        # evidence. The QC section already carries a warning, but the conclusion is the
+        # bottom-line-up-front line a clinician reads first, and it was announcing a negative.
+        #
+        # Gated on there being NO classifications, not on the counter alone: a caller may build
+        # a report model directly with the QC counters unset, and a report that classified
+        # something plainly analysed something whatever the counters say. An existing
+        # conclusion test caught exactly that.
+        lines.append(
+            "**No analysis was performed** — the callset contained no variants to classify "
+            f"({report.qc.total_variants} in the VCF, {report.qc.after_qc} after QC). This is "
+            "NOT a negative result: nothing was examined. Check that the input is a variant "
+            "callset and re-run.")
     else:
         vus = [c for c in primary if c.tier == "Uncertain Significance (VUS)"]
         msg = ("**No Pathogenic / Likely Pathogenic finding** by the engine's independent "
@@ -347,6 +362,22 @@ def summarize(report: "ReportModel") -> list[str]:
         if vus:
             msg += f"; {len(vus)} variant(s) of uncertain significance need further evaluation"
         lines.append(msg + ".")
+
+        # A P/LP OUTSIDE the phenotype-matched set must not be silently absent from the
+        # headline. Measured: with HPO terms that matched no candidate gene, the conclusion
+        # opened with "No Pathogenic / Likely Pathogenic finding" while the report below listed
+        # TWO Pathogenic variants. The qualifier "in phenotype-matched genes" is accurate and
+        # easy to miss, and an incomplete referral phenotype — the norm, not the exception —
+        # is exactly what puts a real finding outside the match.
+        elsewhere = [c for c in (secondary + other) if c.tier in _PLP
+                     and not is_unconfirmed_ar_carrier(c, report.classifications)]
+        if elsewhere and compared:
+            g = "; ".join(f"{c.variant.gene or c.variant.key} — {c.tier}" for c in elsewhere)
+            lines.append(
+                f"**But {len(elsewhere)} Pathogenic / Likely Pathogenic variant(s) were called "
+                f"OUTSIDE the phenotype match**: {g}. The phenotype supplied does not overlap "
+                "these genes — which may mean the referral phenotype is incomplete rather than "
+                "that the variant is irrelevant. Review before concluding the case is negative.")
 
     # Safety flag: a known ClinVar-Pathogenic variant the QC gate removed BEFORE annotation.
     # The do-not-dismiss net below cannot reach these — they are not classifications at all —
