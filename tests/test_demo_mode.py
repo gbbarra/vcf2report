@@ -272,13 +272,34 @@ def _run(*argv):
                           capture_output=True, text=True, timeout=600)
 
 
-def test_gate_script_exits_zero_for_a_fixture_and_says_DEMO():
+def test_gate_script_exits_zero_for_a_fixture_and_says_it_is_a_demo():
+    """Two legitimate outcomes, and this must hold in BOTH.
+
+    Originally this asserted the literal phrase "DEMO MODE", which the gate prints only when it
+    actually EXEMPTS a blocking store. The day the three stores were finally mounted in a
+    working container, the gate correctly printed READY plus "(demo input — laudo still
+    stamped)" instead, and this test failed — a test that only passed in one environment,
+    which is the same defect it was written to prevent elsewhere.
+
+    What is invariant: the gate lets a fixture through (exit 0) and says the laudo is stamped.
+    """
     p = _run("scripts/check_stores.py", "--gate", "--demo",
              "data/example/SYN-073.BBS2.annotated.vcf.gz")
     assert p.returncode == 0, p.stdout + p.stderr
-    assert "DEMO MODE" in p.stdout
-    # The workflow keys its narration off this phrase; keep them in sync.
+    assert "demo" in p.stdout.lower(), "the gate did not acknowledge a fixture input"
+    # The analyze workflow keys its narration off the stamped/DEMO wording; keep them in sync.
     assert "stamped" in p.stdout.lower()
+
+
+def test_gate_says_DEMO_MODE_when_it_actually_exempts_a_store(monkeypatch):
+    """The louder branch still has to exist: when a store really is blocking, the operator
+    must be told the exemption is what let the run proceed."""
+    from vcf2report import stores
+
+    monkeypatch.setattr(stores, "gate", lambda measure=True: {
+        "ready": False, "blocking": ["gnomad"], "stale": [], "health": {}})
+    g = demo.gate(DEMO_VCF, demo_requested=True, measure=False)
+    assert g["mode"] == "demo" and g["exempted"] == ["gnomad"]
 
 
 def test_gate_script_refuses_a_non_fixture_and_exits_nonzero(tmp_path):
