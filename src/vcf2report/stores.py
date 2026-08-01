@@ -47,15 +47,20 @@ def _registry() -> dict:
             "key_columns": {"chrom", "pos", "ref", "alt", "af"},
             "cadence": "frozen", "stale_after_days": None,
             "source": {"name": "gnomAD", "release": "v4.1",
-                       "url": "gs://gcp-public-data--gnomad", "note": "frozen release"},
+                       "url": "gs://gcp-public-data--gnomad",
+                       "license": "ODbL-1.0", "note": "frozen release"},
             "enables": "PM2 / BA1 / BS1 (population frequency)",
         },
         "alphamissense": {
             "path": config.ALPHAMISSENSE_PARQUET,
             "key_columns": {"chrom", "pos", "ref", "alt", "am_pathogenicity", "am_class"},
             "cadence": "frozen", "stale_after_days": None,
+            # CC BY 4.0, NOT the CC BY-NC-SA 4.0 the downloaded file's own header still carries:
+            # DeepMind relicensed the predictions in March 2024. This manifest is the
+            # machine-readable provenance record a lab reads, so stamping the superseded
+            # non-commercial licence here would wrongly tell them they cannot use it.
             "source": {"name": "AlphaMissense hg38", "release": "2023",
-                       "license": "CC BY-NC-SA 4.0", "note": "frozen release"},
+                       "license": "CC BY 4.0", "note": "frozen release"},
             "enables": "PP3 / BP4 (missense pathogenicity)",
         },
         "clinvar": {
@@ -64,7 +69,8 @@ def _registry() -> dict:
                             "review_status", "review_stars"},
             "cadence": "weekly", "stale_after_days": 14,
             "source": {"name": "ClinVar GRCh38", "release": "weekly",
-                       "url": "ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz"},
+                       "url": "ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz",
+                       "license": "public domain (NCBI)"},
             "enables": "PS1 / PM5 / PP5 / BP6 + the >=2-star ClinVar safety flag",
         },
     }

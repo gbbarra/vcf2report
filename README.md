@@ -50,8 +50,11 @@ patient's HPO). The engine is scored **blind** — the plant carries no marker. 
 
 Two confident diagnoses, two phenotype-matched candidates the engine **honestly holds at VUS**, a
 recessive **carrier** it refuses to over-call, and a VUS **triaged** for review — the range, and the
-restraint. Across the full 200: **177 / 200 primary recovery (88.5%)** — see
-[docs/BENCHMARK.md](docs/BENCHMARK.md). Annotated example VCFs live in
+restraint. Across the full 200: the planted gene is **surfaced as a primary finding in 179 / 200
+(89.5%)** — and of those, **109 / 200 (54.5%) are additionally called Pathogenic / Likely
+Pathogenic**. The split matters: on loss-of-function plants it is 92/102 P/LP (90.2%), on missense
+17/72 (23.6%) — missense get ranked to the top and then honestly held at VUS, exactly as the two
+middle rows above show. See [docs/BENCHMARK.md](docs/BENCHMARK.md). Annotated example VCFs live in
 [`data/example/`](data/example/); drop one into `scripts/run_headless.py` and read the laudo.
 
 ---

@@ -73,9 +73,11 @@ Two adjustments were required and are disclosed honestly:
   expected finding is the planted gene (see the manifest). Score blind on the `realistic/` set.
 
 Reference: analysed with the [vcf2report](https://github.com/gbbarra/vcf2report) ACMG engine, the
-planted variant reaches the diagnostic (primary) finding in **178/200** cases; the rest are honest
-limitations (non-coding-RNA plants, HPO-unlinked genes, sub-threshold phenotype, missense held at VUS
-without corroboration) — documented, not hidden.
+planted variant reaches the diagnostic (primary) finding in **179/200** cases — of which **109/200
+are additionally classified Pathogenic / Likely Pathogenic**; the rest are honest limitations
+(non-coding-RNA plants, HPO-unlinked genes, sub-threshold phenotype, missense held at VUS without
+corroboration) — documented, not hidden. Note that 45/200 plants carry a ClinVar record that is not
+itself P/LP (one is `Benign/Likely_benign`), so 200 is not a reachable ceiling.
 
 ## Honest limitations
 
