@@ -5,9 +5,12 @@
 #   bash scripts/setup_stores.sh
 #
 # gnomAD v4.1 + ClinVar : downloaded PRE-BUILT + checksummed from the GitHub releases (fast).
-# AlphaMissense         : fetched from DeepMind (CC BY-NC-SA 4.0) + built LOCALLY — it is NOT
+# AlphaMissense         : fetched from DeepMind (CC BY 4.0 — attribution, no non-commercial
+#                         restriction since the March 2024 relicensing) + built LOCALLY. Not
 #                         redistributed by this project; you download it under its own licence.
-# Prereqs: gh (GitHub CLI), zstd, duckdb (pip install duckdb); AlphaMissense also needs htslib/tabix.
+#
+# Prereqs: gh (GitHub CLI), zstd, duckdb. NO gh/zstd? Use the pure-Python equivalent instead,
+# which needs neither and works in a bare container:  python3 scripts/fetch_stores.py
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -19,7 +22,7 @@ bash scripts/fetch_gnomad_parquet.sh
 echo "== [2/3] ClinVar Parquet — pre-built release (~60 MB, weekly) =="
 bash scripts/fetch_clinvar_parquet.sh
 
-echo "== [3/3] AlphaMissense — CC BY-NC-SA: fetch from DeepMind + build locally (~1 GB) =="
+echo "== [3/3] AlphaMissense — CC BY 4.0: fetch from DeepMind + build locally (~1 GB) =="
 if [ -d data/alphamissense/am_parquet ]; then
   echo "  am_parquet already present — skipping."
 else

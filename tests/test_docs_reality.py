@@ -445,3 +445,59 @@ def test_the_live_gnomad_test_fails_rather_than_skips_in_ci():
     live = (ROOT / "tests/test_gnomad_live.py").read_text()
     assert "pytest.fail" in live, "the live test skips instead of failing when offline"
     assert "VCF2REPORT_LIVE_GNOMAD" in live
+
+
+# --------------------------------------------------------- store provisioning + licensing
+
+def test_no_file_asserts_the_superseded_alphamissense_licence():
+    """DeepMind relicensed the AlphaMissense predictions to CC BY 4.0 in March 2024.
+
+    Two files still presented the old CC BY-NC-SA 4.0 as the operative licence, which would
+    wrongly tell a lab it cannot use this commercially — the downloaded file's own header is
+    stale, and repeating it as fact is a licensing claim, not a footnote. Mentions that
+    EXPLAIN the supersession are fine; asserting it as current is not.
+    """
+    offenders = []
+    for f in list((ROOT / "scripts").glob("*")) + list((ROOT / "docs").glob("*.md")) + \
+            [ROOT / "README.md"]:
+        if not f.is_file():
+            continue
+        try:
+            text = f.read_text()
+        except (UnicodeDecodeError, OSError):
+            continue
+        for i, line in enumerate(text.splitlines(), 1):
+            if "NC-SA" not in line:
+                continue
+            # Context that marks it as the superseded/stale one, not the current licence.
+            window = "\n".join(text.splitlines()[max(0, i - 4):i + 3]).lower()
+            if any(w in window for w in ("supersed", "older", "stale", "relicens",
+                                         "march 2024", "zenodo", "no longer")):
+                continue
+            offenders.append(f"{f.relative_to(ROOT)}:{i}")
+    assert not offenders, (
+        f"these assert CC BY-NC-SA as AlphaMissense's current licence: {offenders}. "
+        "The predictions are CC BY 4.0 since March 2024.")
+
+
+def test_the_pure_python_store_fetcher_needs_neither_gh_nor_zstd():
+    """setup_stores.sh hard-requires the GitHub CLI and the zstd binary and exits without
+    them — neither is present in a bare container, which is exactly where provisioning
+    decides whether the store gate blocks every analysis.
+
+    Neither was necessary: the releases are public (unauthenticated HTTPS) and zstd decoding
+    is available as a pure-Python wheel.
+    """
+    src = (ROOT / "scripts/fetch_stores.py").read_text()
+    assert "browser_download_url" in src, "must use the public asset URL, not an authed API"
+    assert "GITHUB_TOKEN" not in src, "a public release needs no token"
+    assert "zstandard" in src, "must fall back to the pure-Python zstd decoder"
+    # And it must still name each source's licence where the operator will see it.
+    for fragment in ("ODbL", "CC BY 4.0", "public domain"):
+        assert fragment in src, f"the fetcher does not state the {fragment!r} licence"
+
+
+def test_setup_stores_points_at_the_dependency_free_path():
+    """Whoever hits the `gh`/`zstd` requirement must be told there is a way without them."""
+    sh = (ROOT / "scripts/setup_stores.sh").read_text()
+    assert "fetch_stores.py" in sh
