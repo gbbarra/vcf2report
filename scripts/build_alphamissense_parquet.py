@@ -11,8 +11,14 @@ ClinVar loci correctly LEFT-JOIN to NULL (AlphaMissense absence is never asserte
 
 Defaults: SRC = config.ALPHAMISSENSE_LOCAL, OUT = config.ALPHAMISSENSE_PARQUET.
 
-⚠️  LICENSE: the AlphaMissense file header declares CC BY-NC-SA 4.0 (non-commercial,
-share-alike). Do NOT commit or redistribute the derived Parquet; it is git-ignored.
+LICENCE: the AlphaMissense **predictions** are **CC BY 4.0** — attribution, NO non-commercial
+restriction. DeepMind relicensed them in March 2024; the downloaded file's own header still
+carries the superseded CC BY-NC-SA 4.0, and reading that stale header as current would wrongly
+tell a lab it cannot use this commercially. (CC BY-NC-SA does still apply to the separate
+AlphaMissense *Database* on Zenodo — a different artefact.) See docs/DISCLAIMERS.md.
+
+The derived Parquet is git-ignored and not redistributed by this project — a choice about what
+this repository ships, not a licence requirement.
 """
 import sys
 from pathlib import Path
