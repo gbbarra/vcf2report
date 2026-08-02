@@ -356,22 +356,60 @@ it with:
   stores are present — the tell-free VCFs carry no baked gnomAD/ClinVar INFO, so the engine must look
   them up. Published reference: **178/200**.
 
-**Reproduced (this session) — 177/200 (88.5%),** identical on borrowed and freshly-fetched stores.
-Breakdown: primary 177 · carrier 1 · probable-VUS 5 · other 10 · absent 7. All 23 non-primary are
-honest limitations: 2 non-coding RNA (RNU5B-1/RNU4-2, outside protein scope); 3 splice-region /
-low-impact where the plant's *real* consequence is not coding (ADA/BBS1/BNIP1 — the same
-de-circularization the [consequence audit](#published-benchmark--hpo-spiked-exomes-200-distinct-exomes)
-exposed); 2 LP surfaced as "other" (not phenotype-matched); 7 held at VUS (missense / HPO-dropped
-genes); 1 recessive carrier. The 1-case gap vs the earlier 178 is engine/store drift; both runs this
-session reproduce 177.
+**Measured — 179/200 (89.5%)**, full cohort, 0 errors. Breakdown: primary 179 · carrier 1 ·
+probable-VUS 5 · other 8 · absent 7.
+
+### Two numbers, because "recovery" means two different things
+
+`run_benchmark.py`'s headline asks **did the planted gene reach the primary bucket** — i.e. was it
+surfaced to the clinician. It does *not* ask what tier the engine gave it. Both are worth knowing and
+they are far apart, so both are reported:
+
+| | gene surfaced as primary | **…and called P/LP** |
+|---|---:|---:|
+| **all 200** | **179 (89.5%)** | **109 (54.5%)** |
+| LoF (frameshift / stop-gain / splice-site), n=102 | 99 (97.1%) | **92 (90.2%)** |
+| missense, n=72 | 63 (87.5%) | **17 (23.6%)** |
+
+The gap is the design, not a defect: missense are *prioritized* to the top by phenotype and then
+honestly **held at VUS** for want of corroboration (the restraint README illustrates with SYN-051 /
+SYN-093). Quoting 89.5% alone invites a lab to read it as classification accuracy, which it is not.
+
+### The ceiling is not 200
+
+**45 of the 200 plants (22.5%) carry an answer-key ClinVar record that is not P/LP** — 12
+`Uncertain_significance`, 11 `Conflicting_classifications`, 1 `Benign/Likely_benign`, 1 `risk_factor`,
+1 `drug_response`, 1 `not_provided`, 18 blank. **SYN-161 (ZIC2) is `Benign/Likely_benign`**, and the
+scorer counts *not* recovering it as a miss — but surfacing a benign variant as a diagnostic finding
+would be a false positive. SYN-034 / SYN-146 (`Uncertain_significance`) and SYN-128 (`Conflicting`,
+called Likely Benign here) are the same shape. Read the headline as bounded by the key's own quality.
+
+The 21 non-primary, by cause: 2 non-coding RNA outside protein scope (RNU5B-1 / RNU4-2); 3
+splice-region / low-impact whose real consequence is not coding (ADA / BBS1 / BNIP1); 2 indels the
+annotator calls inframe or benign (ZIC2 / C10ORF71); **2 correctly P/LP but outside the phenotype
+match (ANTXR2 / BRPF1)**; 10 held at VUS; 1 recessive carrier (SPINT2). The two phenotype cases are
+the failure #31 fixed at the *report* level — the conclusion now says so out loud instead of opening
+with a negative — though they remain misses by this metric, correctly.
+
+**This session's 11 merged PRs (#21–#31) are neutral here.** Scored `main` (`0ebee07`) and the
+pre-#24 tree (`7dcc39d`) against the same cohort and the same stores: **179/200 both, and 0 of 200
+cases differ** in bucket or tier. The `177/200` previously recorded in this file is not reproducible
+in this environment — the cohort has a single release (`data-v1`, 2026-07-22, never re-uploaded) and
+the stores are the ones tabulated below, so the difference sits in run state that was not captured
+(most plausibly the ClinVar annotation cache that #24 was written to fix, which is nearly empty here).
+Recorded as unexplained rather than attributed.
 
 **Store provenance for this number** (each store's `_manifest.json`):
 
 | store | release | rows | built | subset method |
 |---|---|---:|---|---|
 | gnomAD | v4.1 (exomes, MANE-sliced) | 69,898,057 | frozen | AF fields only, MANE exome BED — `data/gnomad/NOTICE.md` |
-| AlphaMissense | hg38 2023 (CC BY 4.0) | 71,034,269 | 2026-07-22 | complete |
+| AlphaMissense | hg38 2023 (CC BY 4.0) | 71,034,269 | 2026-07-31 | complete |
 | ClinVar | GRCh38 weekly | 4,195,020 | 2026-07-14 | complete (ftp.ncbi ClinVar) |
+
+⚠️ The ClinVar store was **18 days old** at measurement against a 14-day freshness policy
+(`check_stores.py` reported STALE). The plants are long-established ClinVar entries, so the effect
+should be nil — but the number was taken on a stale store and saying so is cheaper than assuming.
 
 Reproduce: `bash scripts/fetch_benchmark.sh` → `bash scripts/setup_stores.sh` →
 `python3 scripts/run_benchmark.py --annotated <bench>/realistic_annotated --bench <bench> --jobs 4`.
@@ -395,6 +433,9 @@ engine-decided lines (gnomAD missense constraint for **PP2**/**BP1**; a ClinVar 
 
 **177/200 primary — unchanged (+0), missense subset 61/72 — unchanged.** No case regressed.
 
+*(Numbers from that round, kept as recorded. The current baseline is 179/200 with a missense subset
+of 63/72 — see above; the delta is environmental, not from this change, which measured +0.)*
+
 Two things came out of that run worth recording:
 
 **1. A real double-count, found and fixed.** The first pass moved 5 cases VUS→Likely Pathogenic
@@ -410,6 +451,21 @@ pathogenics*, which PP5 and the ClinVar safety flag recover regardless of what P
 Their unique value is on missense ClinVar has **not** catalogued — the novel-variant case a real
 patient presents — which this cohort never exercises. So "+0" here is evidence of *no regression*,
 not evidence of *no value*, and it should not be read as the latter.
+
+> **Measured, and the PP5 half of that argument is wrong.** Running `--withhold-clinvar` over the
+> full 200: nulling each plant's own ClinVar assertion changed the tier in **0 of 193** scored cases
+> — the identical 112 variants reach P/LP with and without it, and the identical 17 of 72 missense.
+> This is not a broken instrument: on SYN-004 (*NIPBL*) the withholding does drop the criterion,
+> `[PM2, PP4, PP5, PVS1]` → `[PM2, PP4, PVS1]`, and the tier holds at Pathogenic because
+> `PVS1+PM2+PP4` already carried it. Querying the mounted store directly, **168 planted rows have a
+> ≥1-star P/LP ClinVar record, so PP5 fires broadly — and is never the deciding line.**
+>
+> So the plants are *not* recovered because ClinVar knows them; the ACMG tier stands on
+> PVS1/PM2/PP3/PP4 on its own. The claim about the **≥2-star safety flag** is untouched — that is a
+> report-level surfacing rule, not an ACMG criterion, and `withhold_own_clinvar_tier` does not
+> exercise it. What this does retire is the idea that PP5 masks the missense criteria: it does not,
+> and **missense P/LP recovery is 17/72 (23.6%) either way**. The ceiling there is the missense
+> apparatus itself, not ClinVar's shadow over it.
 
 To measure the value directly, `run_benchmark.py --withhold-clinvar` re-classifies each planted
 variant with its **own** ClinVar assertion nulled (`dataclasses.replace`): PP5/BP6 drop out, PS1/PM5
@@ -440,7 +496,7 @@ design* — it is ClinGen-calibrated to a variable strength, which the REVEL/CAD
 Two things to measure when the stores are available:
 
 1. `--compare` a run with PP3/BP4 requiring both predictors (when both exist) against the current
-   177/200, watching the LoF subset specifically.
+   179/200, watching the LoF subset specifically.
 2. ~~Whether a lone **BS1** should engage the combiner's conflict check.~~ **Closed.** It now does:
    Richards defaults to VUS when the *evidence* conflicts, not when two *rules* collide, and Table 5
    simply has no rule for a single Strong-benign line. The gate fires when the side that reached no

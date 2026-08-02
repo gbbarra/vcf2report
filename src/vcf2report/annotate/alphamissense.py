@@ -1,6 +1,8 @@
 """AlphaMissense missense-pathogenicity client (local tabix).
 
-AlphaMissense (Cheng et al., Science 2023; (c) Google DeepMind, CC BY-NC-SA 4.0) scores
+AlphaMissense (Cheng et al., Science 2023; (c) Google DeepMind, **CC BY 4.0** — the
+downloaded file's own header still carries the superseded CC BY-NC-SA 4.0; DeepMind
+relicensed the predictions in March 2024, see docs/DISCLAIMERS.md) scores
 every possible human missense substitution 0..1. We read the tabix-indexed hg38
 file (``AlphaMissense_hg38.tsv.gz``, fetched once by scripts/fetch_alphamissense.sh)
 for a single variant — no network egress and no multi-GB data bundled in the repo.

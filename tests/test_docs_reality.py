@@ -456,10 +456,15 @@ def test_no_file_asserts_the_superseded_alphamissense_licence():
     wrongly tell a lab it cannot use this commercially — the downloaded file's own header is
     stale, and repeating it as fact is a licensing claim, not a footnote. Mentions that
     EXPLAIN the supersession are fine; asserting it as current is not.
+
+    ``src/`` is swept too, and was added because leaving it out is what let two survive: this
+    check ran green while ``stores.py`` stamped the superseded licence into every rebuilt
+    store's ``_manifest.json`` — the machine-readable provenance record, i.e. the one place
+    the claim is not merely prose.
     """
     offenders = []
     for f in list((ROOT / "scripts").glob("*")) + list((ROOT / "docs").glob("*.md")) + \
-            [ROOT / "README.md"]:
+            list((ROOT / "src").rglob("*.py")) + [ROOT / "README.md"]:
         if not f.is_file():
             continue
         try:
@@ -478,6 +483,29 @@ def test_no_file_asserts_the_superseded_alphamissense_licence():
     assert not offenders, (
         f"these assert CC BY-NC-SA as AlphaMissense's current licence: {offenders}. "
         "The predictions are CC BY 4.0 since March 2024.")
+
+
+def test_every_store_manifest_records_its_licence():
+    """``_manifest.json`` is the provenance record that travels WITH a built store — the one
+    an operator reads to answer "may we use this, and under what terms?". A store whose
+    manifest omits its licence answers that question with silence, and gnomAD's ODbL-1.0
+    carries a share-alike obligation that silence does not discharge.
+
+    AlphaMissense's entry additionally asserted the superseded CC BY-NC-SA 4.0. Pinned by
+    value, not just by presence, because the wrong licence is worse than none.
+    """
+    from vcf2report import stores
+    specs = stores.store_specs() if hasattr(stores, "store_specs") else None
+    if specs is None:                     # spec table is built inside the registry helper
+        import inspect
+        src = inspect.getsource(stores)
+        assert '"license": "CC BY 4.0"' in src, "AlphaMissense must be stamped CC BY 4.0"
+        assert '"license": "CC BY-NC-SA 4.0"' not in src, (
+            "the manifest writer still stamps the superseded AlphaMissense licence")
+        assert '"license": "ODbL-1.0"' in src, "gnomAD's ODbL share-alike must be recorded"
+        return
+    for name, spec in specs.items():
+        assert spec["source"].get("license"), f"{name}: manifest records no licence"
 
 
 def test_the_pure_python_store_fetcher_needs_neither_gh_nor_zstd():
