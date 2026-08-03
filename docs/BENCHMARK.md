@@ -375,14 +375,30 @@ than the three headline loci — roughly **7,200** variants that ClinVar calls b
 to benign (the VUS×B/LB cell fell 9,066 → 1,895), i.e. non-PASS suppression had been withholding
 benign evidence cohort-wide.
 
-**The 107 remaining gross discordances in the other direction are a different, known problem.**
-They are dominated by *common pathogenic* alleles: **HFE** c.845G>A (p.C282Y), **SERPINA1** PiZ,
-**CFTR**, **ABCA4**, **GJB2** — variants that are genuinely pathogenic (often at low penetrance or
-as risk factors) yet common enough that BA1 fires and calls them Benign. This is precisely what
-ClinGen's SVI **BA1 exception list** exists for, and this engine does not yet consult one. All of
-them land in the `other` bucket rather than as headline findings, so the report does not currently
-present them as answers — but "Benign" is the wrong word for HFE p.C282Y and the doc should not
-pretend otherwise. Open, unfixed, and listed here rather than in a footnote.
+**The 107 remaining gross discordances in the other direction are a different phenomenon —
+and the report already handles them.** They are dominated by *common pathogenic* alleles:
+**HFE** p.C282Y, **SERPINA1** PiZ, **CFTR**, **HBB**, **G6PD**, **GJB2**, **ABCA4** — genuinely
+pathogenic (often at low penetrance, or as carrier states / risk factors) yet common enough that
+the frequency-based benign criteria fire. 26 distinct loci across the cohort.
+
+These are **not** silently called benign. `report/assemble.py::clinvar_pathogenic_flags` catches
+every classification ClinVar rates P/LP at ≥2 stars whose engine tier is lower, and the conclusion
+carries it verbatim — measured on SYN-016:
+
+> ⚠️ **Classified Pathogenic/Likely Pathogenic in ClinVar** (≥2-star review) — the engine's
+> independent tier is lower, but DO NOT dismiss: **… HFE (2★; engine: Benign)**. Review the
+> ClinVar assertion and its underlying evidence.
+
+That is deliberate: the flag is report-level precisely so the ACMG math stays independent of
+ClinVar (the PP5-circularity concern behind the SVI's PP5 deprecation).
+
+**A ClinGen SVI BA1 exception list would therefore be the wrong fix here**, for three reasons
+worth recording so it is not proposed again: the safety net it would serve already exists and is
+better placed; only **3 of the 26** loci are even in BA1 territory (AF > 5% — HFE 7.1%, G6PD 13.1%,
+HBB 5.7%), the other 23 reaching benign via BS1+BS2, so it would address one case in nine; and
+ClinGen's own endpoints are unreachable from this environment, so the list could only be
+transcribed rather than fetched and verified — an unacceptable provenance for a table that decides
+whether a variant is called benign.
 
 ## Reproduce
 
