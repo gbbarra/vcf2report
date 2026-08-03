@@ -122,3 +122,53 @@ def test_a_single_classification_is_unchanged():
     only = _c("SCN1A", "Pathogenic")
     bucket, tier, hit = rb._bucket_of("SCN1A", _FakeReport([only]))
     assert hit is only and tier == "Pathogenic" and bucket in {"primary", "secondary", "other"}
+
+
+# ------------------------------------- the planted VARIANT is identified by coordinate, not gene
+
+def _write_manifest(tmp_path, rows):
+    m = tmp_path / "manifest"
+    m.mkdir(parents=True, exist_ok=True)
+    with open(m / "planted_variants.tsv", "w", newline="") as fh:
+        fh.write("syn_id\tchrom\tpos\tref\talt\tgene\tzygosity\tallele\n")
+        for r in rows:
+            fh.write("\t".join(r) + "\n")
+    return tmp_path
+
+
+def test_the_primary_planted_allele_is_the_one_scored(tmp_path):
+    """40 of the 200 cases plant TWO alleles (compound het — the manifest's `allele` column is
+    primary/second). "The classification for this gene" then has no single answer; both are
+    real plants. The coordinate does."""
+    bench = _write_manifest(tmp_path, [
+        ("SYN-001", "chr15", "101645162", "C", "T", "TM2D3", "het", "second"),
+        ("SYN-001", "chr15", "101652355", "C", "A", "TM2D3", "het", "primary"),
+    ])
+    assert rb._load_planted_loci(bench) == {"SYN-001": ("chr15", 101652355, "C", "A")}
+
+
+def test_a_missing_manifest_degrades_instead_of_crashing(tmp_path):
+    assert rb._load_planted_loci(tmp_path) == {}
+
+
+def test_the_locus_match_ignores_the_chr_prefix_and_allele_case():
+    """The VCF, the manifest and the stores do not agree on `chr` prefixing, and VCF alleles are
+    case-insensitive. A miss here would silently fall back to the gene-level pick."""
+    c = _c("TM2D3", "Pathogenic")
+    c.variant.chrom, c.variant.pos, c.variant.ref, c.variant.alt = "15", 101652355, "c", "a"
+    rep = _FakeReport([c])
+    assert rb._at_locus(rep, ("chr15", 101652355, "C", "A")) is c
+    assert rb._at_locus(rep, ("chr15", 101652356, "C", "A")) is None
+    assert rb._at_locus(rep, None) is None
+
+
+def test_the_planted_locus_wins_over_the_gene_level_pick():
+    """SYN-001's shape: a Pathogenic variant and a separate VUS in the same gene. Whichever
+    bucket logic says, `tier` must describe the allele the benchmark actually planted."""
+    vus = _c("TM2D3", "Uncertain Significance (VUS)")
+    vus.variant.pos = 101652355
+    path = _c("TM2D3", "Pathogenic")
+    path.variant.pos = 999
+    rep = _FakeReport([path, vus])
+    got = rb._at_locus(rep, ("1", 101652355, "A", "T"))
+    assert got is vus, "the coordinate match picked the wrong variant"

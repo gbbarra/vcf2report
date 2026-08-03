@@ -63,6 +63,38 @@ def _severity(c) -> int:
     return len(_TIER_RANK)
 
 
+def _load_planted_loci(bench: Path) -> dict[str, tuple]:
+    """syn_id -> (chrom, pos, ref, alt) of the case's PRIMARY planted allele.
+
+    40 of the 200 cases plant two alleles (compound het: the manifest's ``allele`` column is
+    ``primary`` / ``second``), so "the classification for this gene" is genuinely ambiguous —
+    both are real plants. The coordinate is not.
+    """
+    p = bench / "manifest" / "planted_variants.tsv"
+    if not p.exists():
+        return {}
+    out = {}
+    with open(p, newline="") as fh:
+        for r in csv.DictReader(fh, delimiter="\t"):
+            if r.get("allele", "primary") == "primary" and r["syn_id"] not in out:
+                out[r["syn_id"]] = (r["chrom"], int(r["pos"]), r["ref"], r["alt"])
+    return out
+
+
+def _at_locus(report, locus):
+    """The classification for exactly this variant, or None."""
+    if not locus:
+        return None
+    chrom, pos, ref, alt = locus
+    want = (chrom.removeprefix("chr"), pos, ref.upper(), alt.upper())
+    for c in report.classifications:
+        v = c.variant
+        if (v.chrom.removeprefix("chr"), v.pos, (v.ref or "").upper(),
+                (v.alt or "").upper()) == want:
+            return c
+    return None
+
+
 def _bucket_of(gene: str, report):
     """Where did the planted gene land? Returns (bucket, tier, classification-or-None).
 
@@ -108,21 +140,42 @@ def withhold_own_clinvar_tier(classification):
 
 
 def _score_one(args: tuple) -> dict:
-    """Worker: run the pipeline for one case and locate the planted gene. Top-level for pickling."""
-    sid, vcf, hpo_path, gene, withhold = args
+    """Worker: run the pipeline for one case and locate the planted gene. Top-level for pickling.
+
+    Two questions, kept apart because they have different answers and only one is the headline:
+
+    ``outcome`` — did the planted GENE reach the primary bucket? That is the published metric,
+    and it is gene-level on purpose: a clinician who is shown the right gene has been given the
+    diagnosis to confirm, whichever allele carried it there.
+
+    ``tier`` / ``consequence`` — what did the engine call the planted VARIANT? Matched by
+    coordinate, because 40 of the 200 cases plant two alleles (compound het) and "the
+    classification for this gene" is then genuinely ambiguous. Deriving the tier from the gene
+    is what produced rows like SYN-001 ``primary·Pathogenic``, where the Pathogenic variant was
+    in `carrier` and the one in `primary` was a VUS — a pair that existed in no single row.
+    """
+    sid, vcf, hpo_path, gene, withhold, locus = args
     from vcf2report.cli import read_hpo_file
     from vcf2report.pipeline import run_pipeline
     try:
         hpo_terms = read_hpo_file(hpo_path) if Path(hpo_path).exists() else []
         report = run_pipeline(vcf, hpo_terms=hpo_terms, sample_id=sid)
-        bucket, tier, hit = _bucket_of(gene, report)
+        bucket, gene_tier, gene_hit = _bucket_of(gene, report)
+        plant = _at_locus(report, locus)
+        # Fall back to the gene-level pick only when the planted coordinate was never
+        # classified (filtered out upstream) — and say which happened, so a reader never has
+        # to guess whether `tier` describes the plant.
+        hit = plant if plant is not None else gene_hit
         withheld = withhold_own_clinvar_tier(hit) if (withhold and hit) else ""
-        return {"syn_id": sid, "gene": gene, "outcome": bucket, "tier": tier or "",
+        return {"syn_id": sid, "gene": gene, "outcome": bucket,
+                "tier": (hit.tier if hit else "") or "",
                 "consequence": (hit.variant.consequence if hit else "") or "",
+                "tier_source": "planted-locus" if plant is not None else
+                               ("gene-fallback" if gene_hit else ""),
                 "withheld_tier": withheld, "candidates": report.qc.candidates, "error": ""}
     except Exception as e:  # never let one case abort the sweep
         return {"syn_id": sid, "gene": gene, "outcome": "ERROR", "tier": "",
-                "consequence": "", "withheld_tier": "", "candidates": 0,
+                "consequence": "", "tier_source": "", "withheld_tier": "", "candidates": 0,
                 "error": f"{type(e).__name__}: {e}"}
 
 
@@ -189,6 +242,7 @@ def main(argv=None) -> int:
     bench = Path(args.bench)
     ann = Path(args.annotated)
     key = _load_answer_key(bench)
+    loci = _load_planted_loci(bench)
 
     tasks: list[tuple] = []
     missing = 0
@@ -198,7 +252,7 @@ def main(argv=None) -> int:
             missing += 1
             continue
         hpo = bench / "sidecars" / f"{sid}.hpo.txt"
-        tasks.append((sid, str(vcf), str(hpo), gene, args.withhold_clinvar))
+        tasks.append((sid, str(vcf), str(hpo), gene, args.withhold_clinvar, loci.get(sid)))
     if args.limit:
         tasks = tasks[: args.limit]
     if not tasks:
@@ -225,7 +279,7 @@ def main(argv=None) -> int:
     with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, delimiter="\t",
                            fieldnames=["syn_id", "gene", "outcome", "tier", "consequence",
-                                       "withheld_tier", "candidates", "error"])
+                                       "tier_source", "withheld_tier", "candidates", "error"])
         w.writeheader()
         w.writerows(results)
 
