@@ -67,3 +67,58 @@ def test_withhold_does_not_mutate_original():
     c = _kcnq2_arg213trp()
     rb.withhold_own_clinvar_tier(c)
     assert c.annotation.clinvar_significance == "Pathogenic"
+
+
+# --------------------------------- the scorer must describe ONE variant, not two spliced together
+
+class _FakeReport:
+    def __init__(self, classifications):
+        self.classifications = classifications
+
+
+def _c(gene, tier, zyg="het", hpo=1.0, sig=None):
+    from vcf2report.models import Classification
+    return Classification(
+        variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene=gene, zygosity=zyg,
+                        consequence="missense_variant"),
+        annotation=Annotation(hpo_match_score=hpo, hpo_best_match=hpo,
+                              clinvar_significance=sig),
+        criteria=[], tier=tier, rule_path="")
+
+
+def test_the_reported_tier_belongs_to_the_variant_in_the_reported_bucket():
+    """SYN-001 was scored `primary·Pathogenic`. What it actually has is a Pathogenic variant in
+    the CARRIER bucket and a separate VUS in `primary` — the scorer took the bucket from one
+    variant and the tier from another, describing a pair that exists in no single row.
+
+    30 of the 200 cohort cases classify more than one variant in the planted gene, so this is
+    not a corner case; it is 15% of the per-case TSV that `--compare` diffs against.
+    """
+    vus = _c("TM2D3", "Uncertain Significance (VUS)")
+    path = _c("TM2D3", "Pathogenic")
+    bucket, tier, hit = rb._bucket_of("TM2D3", _FakeReport([path, vus]))
+    assert hit is not None
+    assert (bucket, tier) in {("primary", vus.tier), ("carrier", path.tier),
+                              ("other", path.tier), ("probable_vus", vus.tier),
+                              ("secondary", path.tier)}, (bucket, tier)
+    assert tier == hit.tier, "the reported tier is not the tier of the reported classification"
+
+
+def test_within_one_bucket_the_most_severe_variant_is_scored():
+    """Two classifications in the planted gene, both in the same bucket (SYN-026 BORCS8 has
+    Pathogenic and Likely Pathogenic together). The report leads with the severe one."""
+    lp, p = _c("BORCS8", "Likely Pathogenic"), _c("BORCS8", "Pathogenic")
+    _, tier, hit = rb._bucket_of("BORCS8", _FakeReport([lp, p]))
+    assert tier == "Pathogenic" and hit is p
+
+
+def test_a_gene_with_no_classification_is_absent_with_no_tier():
+    bucket, tier, hit = rb._bucket_of("NOPE", _FakeReport([_c("OTHER", "Pathogenic")]))
+    assert (bucket, tier, hit) == ("absent", None, None)
+
+
+def test_a_single_classification_is_unchanged():
+    """The common case (170 of 200) must behave exactly as before."""
+    only = _c("SCN1A", "Pathogenic")
+    bucket, tier, hit = rb._bucket_of("SCN1A", _FakeReport([only]))
+    assert hit is only and tier == "Pathogenic" and bucket in {"primary", "secondary", "other"}

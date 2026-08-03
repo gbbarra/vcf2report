@@ -49,23 +49,49 @@ def _load_answer_key(bench: Path) -> dict[str, str]:
         return {r["syn_id"]: r["gene"] for r in csv.DictReader(fh, delimiter="\t")}
 
 
+#: Most-severe first. When a case classifies several variants in the planted gene and more than
+#: one lands in the reported bucket, the scored variant is the one the report leads with.
+_TIER_RANK = ("Pathogenic", "Likely Pathogenic", "Uncertain Significance (VUS)",
+              "Likely Benign", "Benign")
+
+
+def _severity(c) -> int:
+    t = c.tier or ""
+    for i, name in enumerate(_TIER_RANK):
+        if t.startswith(name):
+            return i
+    return len(_TIER_RANK)
+
+
 def _bucket_of(gene: str, report):
     """Where did the planted gene land? Returns (bucket, tier, classification-or-None).
 
-    The classification is returned rather than re-found by the caller: locating it is a linear scan
-    over the case's classifications, and this function has already done it to derive the tier."""
+    The tier comes from the classification that is actually IN the reported bucket. That sounds
+    obvious, and the first version did not do it: it took the bucket from whichever member list
+    contained the gene, and the tier from the *first* classification carrying that gene name —
+    which is a different variant whenever a case classifies more than one. Measured on the
+    200-exome cohort: 30 of 200 cases classify several variants in the planted gene, and
+    SYN-001 (TM2D3) was scored ``primary·Pathogenic`` when what it has is a Pathogenic variant
+    in `carrier` and a *separate* VUS in `primary`. The headline count was unaffected — the gene
+    did surface — but the per-case TSV, which is what a --compare diff reads, described a
+    variant-tier pair that existed in no single row.
+    """
     from vcf2report.report.assemble import carrier_findings, split_findings
     from vcf2report.report.vus_triage import probable_pathogenic_vus
     primary, secondary, other = split_findings(report.classifications)
     carriers = carrier_findings(report.classifications)
     vus = [e["classification"] for e in probable_pathogenic_vus(report.classifications)]
-    hit = next((c for c in report.classifications if c.variant.gene == gene), None)
-    tier = hit.tier if hit else None
     for name, members in (("primary", primary), ("secondary", secondary),
                           ("carrier", carriers), ("probable_vus", vus)):
-        if any(c.variant.gene == gene for c in members):
-            return name, tier, hit
-    return ("other" if hit else "absent"), tier, hit
+        here = [c for c in members if c.variant.gene == gene]
+        if here:
+            best = min(here, key=_severity)
+            return name, best.tier, best
+    rest = [c for c in report.classifications if c.variant.gene == gene]
+    if not rest:
+        return "absent", None, None
+    best = min(rest, key=_severity)
+    return "other", best.tier, best
 
 
 def withhold_own_clinvar_tier(classification):
