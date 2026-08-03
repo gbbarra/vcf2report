@@ -337,6 +337,53 @@ the judgement the engine deliberately withholds.
   measurement that supersedes it (and confirms the exon rank it omitted correctly downgrades start-loss
   PVS1 — measured, not assumed).
 
+## What ELSE the run produced — over-call and ClinVar disagreement at scale
+
+`run_benchmark.py` asks "was the answer found?" and stops. It says nothing about the rest of the
+report, which is the half a laboratory feels: every additional P/LP call costs review time or, if
+wrong, produces an unwarranted result. `scripts/sweep_cohort.py` dumps **every** classification
+across the cohort (242,327 rows, 200 cases, 0 errors) so both questions come off one pass.
+
+**Over-call — P/LP calls a case makes BESIDES the planted one:**
+
+| | before the filtered-AF fix | after |
+|---|---:|---:|
+| total across the cohort | 623 | **459** |
+| in the **primary** bucket (top of the report) | 196 | **58** |
+| median per case, primary bucket | 1 | **0** |
+| cases with zero extra P/LP in primary | 58/200 | **150/200** |
+
+These are not all false positives — the backgrounds are real 1000G exomes that genuinely carry
+pathogenic alleles (secondary findings, carrier status), so a bare "false-positive rate" would
+misstate it in both directions. What *is* diagnostic is a gene recurring across many independent
+backgrounds: 200 unrelated people do not share one rare disease. Before the fix the top of that
+list read **FIG4 113 cases · TBCD 24 · ATM 16**, all `splice_acceptor_variant`, all ClinVar
+benign. After it, nothing exceeds 4 cases and the survivors carry ClinVar P/LP or no assertion —
+the profile of genuine background findings.
+
+**ClinVar disagreement — engine tier vs ClinVar assertion over all 50,518 annotated candidates
+(20,565 distinct loci):**
+
+| | before | after |
+|---|---:|---:|
+| engine **P/LP** vs ClinVar **B/LB** (≥1★) | 157 rows · 8 loci | **3 rows · 3 loci** (1.5 per 10k) |
+| engine **B/LB** vs ClinVar **P/LP** (≥2★) | 107 rows · 26 loci | **107 rows · 26 loci — unchanged** |
+
+The unchanged second row is the safety property, measured rather than argued: the fix is one-way
+and moved no variant toward benign that ClinVar calls pathogenic. Its reach was also far wider
+than the three headline loci — roughly **7,200** variants that ClinVar calls benign moved from VUS
+to benign (the VUS×B/LB cell fell 9,066 → 1,895), i.e. non-PASS suppression had been withholding
+benign evidence cohort-wide.
+
+**The 107 remaining gross discordances in the other direction are a different, known problem.**
+They are dominated by *common pathogenic* alleles: **HFE** c.845G>A (p.C282Y), **SERPINA1** PiZ,
+**CFTR**, **ABCA4**, **GJB2** — variants that are genuinely pathogenic (often at low penetrance or
+as risk factors) yet common enough that BA1 fires and calls them Benign. This is precisely what
+ClinGen's SVI **BA1 exception list** exists for, and this engine does not yet consult one. All of
+them land in the `other` bucket rather than as headline findings, so the report does not currently
+present them as answers — but "Benign" is the wrong word for HFE p.C282Y and the doc should not
+pretend otherwise. Open, unfixed, and listed here rather than in a footnote.
+
 ## Reproduce
 
 The harness (survey phenopackets → curate a balanced set → spike into NA12878 → run + score)
