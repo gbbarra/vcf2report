@@ -152,6 +152,19 @@ _Phenotype-relevant variants the engine held at **Uncertain Significance** (corr
 {% endif %}
 
 ## Per-variant ACMG rationale (auditable)
+{% if run_constant %}
+
+{{ run_constant | length }} criteria fired for **no** variant in this analysis — a fact about the
+analysis rather than about any allele. They are stated once here and omitted from the tables below:
+
+{% for code, why in run_constant.items() %}
+- **{{ code }}** — {{ why }}
+{% endfor %}
+
+Tables also omit any further criterion that neither fired nor recorded evidence. A criterion that
+did not fire but *did* record what it saw is kept, because that is the line proving the engine
+looked. The complete 28-criterion set for every variant is in the accompanying `_results.json`.
+{% endif %}
 {% for c in r.classifications %}
 
 ### {{ c.variant.gene or '?' }} — {{ (c.variant.transcript ~ ':') if c.variant.transcript else '' }}{{ c.variant.hgvs_c or '' }}{{ ' (' ~ c.variant.hgvs_p ~ ')' if c.variant.hgvs_p else '' }}{{ c.variant.key if not (c.variant.hgvs_c or c.variant.hgvs_p) else '' }} → {{ c.tier }}
@@ -160,9 +173,14 @@ _Phenotype-relevant variants the engine held at **Uncertain Significance** (corr
 
 | Criterion | Applied | Strength | Evidence | Source | By | Reasoning |
 |---|---|---|---|---|---|---|
-{% for cr in c.criteria %}
+{% for cr in c.criteria | informative(run_constant, trim) %}
 | **{{ cr.code }}** | {{ 'N/A' if not cr.applies else ('✅ met' if cr.met else '—') }} | {{ cr.applied_strength or cr.default_strength }} | {{ cr.evidence | kvjoin }} | {{ cr.citation | join('; ') or '—' }} | {{ cr.adjudicated_by }} | {{ cr.reasoning }} |
 {% endfor %}
+{% set extra = (c.criteria | rejectattr('code', 'in', run_constant) | select('uninformative') | list | length) if trim else 0 %}
+{% if extra %}
+
+_{{ extra }} further criterion(s) neither fired nor recorded evidence for this variant; see the JSON for the full set._
+{% endif %}
 {% endfor %}
 
 ## Methods
