@@ -113,13 +113,19 @@ def _bucket_of(gene: str, report):
     primary, secondary, other = split_findings(report.classifications)
     carriers = carrier_findings(report.classifications)
     vus = [e["classification"] for e in probable_pathogenic_vus(report.classifications)]
+    # Case-INSENSITIVE. HGNC symbols are mixed-case ("C10orf71") and the answer key upper-cases
+    # them, so an exact comparison scored SYN-182 `absent` — a frameshift that had in fact been
+    # recovered into the PRIMARY bucket. One case in the cohort, and it was a full point off the
+    # headline, lost to letter case rather than to anything the engine did.
+    want = gene.upper()
+    same = lambda c: (c.variant.gene or "").upper() == want
     for name, members in (("primary", primary), ("secondary", secondary),
                           ("carrier", carriers), ("probable_vus", vus)):
-        here = [c for c in members if c.variant.gene == gene]
+        here = [c for c in members if same(c)]
         if here:
             best = min(here, key=_severity)
             return name, best.tier, best
-    rest = [c for c in report.classifications if c.variant.gene == gene]
+    rest = [c for c in report.classifications if same(c)]
     if not rest:
         return "absent", None, None
     best = min(rest, key=_severity)

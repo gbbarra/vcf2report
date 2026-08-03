@@ -172,3 +172,23 @@ def test_the_planted_locus_wins_over_the_gene_level_pick():
     rep = _FakeReport([path, vus])
     got = rb._at_locus(rep, ("1", 101652355, "A", "T"))
     assert got is vus, "the coordinate match picked the wrong variant"
+
+
+def test_gene_matching_is_case_insensitive():
+    """HGNC symbols are mixed-case ("C10orf71") and the benchmark's answer key upper-cases them.
+    An exact string comparison scored SYN-182 `absent` — a frameshift the engine had in fact
+    recovered into the PRIMARY bucket. A full point off the published headline, lost to letter
+    case rather than to anything the engine did or failed to do.
+    """
+    hit = _c("C10orf71", "Uncertain Significance (VUS)")
+    bucket, tier, got = rb._bucket_of("C10ORF71", _FakeReport([hit]))
+    assert got is hit and bucket != "absent", "the gene was missed on letter case alone"
+    assert tier == "Uncertain Significance (VUS)"
+
+
+def test_a_genuinely_different_gene_is_still_absent():
+    """The relaxation must be case only. SYN-042 plants in RNU4-2 and the annotator calls the
+    locus RNU4-1 — an adjacent paralogue, a real annotation limitation, and it must keep
+    counting as a miss."""
+    bucket, tier, got = rb._bucket_of("RNU4-2", _FakeReport([_c("RNU4-1", "Pathogenic")]))
+    assert (bucket, tier, got) == ("absent", None, None)
