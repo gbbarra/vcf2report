@@ -729,9 +729,19 @@ def _benign_af(a: Annotation) -> tuple[float, str]:
     if faf is not None:
         return faf, "gnomAD filtering AF (faf95, grpmax)"
     vals = [x for x in (a.gnomad_af, braz) if x is not None]
-    if not vals:
-        return None, "no gnomAD/local cohort frequency available"
-    return max(vals), "gnomAD/local cohort popmax AF (no faf95 available)"
+    if vals:
+        return max(vals), "gnomAD/local cohort popmax AF (no faf95 available)"
+    # Last resort: gnomAD observed the allele but the SITE failed a gnomAD filter, so nothing
+    # above is populated. The filter speaks to call quality, not to whether the allele exists,
+    # and refusing to look left PVS1 unopposed on alleles gnomAD sees in a third to a half of
+    # all chromosomes (FIG4 / TBCD / ATM homopolymer insertions at splice acceptors -- Likely
+    # Pathogenic at the top of 113 of 200 reports). Used ONLY here, on the benign side: a
+    # frequency can raise BA1/BS1, never PM2, so a filtered record cannot invent pathogenicity.
+    if a.gnomad_af_filtered is not None:
+        return a.gnomad_af_filtered, (
+            f"gnomAD popmax AF at a site filtered as {a.gnomad_filter or 'non-PASS'} "
+            "(call-quality flag, not a retracted observation)")
+    return None, "no gnomAD/local cohort frequency available"
 
 
 @criterion("BA1")
@@ -787,17 +797,25 @@ def bs2(v: Variant, a: Annotation) -> CriterionResult:
     # asserted "0 homozygotes in gnomAD" at confidence=high, citing a source that never supplied
     # the field. PM2/BA1/BS1 already distinguish these; BS2 was the outlier.
     homs = a.gnomad_homozygotes
+    # Same one-way fallback as _benign_af: a site-quality filter does not un-observe 24,987
+    # homozygotes, and this criterion can only ever argue BENIGN with them.
+    filtered_note = ""
+    if homs is None and a.gnomad_homozygotes_filtered is not None:
+        homs = a.gnomad_homozygotes_filtered
+        filtered_note = (f" at a site filtered as {a.gnomad_filter or 'non-PASS'} "
+                         "(call-quality flag, not a retracted observation)")
     met = homs is not None and homs >= BS2_HOM_MIN
     return CriterionResult(
         "BS2", name, "strong", applies=True, met=met,
         applied_strength="strong" if met else None,
         confidence="high" if homs is not None else "low",
-        evidence={"gnomad_homozygotes": homs, "cutoff": BS2_HOM_MIN},
+        evidence={"gnomad_homozygotes": homs, "cutoff": BS2_HOM_MIN,
+                  **({"gnomad_filter": a.gnomad_filter} if filtered_note else {})},
         citation=[c for c in [a.source.get("gnomad")] if c] if homs is not None else [],
         reasoning=("gnomAD homozygote count unavailable — cannot assess healthy homozygotes"
                    if homs is None
-                   else f"{homs} homozygotes in gnomAD" if met
-                   else f"{homs} homozygotes (below {BS2_HOM_MIN})"),
+                   else f"{homs} homozygotes in gnomAD{filtered_note}" if met
+                   else f"{homs} homozygotes (below {BS2_HOM_MIN}){filtered_note}"),
     )
 
 

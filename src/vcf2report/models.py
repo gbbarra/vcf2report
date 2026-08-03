@@ -100,6 +100,16 @@ class Annotation:
     # must not read missing data as evidence (is_hom_absent_artifact) need the distinction.
     gnomad_absence_vouched: bool = False
 
+    # gnomAD saw the allele but the SITE failed a gnomAD filter (InbreedingCoeff, AS_VQSR, AC0).
+    # The filter is about call quality at the site, not a retraction of the observation, so these
+    # travel separately from the authoritative fields above: `gnomad_af` stays None (PM2 must not
+    # read a filtered record as a surveyed frequency), while the benign criteria may use these to
+    # establish that an allele is COMMON. One-way by construction — a frequency can only add
+    # benign evidence, never manufacture pathogenicity.
+    gnomad_af_filtered: Optional[float] = None
+    gnomad_homozygotes_filtered: Optional[int] = None
+    gnomad_filter: Optional[str] = None     # the failing filter string, for the evidence trail
+
     # Allele frequency from a cohort the OPERATOR supplies (see annotate/local_cohort.py).
     # None means not consulted / not in the table — never a checked zero.
     local_cohort_af: Optional[float] = None

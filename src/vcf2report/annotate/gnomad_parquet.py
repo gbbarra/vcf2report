@@ -246,9 +246,24 @@ def prime(variants) -> int:
     # vouched absence from missing data (report.assemble.is_hom_absent_artifact) read this flag.
     absent = {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None,
               "vouched_absent": True}
-    # present but not PASS: the variant EXISTS in gnomAD (so not absent -> no PM2), but its AF is
-    # not filtering-AF-authoritative -> serve None so PM2/BA1/BS1 all read 'frequency unavailable'.
-    filtered = {"af": None, "ac": None, "an": None, "hom": None, "faf95": None, "pop": None}
+    # Present but not PASS. The variant EXISTS in gnomAD (so not absent -> no PM2), and its AF is
+    # not filtering-AF-authoritative, so `af` stays None and PM2 still reads 'unavailable'.
+    #
+    # But serving None to the BENIGN side too was a one-way error. gnomAD's site filters
+    # (InbreedingCoeff, AS_VQSR) flag CALL QUALITY at the site; they do not retract the
+    # observation. Discarding it turned "gnomAD sees this allele in 50.4% of chromosomes with
+    # 24,987 homozygotes" into "we have no idea", which disabled BA1/BS1/BS2 and left PVS1
+    # unopposed: a homopolymer insertion at a splice acceptor (FIG4 chr6:109732621) was called
+    # Likely Pathogenic at the TOP of the report in 113 of 200 unrelated exomes.
+    #
+    # So the counts travel separately, under `*_filtered`. Only the benign criteria read them,
+    # and only ever to establish that an allele is COMMON — a direction in which a filtered
+    # record can add evidence but never invent pathogenicity.
+    def _filtered(af, af_grpmax, ac, an, nhomalt, g_filter):
+        return {"af": None, "ac": None, "an": None, "hom": None, "faf95": None, "pop": None,
+                "af_filtered": af_grpmax if af_grpmax is not None else af,
+                "ac_filtered": ac, "an_filtered": an, "hom_filtered": nhomalt,
+                "gnomad_filter": str(g_filter) if g_filter is not None else None}
     n = matched = 0
     with _lock:
         for chrom, q_pos, key, g_pos, g_filter, af, af_grpmax, ac, an, nhomalt, faf95, pop in rows:
@@ -258,7 +273,7 @@ def prime(variants) -> int:
                     _primed[key] = {"af": af_grpmax if af_grpmax is not None else af,
                                     "ac": ac, "an": an, "hom": nhomalt, "faf95": faf95, "pop": pop}
                 else:                      # present but filtered -> not absent, AF untrusted
-                    _primed[key] = dict(filtered)
+                    _primed[key] = _filtered(af, af_grpmax, ac, an, nhomalt, g_filter)
                 n += 1
                 matched += 1
             elif not _is_canonical(key):
