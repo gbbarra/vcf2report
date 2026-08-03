@@ -485,6 +485,31 @@ def test_no_file_asserts_the_superseded_alphamissense_licence():
         "The predictions are CC BY 4.0 since March 2024.")
 
 
+def test_the_weekly_clinvar_claim_has_automation_behind_it():
+    """`publish_clinvar_parquet.sh` writes "Rebuilt WEEKLY" into the release notes, and
+    `stores.py` sets ClinVar's `stale_after_days: 14` on the strength of that cadence.
+
+    Nothing rebuilt it. The refresh was a manual sequence someone had to remember, so the
+    published asset went 20 days stale while the store gate warned STALE every other week with
+    nothing in the repo able to clear it — a promise the automation did not keep. If the claim
+    is made, the schedule must exist.
+    """
+    wf = ROOT / ".github/workflows/clinvar-refresh.yml"
+    claims_weekly = "WEEKLY" in (ROOT / "scripts/publish_clinvar_parquet.sh").read_text()
+    if not claims_weekly:
+        return                              # no claim, nothing to keep
+    assert wf.exists(), ("the release notes promise a WEEKLY rebuild but no workflow performs "
+                         "one — either add .github/workflows/clinvar-refresh.yml or stop "
+                         "claiming a cadence nothing maintains")
+    text = wf.read_text()
+    assert "schedule:" in text and "cron:" in text, "the refresh workflow has no schedule"
+    assert "clinvar.vcf.gz" in text, "the workflow does not fetch the ClinVar source"
+    # publish uses --clobber, so an unguarded build can destroy the asset everyone fetches.
+    assert "REFUSING TO PUBLISH" in text, (
+        "no row-count floor guards the publish step — a truncated download would clobber "
+        "the good release asset")
+
+
 def test_every_store_manifest_records_its_licence():
     """``_manifest.json`` is the provenance record that travels WITH a built store — the one
     an operator reads to answer "may we use this, and under what terms?". A store whose

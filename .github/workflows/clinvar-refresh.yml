@@ -1,0 +1,91 @@
+# Rebuild the ClinVar Parquet store and refresh the public release asset.
+#
+# The release has advertised "Rebuilt WEEKLY" since it was created, but nothing rebuilt it:
+# the refresh was a manual sequence someone had to remember, and it went 20 days without
+# running while `stores.py` declares `stale_after_days: 14`. The store gate therefore warned
+# STALE roughly every other week with nothing in the repository able to clear it. This makes
+# the claim true.
+#
+# ClinVar is the only weekly store — gnomAD and AlphaMissense are frozen releases and are
+# deliberately not touched here.
+name: clinvar-refresh
+
+on:
+  schedule:
+    # ClinVar publishes its weekly VCF on Mondays; run Tuesday 06:00 UTC so a late
+    # publication has landed. Cron is UTC.
+    - cron: "0 6 * * 2"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build and verify, but do not publish the release asset"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write        # required to upload the release asset
+
+concurrency:
+  group: clinvar-refresh
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tooling
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tabix        # provides bgzip + tabix
+          python -m pip install -q duckdb
+          python -m pip install -q -e .
+
+      - name: Download the ClinVar GRCh38 weekly VCF
+        run: |
+          curl -sSfL --retry 5 --retry-delay 10 \
+            https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz \
+            -o clinvar.vcf.gz
+          ls -lh clinvar.vcf.gz
+
+      - name: Build the tabix store, then the Parquet store
+        run: |
+          python3 scripts/build_clinvar_local.py clinvar.vcf.gz
+          python3 scripts/build_clinvar_parquet.py
+
+      - name: Verify before publishing
+        id: verify
+        run: |
+          python3 scripts/check_stores.py || true
+          # A truncated download or a half-built store must never clobber a good release
+          # asset -- publish uses --clobber, so this floor is the only thing standing between
+          # a bad build and destroying the artefact everyone fetches. ClinVar only grows;
+          # 3.5M is well under the 4.19M of 2026-07 and well over any plausible partial build.
+          python3 - <<'PY'
+          import json, os, sys
+          m = json.load(open("data/clinvar/clinvar_parquet/_manifest.json"))
+          rows = m["rows"]
+          print(f"built {rows:,} rows at {m['built_at']}")
+          if rows < 3_500_000:
+              sys.exit(f"REFUSING TO PUBLISH: only {rows:,} rows — the build looks truncated.")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+              fh.write(f"rows={rows}\nbuilt_at={m['built_at']}\n")
+          PY
+
+      - name: Publish the release asset
+        if: ${{ github.event_name == 'schedule' || !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/publish_clinvar_parquet.sh
+
+      - name: Summary
+        run: |
+          echo "### ClinVar refresh" >> "$GITHUB_STEP_SUMMARY"
+          echo "- rows: **${{ steps.verify.outputs.rows }}**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- built_at: \`${{ steps.verify.outputs.built_at }}\`" >> "$GITHUB_STEP_SUMMARY"
