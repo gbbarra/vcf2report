@@ -18,7 +18,7 @@ what tells you **which**.
 
 | | |
 |---|---|
-| engine | `main` @ `0ebee07` (identical result on `7dcc39d`, pre-#24 — 0 cases differ) |
+| engine | branch head after the filtered-AF fix; 179/200 also on `0ebee07` and on `7dcc39d` (pre-#24), 0 cases differing |
 | cohort | [gbbarra/hpo-spiked-exomes](https://github.com/gbbarra/hpo-spiked-exomes) release `data-v1` (2026-07-22), SHA256-verified |
 | stores | gnomAD v4.1 69,898,057 · AlphaMissense hg38 71,034,269 · ClinVar 4,195,020 (built 2026-07-14 — **18 d old**, past the 14 d policy) |
 | result | primary 179 · carrier 1 · probable-VUS 5 · other 8 · absent 7 · **errors 0** |
@@ -33,3 +33,11 @@ is the measurement retiring the claim that PP5 carries these plants; see `docs/B
 the 179 `primary` rows carry `tier = Uncertain Significance (VUS)`. Filter on both columns to get
 classification accuracy (109/200). And 45 of the 200 plants have an answer-key ClinVar record that
 is not itself P/LP, one of them `Benign/Likely_benign`, so 200 is not a reachable ceiling.
+
+One further caveat about the `tier` column specifically: when a case classifies **more than one
+variant in the planted gene**, `run_benchmark.py` reports the bucket from whichever member matched
+and the tier from the *first* classification with that gene — possibly a different variant. That
+happens in **30 of the 200** cases (e.g. SYN-001 *TM2D3*, which has a Pathogenic variant in
+`carrier` and a VUS in `primary`, and is scored `primary·Pathogenic`). The headline is unaffected —
+the gene did surface — but do not read `tier` as the tier of the planted allele in those rows.
+`scripts/sweep_cohort.py` keys buckets by classification identity and does not conflate them.

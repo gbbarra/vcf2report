@@ -312,3 +312,79 @@ def test_a_declared_filtering_af_is_still_read():
     rec = _rec()
     rec.info["fafmax_faf95_max"] = (0.00016636999498587102,)
     assert gnomad_remote._best_from_record(rec)["faf95"] == pytest.approx(0.000166369994985871)
+
+
+# ------------------------------------------- a gnomAD site filter is not a retracted observation
+
+def _ann(**kw):
+    """An Annotation carrying only what the frequency criteria read."""
+    from vcf2report.models import Annotation
+    return Annotation(**kw)
+
+
+def _classify(consequence="splice_acceptor_variant", gene="FIG4", **ann_kw):
+    from vcf2report.acmg.engine import classify
+    from vcf2report.models import Variant
+    v = Variant(chrom="chr6", pos=109732621, ref="G", alt="GT", gene=gene,
+                consequence=consequence, zygosity="hom")
+    return classify(v, _ann(**ann_kw))
+
+
+def test_a_filtered_gnomad_record_still_argues_benign():
+    """gnomAD's site filters (InbreedingCoeff, AS_VQSR) flag CALL QUALITY at the site. They do
+    not retract the observation — and the annotate layer was serving them to the benign criteria
+    as `af=None`, i.e. "we have no idea".
+
+    Measured cost, on the 200-exome cohort: FIG4 chr6:109732621 G>GT — popmax AF **0.547**, 24,987
+    homozygotes, ClinVar Benign at 2 stars — is a homopolymer insertion at a splice acceptor, so
+    PVS1 fires very_strong with nothing opposing it. It was reported **Likely Pathogenic in the
+    PRIMARY bucket** — the top of the report — in **113 of 200** unrelated exomes. TBCD and ATM
+    reproduce it at the same kind of locus (24 and 16 cases).
+    """
+    from vcf2report.acmg.criteria import _benign_af
+
+    a = _ann(gnomad_af_filtered=0.547255, gnomad_homozygotes_filtered=24987,
+             gnomad_filter="InbreedingCoeff")
+    af, basis = _benign_af(a)
+    assert af == pytest.approx(0.547255), "the filtered frequency was discarded"
+    assert "InbreedingCoeff" in basis and "not a retracted observation" in basis, (
+        "the trail must say the record was filtered, not pass it off as authoritative")
+
+
+def test_the_filtered_frequency_reaches_BA1_and_BS2_and_defeats_a_lone_PVS1():
+    res = _classify(gnomad_af_filtered=0.547255, gnomad_homozygotes_filtered=24987,
+                    gnomad_filter="InbreedingCoeff")
+    met = {r.code for r in res.criteria if r.met}
+    assert "PVS1" in met, "the fixture must still be a LoF consequence, else it proves nothing"
+    assert "BA1" in met, "a 54.7% allele did not reach BA1"
+    assert "BS2" in met, "24,987 homozygotes did not reach BS2"
+    assert not res.tier.startswith(("Pathogenic", "Likely Pathogenic")), (
+        f"a 54.7% allele with 24,987 homozygotes is still {res.tier}")
+
+
+def test_the_filtered_record_is_still_withheld_from_PM2():
+    """The whole point is that this is ONE-WAY. A filtered record may argue common (benign);
+    it must never license the rarity claim, because a non-PASS AF is not a filtering AF.
+    """
+    res = _classify(gnomad_af_filtered=0.547255, gnomad_homozygotes_filtered=24987,
+                    gnomad_filter="InbreedingCoeff")
+    pm2 = next(r for r in res.criteria if r.code == "PM2")
+    assert not pm2.met, "a filtered record licensed PM2 — the fallback leaked to the rare side"
+
+
+def test_an_authoritative_frequency_still_wins_over_the_filtered_one():
+    """The fallback is last-resort. A PASS record must not be displaced by a filtered one."""
+    from vcf2report.acmg.criteria import _benign_af
+
+    af, basis = _benign_af(_ann(gnomad_faf95=0.001, gnomad_af_filtered=0.9,
+                                gnomad_filter="AS_VQSR"))
+    assert af == pytest.approx(0.001) and "filtering AF" in basis, (
+        "the filtered fallback overrode an authoritative filtering AF")
+
+
+def test_no_filtered_record_still_reports_unavailable():
+    """Absent everything, the honest answer is still 'cannot assess' — not a fabricated 0.0."""
+    from vcf2report.acmg.criteria import _benign_af
+
+    af, basis = _benign_af(_ann())
+    assert af is None and "no gnomAD/local cohort frequency available" in basis
