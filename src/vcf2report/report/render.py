@@ -26,6 +26,12 @@ def render_markdown(report: ReportModel) -> str:
             )
             env.filters["pct"] = lambda x: "n/a" if x is None else f"{x:.6f}"
             env.filters["kvjoin"] = kvjoin
+            # Same trimming rule as the builtin path below — the two renderers must agree, or
+            # whether a laudo is 6.8 MB or 1 MB depends on whether jinja2 happens to be installed.
+            env.filters["informative"] = lambda crits, const=(), trim=True: [
+                c for c in crits
+                if not trim or (c.code not in const and not _uninformative(c))]
+            env.tests["uninformative"] = _uninformative
             primary, secondary, other = split_findings(report.classifications)
             carriers = carrier_findings(report.classifications)
             # Carriers are routed into `other` by split_findings; pull them out so the
@@ -35,10 +41,76 @@ def render_markdown(report: ReportModel) -> str:
             vus = probable_pathogenic_vus(report.classifications)
             return env.get_template("report.md.j2").render(
                 r=report, primary=primary, secondary=secondary, other=other,
-                carriers=carriers, vus=vus, conclusion=summarize(report))
+                carriers=carriers, vus=vus, conclusion=summarize(report),
+                run_constant=run_constant_criteria(report.classifications),
+                trim=len(report.classifications) >= HOIST_MIN_VARIANTS)
     except ImportError:
         pass
     return _render_markdown_builtin(report)
+
+
+def _uninformative(cr) -> bool:
+    """A criterion row that neither fired nor recorded anything: no evidence, no citation.
+
+    Its Reasoning is then a generic statement of why the criterion could not apply here — real
+    information, but the SAME information for every variant it is printed against. Contrast a
+    row that did not fire but DID record evidence (PM2 with ``gnomad_af=0.0714``): that one
+    proves the engine looked and what it saw, which is exactly what an audit needs.
+    """
+    return (not cr.met) and (not cr.evidence) and (not cr.citation)
+
+
+#: Below this many classifications, no criterion is hoisted — see run_constant_criteria.
+HOIST_MIN_VARIANTS = 10
+
+
+def run_constant_criteria(classifications) -> dict:
+    """Criteria that fired for NO variant in the run, mapped to a summary of why.
+
+    A criterion that never fires across an entire exome is a fact about the ANALYSIS, not about
+    any allele. A single-proband VCF cannot supply PS2 / PM3 / PM6 / PP1 / BP2 / BS4 whatever the
+    variant is; PS3 / BS3 / BP3 / BP5 / PS4 wait on evidence this run did not gather; and
+    PS1 / PM1 / PM5 sit idle whenever the ClinVar residue index was never built. Repeating that
+    once per variant does not make it more auditable — it makes it unfindable.
+
+    Measured on SYN-016 (1,178 classifications, 6.76 MB): 10 criteria produced byte-identical
+    rows 1,178 times each, 1.42 MB / 21% of the report. Seven more never fired either but carried
+    a per-variant evidence dict — PM1 alone cost 356 KB printing `window=7, cutoff=3,
+    enrichment_cutoff=2.0` for 1,178 variants it never assessed, because the residue index was
+    absent. Those are parameters, not observations.
+
+    The reason is usually identical everywhere; where it is not (PM1 has 12 variants of it,
+    mostly "not a missense variant"), the dominant one is named with its count and the remainder
+    is acknowledged rather than flattened. Nothing is dropped from ``_results.json``.
+    """
+    # The hoist exists to remove REPETITION. Below a handful of variants there is none to
+    # remove, and "fired for no variant" becomes trivially true of almost every criterion —
+    # on a single-variant report it would empty the table entirely and call that a summary.
+    # Whole rationale section at this size is tens of KB; print it in full.
+    if len(classifications) < HOIST_MIN_VARIANTS:
+        return {}
+    from collections import Counter
+    reasons, order = {}, []
+    for c in classifications:
+        for cr in c.criteria:
+            if cr.code not in reasons:
+                reasons[cr.code] = Counter()
+                order.append(cr.code)
+            if cr.met:
+                reasons[cr.code] = None          # fired at least once -> not run-constant
+            elif reasons[cr.code] is not None:
+                reasons[cr.code][cr.reasoning] += 1
+
+    out = {}
+    for code in order:
+        counts = reasons[code]
+        if counts is None or not counts:
+            continue
+        (top, n), rest = counts.most_common(1)[0], len(counts) - 1
+        out[code] = top if rest == 0 else (
+            f"{top} — for {n} of {sum(counts.values())} variants; "
+            f"{rest} other reason(s) apply to the remainder (see the JSON)")
+    return out
 
 
 def kvjoin(evidence) -> str:
@@ -248,6 +320,24 @@ def _render_markdown_builtin(report: ReportModel) -> str:
         L.append("")
 
     L.append("## Per-variant ACMG rationale (auditable)")
+    # Hoist what is true of the whole run, and say what the tables leave out. Auditability is
+    # the point of this section, so the omission is stated, never silent — and the JSON keeps
+    # all 28 criteria per variant regardless of what is rendered here.
+    constant = run_constant_criteria(report.classifications)
+    trim = len(report.classifications) >= HOIST_MIN_VARIANTS
+    if constant:
+        L.append("")
+        L.append(f"{len(constant)} criteria fired for **no** variant in this analysis — a fact "
+                 "about the analysis rather than about any allele. They are stated once here and "
+                 "omitted from the tables below:")
+        L.append("")
+        for code, why in constant.items():
+            L.append(f"- **{code}** — {why}")
+        L.append("")
+        L.append("Tables also omit any further criterion that neither fired nor recorded "
+                 "evidence. A criterion that did not fire but *did* record what it saw is kept, "
+                 "because that is the line proving the engine looked. The complete 28-criterion "
+                 "set for every variant is in the accompanying `_results.json`.")
     for c in report.classifications:
         v = c.variant
         L.append("")
@@ -260,7 +350,13 @@ def _render_markdown_builtin(report: ReportModel) -> str:
         L.append("")
         L.append("| Criterion | Applied | Strength | Evidence | Source | By | Reasoning |")
         L.append("|---|---|---|---|---|---|---|")
+        omitted = 0
         for cr in c.criteria:
+            if trim and cr.code in constant:
+                continue                      # covered by the run-wide statement above
+            if trim and _uninformative(cr):
+                omitted += 1                  # counted per block, never silently dropped
+                continue
             if not cr.applies:
                 state = "N/A"
             else:
@@ -272,6 +368,10 @@ def _render_markdown_builtin(report: ReportModel) -> str:
                 f"| **{cr.code}** | {state} | {strength} | {evidence} | {source} "
                 f"| {cr.adjudicated_by} | {cr.reasoning} |"
             )
+        if omitted:
+            L.append("")
+            L.append(f"_{omitted} further criterion(s) neither fired nor recorded evidence for "
+                     "this variant; see the JSON for the full set._")
     L.append("")
 
     L.append("## Methods")
