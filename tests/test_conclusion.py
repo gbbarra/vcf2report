@@ -178,3 +178,52 @@ def test_renders_in_report():
     from vcf2report.report.render import render_markdown
     md = render_markdown(pipeline.run_pipeline(str(config.SAMPLE_VCF)))
     assert "## Conclusion (draft interpretation)" in md
+
+
+# ------------------------------------------- the conclusion must stay readable to be a conclusion
+
+def _hom_uncovered(gene, tier="Uncertain Significance (VUS)"):
+    """A homozygous call at a site gnomAD does not survey — trips the frequency advisory."""
+    return Classification(
+        variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene=gene, zygosity="hom"),
+        annotation=Annotation(gnomad_an=None, gnomad_absence_vouched=False),
+        criteria=[], tier=tier, rule_path="")
+
+
+def test_a_genotype_advisory_summarises_instead_of_naming_a_hundred_genes():
+    """Measured on SYN-016: the conclusion ran 6,633 characters over 10 bullets, and two
+    genotype advisories took 4,897 of them (74%) by naming 72 and 36 genes inline. The
+    ⚠️ ClinVar ≥2-star flag — the DO-NOT-DISMISS line, the most consequential sentence on the
+    page — sat between them at 321 characters. Everything correct, none of it findable.
+    """
+    lines = summarize(_report([_hom_uncovered(f"GENE{i}") for i in range(72)]))
+    advisory = next(l for l in lines if "Population frequency unknown" in l)
+    assert "and 66 more" in advisory, "the advisory still enumerates every variant inline"
+    assert "72 homozygous" in advisory, "the COUNT is the actionable part and must survive"
+    assert "GENE0" in advisory and "GENE71" not in advisory
+    assert len(advisory) < 800, f"advisory is still {len(advisory)} chars"
+
+
+def test_the_clinvar_safety_flag_is_never_truncated():
+    """Truncating an advisory costs the reader a lookup. Truncating THIS costs them a
+    known-pathogenic variant, so the cap must not reach it however many genes are flagged."""
+    flagged = [
+        Classification(
+            variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene=f"CVG{i}"),
+            annotation=Annotation(
+                clinvar_significance="Pathogenic",
+                clinvar_review_status="criteria provided, multiple submitters, no conflicts"),
+            criteria=[], tier="Benign", rule_path="")
+        for i in range(20)]
+    lines = summarize(_report(flagged))
+    line = next(l for l in lines if "Classified Pathogenic/Likely Pathogenic" in l)
+    assert "more" not in line.split("Review the ClinVar")[0], "the safety flag was truncated"
+    for i in range(20):
+        assert f"CVG{i}" in line, f"CVG{i} was dropped from the safety flag"
+
+
+def test_a_short_advisory_is_left_alone():
+    """No 'and 0 more' tail, and no behaviour change for the ordinary case."""
+    lines = summarize(_report([_hom_uncovered(f"G{i}") for i in range(3)]))
+    advisory = next(l for l in lines if "Population frequency unknown" in l)
+    assert "more" not in advisory and all(f"G{i}" in advisory for i in range(3))

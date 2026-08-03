@@ -264,6 +264,35 @@ def is_hom_gnomad_uncovered(c) -> bool:
     return (c.variant.zygosity == "hom") and not a.gnomad_an and not a.gnomad_absence_vouched
 
 
+#: How many variants a QC ADVISORY may name inline in the conclusion before it summarises.
+#: Only the two genotype caveats use this. Clinically actionable lists (diagnostic findings,
+#: the ClinVar safety flag, carriers, secondary findings) are never truncated — a long line is
+#: a lesser failure than a finding the reader cannot see.
+_ADVISORY_INLINE_MAX = 6
+
+
+def advisory_listing(items, render, limit: int = _ADVISORY_INLINE_MAX,
+                     where: str = "the variant tables below") -> str:
+    """Name up to `limit` items inline, then summarise the remainder and say where it lives.
+
+    Measured on SYN-016 before this existed: the conclusion ran 6,633 characters over 10
+    bullets, and two genotype advisories accounted for 4,897 of them (74%) by naming 72 and 36
+    genes inline. The ⚠️ ClinVar ≥2-star flag — the most consequential line on the page, the one
+    that says DO NOT DISMISS a known-pathogenic variant — sat between them at 321 characters.
+    Everything was correct and none of it was findable.
+
+    Nothing is lost: every variant named here is also a row in the report's own tables (verified
+    on SYN-016 — each of the 72 appears under "Other candidates"), so the cap changes where the
+    detail lives, not whether it exists. The COUNT stays in the sentence, because the count is
+    the actionable part of an advisory that says "confirm these genotypes".
+    """
+    items = list(items)
+    shown = "; ".join(render(c) for c in items[:limit])
+    if len(items) <= limit:
+        return shown
+    return f"{shown}; and {len(items) - limit} more (all of them listed under {where})"
+
+
 def clinvar_stars(review_status) -> int:
     """ClinVar review status -> star count (0-4).
 
@@ -405,7 +434,7 @@ def summarize(report: "ReportModel") -> list[str]:
     uncovered = [c for c in report.classifications
                  if is_hom_gnomad_uncovered(c) and c.tier not in _BENIGN]
     if uncovered:
-        g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in uncovered)
+        g = advisory_listing(uncovered, lambda c: f"{c.variant.gene} — {c.tier}")
         lines.append(
             f"**Population frequency unknown, not zero** — {len(uncovered)} homozygous "
             f"variant(s) at sites gnomAD does not survey (AN=0): {g}. Rarity criteria (PM2) rest "
@@ -421,7 +450,7 @@ def summarize(report: "ReportModel") -> list[str]:
     artifacts = [c for c in report.classifications
                  if is_hom_absent_artifact(c) and c.tier not in _BENIGN]
     if artifacts:
-        g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in artifacts)
+        g = advisory_listing(artifacts, lambda c: f"{c.variant.gene} — {c.tier}")
         lines.append(f"⚠️ **Verify the genotype before interpreting** — {len(artifacts)} homozygous "
                      f"variant(s) that are absent from gnomAD (AC=0), which is implausible for a real "
                      f"allele and a common calling-artifact signature in difficult regions: {g}. Confirm "
