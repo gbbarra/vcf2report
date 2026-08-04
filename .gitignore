@@ -91,3 +91,11 @@ data/synthetic_cohort/adversarial_results.tsv
 
 # generated adversarial/validation results (regenerate with scripts/adversarial_cohort.py)
 data/synthetic_cohort/adversarial_results*.tsv
+
+# QA: artefatos de cobertura e do sandbox de mutação (CLAUDE.md §4.3, §4.4)
+.coverage
+.coverage.*
+htmlcov/
+mutants/
+.mutmut-cache
+.mutmut-cache.*
