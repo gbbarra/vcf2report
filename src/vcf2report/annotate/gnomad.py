@@ -4,6 +4,7 @@ Resolution order: on-disk cache -> live GraphQL API (unless OFFLINE) -> bundled
 local snapshot. Returns popmax AF, AC/AN, and homozygote count. All fields the
 report/ACMG engine cite come from here.
 """
+
 from __future__ import annotations
 
 import json
@@ -62,7 +63,7 @@ def _from_payload(payload: dict) -> dict:
     pop_ac: dict[str, int] = {}
     pop_an: dict[str, int] = {}
     total_hom = 0
-    excluded_ac = 0          # copies seen ONLY in cohorts popmax deliberately drops
+    excluded_ac = 0  # copies seen ONLY in cohorts popmax deliberately drops
     for src in ("exome", "genome"):
         block = payload.get(src)
         if not block:
@@ -96,11 +97,19 @@ def _from_payload(payload: dict) -> dict:
         # Both then satisfied PM2 "absent from controls" on an allele gnomAD has actually
         # seen, or has not looked at hard enough to say. AF is None so PM2 cannot fire;
         # hom is kept because the homozygote count IS surveyed and BS2 may still use it.
-        why = ("observed only in cohorts excluded from popmax (founder/bottleneck)"
-               if excluded_ac else
-               f"no included population reached AN>={_MIN_AN} at this site")
-        return {"af": None, "ac": None, "an": None, "hom": total_hom, "pop": None,
-                "_freq_unknown": why}
+        why = (
+            "observed only in cohorts excluded from popmax (founder/bottleneck)"
+            if excluded_ac
+            else f"no included population reached AN>={_MIN_AN} at this site"
+        )
+        return {
+            "af": None,
+            "ac": None,
+            "an": None,
+            "hom": total_hom,
+            "pop": None,
+            "_freq_unknown": why,
+        }
 
     best = {"af": 0.0, "ac": 0, "an": 0, "hom": total_hom, "pop": None}
     for pid, an in surveyed.items():
@@ -135,8 +144,10 @@ def _live(variant: Variant) -> Optional[dict]:
 
     resp = _http.post_json(
         config.GNOMAD_API,
-        {"query": _GRAPHQL,
-         "variables": {"variantId": variant.key, "dataset": config.GNOMAD_DATASET}},
+        {
+            "query": _GRAPHQL,
+            "variables": {"variantId": variant.key, "dataset": config.GNOMAD_DATASET},
+        },
         timeout=15.0,
     )
     if resp is None:
@@ -158,8 +169,14 @@ def _unknown(reason: str) -> dict:
     AF is None so downstream ACMG logic does NOT treat it as rare/absent (PM2 must
     not fire on unknown frequency).
     """
-    return {"af": None, "ac": None, "an": None, "hom": None, "pop": None,
-            "_source": f"gnomAD {config.GNOMAD_DATASET} ({reason})"}
+    return {
+        "af": None,
+        "ac": None,
+        "an": None,
+        "hom": None,
+        "pop": None,
+        "_source": f"gnomAD {config.GNOMAD_DATASET} ({reason})",
+    }
 
 
 def lookup(variant: Variant) -> dict:
@@ -192,11 +209,14 @@ def lookup(variant: Variant) -> dict:
         # limit and works in networks where only storage.googleapis.com is
         # reachable. Fall back to the GraphQL API if tabix can't run.
         from . import gnomad_remote
+
         remote = gnomad_remote.query(variant)
         if remote is not None:
             cache.put(_SOURCE, variant.key, remote)
-            return {**remote,
-                    "_source": f"gnomAD v{gnomad_remote.RELEASE} (remote tabix)"}
+            return {
+                **remote,
+                "_source": f"gnomAD v{gnomad_remote.RELEASE} (remote tabix)",
+            }
         live = _live(variant)
         if live is not None:
             cache.put(_SOURCE, variant.key, live)

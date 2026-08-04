@@ -1,4 +1,5 @@
 """T2: consuming a real pre-annotated VCF (SnpEff ANN / VEP CSQ + INFO)."""
+
 from vcf2report.annotate import annotate_variant, from_vcf
 from vcf2report.models import Variant
 from vcf2report.pipeline import run_pipeline
@@ -29,12 +30,13 @@ def test_delivers_gnomad_and_clinvar_from_info(tmp_path):
     report = run_pipeline(p, hpo_terms=[])
     by = {c.variant.gene: c for c in report.classifications}
     atm = by["ATM"].annotation
-    assert atm.gnomad_af == 0.00034               # non-zero -> came from INFO
+    assert atm.gnomad_af == 0.00034  # non-zero -> came from INFO
     assert atm.source["gnomad"] == "VCF INFO"
     assert atm.clinvar_significance == "Likely pathogenic"
     assert atm.source["clinvar"] == "VCF INFO"
     assert atm.revel == 0.88
     assert by["BRCA1"].annotation.clinvar_significance == "Pathogenic"
+
 
 SNPEFF = """##fileformat=VCFv4.2
 ##reference=GRCh38
@@ -86,9 +88,16 @@ def test_info_annotations_preferred_over_lookup(tmp_path):
 
 
 def test_from_vcf_extract_clinvar_underscore_normalization():
-    v = Variant(chrom="1", pos=1, ref="A", alt="G",
-                info={"CLNSIG": "Likely_pathogenic",
-                      "CLNREVSTAT": "criteria_provided,_single_submitter"})
+    v = Variant(
+        chrom="1",
+        pos=1,
+        ref="A",
+        alt="G",
+        info={
+            "CLNSIG": "Likely_pathogenic",
+            "CLNREVSTAT": "criteria_provided,_single_submitter",
+        },
+    )
     out = from_vcf.extract(v)
     assert out["clinvar_significance"] == "Likely pathogenic"
     assert "criteria provided" in out["clinvar_review_status"]
@@ -97,7 +106,9 @@ def test_from_vcf_extract_clinvar_underscore_normalization():
 def test_annparse_unit_snpeff_and_vep():
     s = annparse.parse_snpeff(
         "T|missense_variant&splice_region_variant|MODERATE|BRCA1|G|transcript|"
-        "TX|protein_coding|1/2|c.1A>G|p.Met1Val|||||", "T")
+        "TX|protein_coding|1/2|c.1A>G|p.Met1Val|||||",
+        "T",
+    )
     assert s["gene"] == "BRCA1"
     assert s["consequence"] == "missense_variant"  # first (most severe) term
     fmt = ["Allele", "Consequence", "SYMBOL", "HGVSc", "HGVSp"]

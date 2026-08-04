@@ -5,6 +5,7 @@ sites** — a proxy for how well the sample sequenced — plus assay-level signa
 (Ti/Tv, het:hom, variant count). It deliberately does NOT claim genome-wide breadth
 of coverage: a variants-only VCF cannot provide it (a gVCF or BAM would).
 """
+
 from __future__ import annotations
 
 import statistics
@@ -116,18 +117,23 @@ def estimate(variants: Iterable[Variant]) -> SeqQuality:
         q.pct_novel = _pct(len(variants) - q.n_with_rsid, len(variants))
 
     # Het allele balance in [QC_AB_MIN, QC_AB_MAX] — a contamination / miscall signal.
-    het_ab = [v.allele_balance for v in variants
-              if v.zygosity == "het" and v.allele_balance is not None]
+    het_ab = [
+        v.allele_balance
+        for v in variants
+        if v.zygosity == "het" and v.allele_balance is not None
+    ]
     if het_ab:
         q.n_het_ab = len(het_ab)
         q.pct_het_ab_balanced = _pct(
-            sum(1 for ab in het_ab if QC_AB_MIN <= ab <= QC_AB_MAX), len(het_ab))
+            sum(1 for ab in het_ab if QC_AB_MIN <= ab <= QC_AB_MAX), len(het_ab)
+        )
 
     # Fraction of records with FILTER = PASS (or unfiltered).
     if variants:
         q.pct_pass = _pct(
             sum(1 for v in variants if (v.filter_status or "") in ("PASS", ".", "")),
-            len(variants))
+            len(variants),
+        )
 
     q.notes = _notes(q)
     return q

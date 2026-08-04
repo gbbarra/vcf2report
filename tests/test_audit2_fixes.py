@@ -1,4 +1,5 @@
 """Regression tests for the new-surface audit fixes (multiallelic allele-awareness, etc.)."""
+
 import json
 
 from vcf2report.acmg.engine import classify
@@ -36,8 +37,8 @@ def test_multiallelic_gnomad_af_is_allele_aware(tmp_path):
     # gnomAD AF must follow the allele, not always allele #1
     ac = annotate_variant(c, [])
     at = annotate_variant(t, [])
-    assert ac.gnomad_af == 0.30       # common allele
-    assert at.gnomad_af == 0.00002    # ultra-rare allele
+    assert ac.gnomad_af == 0.30  # common allele
+    assert at.gnomad_af == 0.00002  # ultra-rare allele
     # ...and that drives PM2 correctly (met only for the truly-rare allele)
     pm2_c = next(x for x in classify(c, ac).criteria if x.code == "PM2")
     pm2_t = next(x for x in classify(t, at).criteria if x.code == "PM2")
@@ -66,13 +67,21 @@ def test_split_keeps_phenotype_matched_benign_out_of_primary():
         return Classification(
             variant=Variant(chrom="1", pos=1, ref="A", alt="G", gene=gene),
             annotation=Annotation(hpo_match_score=hpo, hpo_best_match=hpo),
-            criteria=[], tier=tier, rule_path="")
-    primary, secondary, other = split_findings([
-        mkc("A", "Benign", 0.8),                 # phenotype-matched but benign -> other
-        mkc("MSH2", "Likely Pathogenic", 0.0),   # unrelated P/LP, ACMG SF gene -> secondary
-        mkc("PAX6", "Likely Pathogenic", 0.0),   # unrelated P/LP, NOT SF -> other
-        mkc("C", "Uncertain Significance (VUS)", 0.7),  # matched VUS -> primary
-    ])
+            criteria=[],
+            tier=tier,
+            rule_path="",
+        )
+
+    primary, secondary, other = split_findings(
+        [
+            mkc("A", "Benign", 0.8),  # phenotype-matched but benign -> other
+            mkc(
+                "MSH2", "Likely Pathogenic", 0.0
+            ),  # unrelated P/LP, ACMG SF gene -> secondary
+            mkc("PAX6", "Likely Pathogenic", 0.0),  # unrelated P/LP, NOT SF -> other
+            mkc("C", "Uncertain Significance (VUS)", 0.7),  # matched VUS -> primary
+        ]
+    )
     assert {c.variant.gene for c in primary} == {"C"}
     assert {c.variant.gene for c in secondary} == {"MSH2"}
     assert {c.variant.gene for c in other} == {"A", "PAX6"}
@@ -82,24 +91,50 @@ def test_phenopacket_skips_hgvs_only_and_escapes_info(tmp_path):
     pkt = {
         "subject": {"id": "S1"},
         "phenotypicFeatures": [{"type": {"id": "HP:0001250"}}],
-        "interpretations": [{"diagnosis": {"genomicInterpretations": [
-            {"variantInterpretation": {"variationDescriptor": {
-                "geneContext": {"symbol": "GENE;X"},   # ';' must be escaped
-                "vcfRecord": {"chrom": "2", "pos": 100, "ref": "A", "alt": "T"},
-                "allelicState": {"id": "GENO:0000135"}}}},
-            {"variantInterpretation": {"variationDescriptor": {
-                "geneContext": {"symbol": "GENE2"},
-                "expressions": [{"syntax": "hgvs.c", "value": "NM_1:c.1A>T"}]}}},  # no vcfRecord
-        ]}}],
+        "interpretations": [
+            {
+                "diagnosis": {
+                    "genomicInterpretations": [
+                        {
+                            "variantInterpretation": {
+                                "variationDescriptor": {
+                                    "geneContext": {
+                                        "symbol": "GENE;X"
+                                    },  # ';' must be escaped
+                                    "vcfRecord": {
+                                        "chrom": "2",
+                                        "pos": 100,
+                                        "ref": "A",
+                                        "alt": "T",
+                                    },
+                                    "allelicState": {"id": "GENO:0000135"},
+                                }
+                            }
+                        },
+                        {
+                            "variantInterpretation": {
+                                "variationDescriptor": {
+                                    "geneContext": {"symbol": "GENE2"},
+                                    "expressions": [
+                                        {"syntax": "hgvs.c", "value": "NM_1:c.1A>T"}
+                                    ],
+                                }
+                            }
+                        },  # no vcfRecord
+                    ]
+                }
+            }
+        ],
     }
     p = tmp_path / "p.json"
     p.write_text(json.dumps(pkt))
     data = load_phenopacket(p)
-    assert len(data["variants"]) == 1          # HGVS-only one skipped
+    assert len(data["variants"]) == 1  # HGVS-only one skipped
     assert data["skipped_variants"] == 1
     from vcf2report.phenopacket import write_inputs
+
     vcf, hpo = tmp_path / "o.vcf", tmp_path / "o.hpo.txt"
     write_inputs(data, vcf, hpo)
-    variants, _, _ = parse_vcf(vcf)            # must still parse (INFO escaped)
+    variants, _, _ = parse_vcf(vcf)  # must still parse (INFO escaped)
     assert len(variants) == 1
-    assert ";" not in variants[0].gene         # escaped
+    assert ";" not in variants[0].gene  # escaped

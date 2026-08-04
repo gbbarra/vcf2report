@@ -15,6 +15,7 @@ Reads the v2 plan (scratch/v2_plan.json from select_second.py) + the existing ra
 VCFs, writes modified raw VCFs to <out>/SYN-NNN.v2.vcf.gz for re-annotation. The 64 non-AR
 cases are unchanged (copied), so the v2 cohort is a drop-in for the routing measurement.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,18 +42,27 @@ def _spike2_line(chrom, pos, ref, alt, gene, sample_cols):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--plan", default=str(REPO / "data" / "synthetic_cohort" / "v2_plan.json"))
-    ap.add_argument("--cohort-tsv", default=str(COHORT / "cohort.tsv"),
-                    help="cohort tsv with the rows to process (default v1 cohort.tsv)")
-    ap.add_argument("--src-dir", default=str(COHORT),
-                    help="dir holding the raw <syn>.synthetic.vcf.gz (default v1 cohort dir)")
+    ap.add_argument(
+        "--plan", default=str(REPO / "data" / "synthetic_cohort" / "v2_plan.json")
+    )
+    ap.add_argument(
+        "--cohort-tsv",
+        default=str(COHORT / "cohort.tsv"),
+        help="cohort tsv with the rows to process (default v1 cohort.tsv)",
+    )
+    ap.add_argument(
+        "--src-dir",
+        default=str(COHORT),
+        help="dir holding the raw <syn>.synthetic.vcf.gz (default v1 cohort dir)",
+    )
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
 
-    plan = json.load(open(a.plan))          # keyed by syn_id (faithful phenopacket plan)
+    plan = json.load(open(a.plan))  # keyed by syn_id (faithful phenopacket plan)
     rows = list(csv.DictReader(open(a.cohort_tsv), delimiter="\t"))
     src_dir = Path(a.src_dir)
-    out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
     from spike_pathogenic import _CHROM_ORDER  # noqa
 
     made = {"compound_het": 0, "hom": 0, "copied": 0}
@@ -63,7 +73,7 @@ def main():
         dst = out / f"{syn}.v2.vcf.gz"
         p = plan.get(syn)
         if p and p["mode"] not in ("hom", "compound_het"):
-            p = None                        # single_het / nomatch → unchanged (faithful: source had one allele)
+            p = None  # single_het / nomatch → unchanged (faithful: source had one allele)
         with gzip.open(src, "rt") as fh:
             lines = fh.read().splitlines()
         meta = [l for l in lines if l.startswith("##")]
@@ -71,25 +81,32 @@ def main():
         cols = header.split("\t")
         body = [l.split("\t") for l in lines if l and not l.startswith("#")]
 
-        if not p:                                   # non-AR case: copy unchanged
+        if not p:  # non-AR case: copy unchanged
             made["copied"] += 1
             mode = "unchanged"
         elif p["mode"] == "hom":
-            for f in body:                          # flip the spike genotype to 1/1
+            for f in body:  # flip the spike genotype to 1/1
                 if f[1] == r["pos"] and "SPIKED=1" in f[7]:
-                    g = f[9].split(":"); g[0] = "1/1"
+                    g = f[9].split(":")
+                    g[0] = "1/1"
                     if len(g) >= 4:
                         g[3] = "2,40"
                     f[9] = ":".join(g)
             made["hom"] += 1
             mode = "hom"
-        else:                                       # compound het: add the 2nd ClinVar variant
-            body.append(_spike2_line(p["chrom"], p["pos2"], p["ref2"], p["alt2"], gene, cols))
-            body.sort(key=lambda f: (_CHROM_ORDER.get(f[0].replace("chr", ""), 99), int(f[1])))
+        else:  # compound het: add the 2nd ClinVar variant
+            body.append(
+                _spike2_line(p["chrom"], p["pos2"], p["ref2"], p["alt2"], gene, cols)
+            )
+            body.sort(
+                key=lambda f: (_CHROM_ORDER.get(f[0].replace("chr", ""), 99), int(f[1]))
+            )
             made["compound_het"] += 1
             mode = "compound_het"
 
-        extra = ['##INFO=<ID=SPIKED2,Number=0,Type=Flag,Description="Second biallelic spiked variant (v2)">']
+        extra = [
+            '##INFO=<ID=SPIKED2,Number=0,Type=Flag,Description="Second biallelic spiked variant (v2)">'
+        ]
         meta_out = meta + [m for m in extra if m not in meta]
         tmp = out / f"{syn}.v2.vcf"
         with open(tmp, "w") as w:
@@ -97,16 +114,33 @@ def main():
             for f in body:
                 w.write("\t".join(f) + "\n")
         subprocess.run(["bgzip", "-f", str(tmp)], check=True)
-        v2_manifest.append({"syn_id": syn, "gene": gene, "mode": mode,
-                            **({"pos2": p["pos2"], "ref2": p["ref2"], "alt2": p["alt2"],
-                                "zyg2": p.get("zyg2", "het")} if p and p["mode"] == "compound_het" else {})})
+        v2_manifest.append(
+            {
+                "syn_id": syn,
+                "gene": gene,
+                "mode": mode,
+                **(
+                    {
+                        "pos2": p["pos2"],
+                        "ref2": p["ref2"],
+                        "alt2": p["alt2"],
+                        "zyg2": p.get("zyg2", "het"),
+                    }
+                    if p and p["mode"] == "compound_het"
+                    else {}
+                ),
+            }
+        )
 
     json.dump(v2_manifest, open(out / "v2_manifest.json", "w"), indent=1)
-    print(f"compound_het: {made['compound_het']} | hom: {made['hom']} | unchanged: {made['copied']}")
+    print(
+        f"compound_het: {made['compound_het']} | hom: {made['hom']} | unchanged: {made['copied']}"
+    )
     print(f"-> {out}")
 
 
 if __name__ == "__main__":
     import sys
+
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     main()

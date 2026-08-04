@@ -4,6 +4,7 @@ Pure boolean logic over the counts of *met* criteria by strength, so the whole
 thing is inspectable and unit-testable. Returns the 5-tier call plus a short
 label of which rule fired (used verbatim in the report for auditability).
 """
+
 from __future__ import annotations
 
 from typing import Iterable
@@ -17,14 +18,32 @@ LIKELY_BENIGN = "Likely Benign"
 BENIGN = "Benign"
 
 # strength -> which side it counts for
-_PATHOGENIC_STRENGTHS = {"very_strong": "PVS", "strong": "PS", "moderate": "PM", "supporting": "PP"}
+_PATHOGENIC_STRENGTHS = {
+    "very_strong": "PVS",
+    "strong": "PS",
+    "moderate": "PM",
+    "supporting": "PP",
+}
 _BENIGN_STRENGTHS = {"stand_alone": "BA", "strong": "BS", "supporting": "BP"}
 
 # Codes that count as benign evidence (everything else met counts pathogenic). Public because it
 # IS the answer to "which side is this criterion on" — callers that need to reason about the
 # combining rules (e.g. the report's "what would change this tier" query) must not have to
 # re-derive it from a code's spelling, which would silently disagree with `combine`.
-BENIGN_CODES = {"BA1", "BS1", "BS2", "BS3", "BS4", "BP1", "BP2", "BP3", "BP4", "BP5", "BP6", "BP7"}
+BENIGN_CODES = {
+    "BA1",
+    "BS1",
+    "BS2",
+    "BS3",
+    "BS4",
+    "BP1",
+    "BP2",
+    "BP3",
+    "BP4",
+    "BP5",
+    "BP6",
+    "BP7",
+}
 
 # Reserved codes for "what would change this call" simulations. `combine` routes a criterion by
 # CODE membership in BENIGN_CODES, so a simulated benign line needs a code this set recognises —
@@ -194,6 +213,7 @@ def combine(criteria: list[CriterionResult]) -> tuple[str, str]:
     evidence both fire the result is reported as VUS (conflicting).
     """
     from .. import config
+
     if config.acmg_model() == "clingen":
         return _combine_points(criteria)
 
@@ -207,9 +227,11 @@ def combine(criteria: list[CriterionResult]) -> tuple[str, str]:
     # Conflict when both sides reach a rule, OR when the side that did NOT reach one still
     # holds Strong-or-above evidence that would otherwise be discarded in silence. See
     # _discarded_decisive for why the second test is not simply "met on both sides".
-    if (path and benign) \
-            or (path and _discarded_decisive(criteria, "benign")) \
-            or (benign and _discarded_decisive(criteria, "pathogenic")):
+    if (
+        (path and benign)
+        or (path and _discarded_decisive(criteria, "benign"))
+        or (benign and _discarded_decisive(criteria, "pathogenic"))
+    ):
         return VUS, f"{trail} => conflicting pathogenic & benign evidence => VUS"
 
     if path:
@@ -220,4 +242,7 @@ def combine(criteria: list[CriterionResult]) -> tuple[str, str]:
         tier = BENIGN if _benign_rule(c) else LIKELY_BENIGN
         return tier, f"{trail} => {tier} [{benign}]"
 
-    return VUS, f"{trail} => criteria insufficient for a benign or pathogenic call => VUS"
+    return (
+        VUS,
+        f"{trail} => criteria insufficient for a benign or pathogenic call => VUS",
+    )

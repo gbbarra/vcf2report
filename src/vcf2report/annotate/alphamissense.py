@@ -13,6 +13,7 @@ we take the maximum am_pathogenicity (most damaging) and its class. Non-missense
 variants are simply absent from the file (score None) — LoF pathogenicity is PVS1's
 job, not PP3's.
 """
+
 from __future__ import annotations
 
 import threading
@@ -40,6 +41,7 @@ def _get_pysam():
         _pysam_tried = True
         try:
             import pysam  # noqa
+
             _pysam = pysam
         except Exception:
             _pysam = None
@@ -115,6 +117,7 @@ def prime(variants) -> int:
     # loop; fall back to tabix when the store / duckdb is absent (behaviour-preserving).
     # The parquet returns dict-or-None per key, identical to _best, so lookup() is unchanged.
     from . import alphamissense_parquet
+
     n = 0
     unresolved = list(variants)
     if alphamissense_parquet.available():
@@ -178,11 +181,14 @@ def lookup(variant: Variant) -> dict:
     ``am_pathogenicity`` is None when AlphaMissense has no score (non-missense, or
     the local file / pysam is unavailable) — never a fabricated 0.
     """
-    if variant.key in _primed:      # batch-resolved; authoritative for this run
+    if variant.key in _primed:  # batch-resolved; authoritative for this run
         p = _primed[variant.key]
         if p is None:
-            return {"am_pathogenicity": None, "am_class": None,
-                    "_source": "AlphaMissense hg38 (primed, no missense score)"}
+            return {
+                "am_pathogenicity": None,
+                "am_class": None,
+                "_source": "AlphaMissense hg38 (primed, no missense score)",
+            }
         return {**p, "_source": "AlphaMissense hg38 (primed)"}
 
     cached = cache.get(_SOURCE, variant.key)
@@ -191,8 +197,11 @@ def lookup(variant: Variant) -> dict:
 
     tabix = _open()
     if tabix is None:
-        return {"am_pathogenicity": None, "am_class": None,
-                "_source": "AlphaMissense (unavailable — no local file/pysam)"}
+        return {
+            "am_pathogenicity": None,
+            "am_class": None,
+            "_source": "AlphaMissense (unavailable — no local file/pysam)",
+        }
 
     best = _best(_fetch(tabix, variant.chrom, variant.pos), variant)
     if best is None:

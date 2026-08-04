@@ -9,6 +9,7 @@ update cadence (ClinVar weekly; gnomAD v4.1 / AlphaMissense frozen), whether a r
 MCP-free so both the MCP ``data_status`` tool and ``scripts/check_stores.py`` can call it.
 ``write_manifest`` stamps a store after a build (or a one-off ``scripts/stamp_store_manifest.py``).
 """
+
 from __future__ import annotations
 
 import json
@@ -33,6 +34,7 @@ def _get_duckdb():
         _duckdb_tried = True
         try:
             import duckdb  # noqa: F401
+
             _duckdb = duckdb
         except Exception:
             _duckdb = None
@@ -45,32 +47,60 @@ def _registry() -> dict:
         "gnomad": {
             "path": config._resolve_gnomad_parquet(),
             "key_columns": {"chrom", "pos", "ref", "alt", "af"},
-            "cadence": "frozen", "stale_after_days": None,
-            "source": {"name": "gnomAD", "release": "v4.1",
-                       "url": "gs://gcp-public-data--gnomad",
-                       "license": "ODbL-1.0", "note": "frozen release"},
+            "cadence": "frozen",
+            "stale_after_days": None,
+            "source": {
+                "name": "gnomAD",
+                "release": "v4.1",
+                "url": "gs://gcp-public-data--gnomad",
+                "license": "ODbL-1.0",
+                "note": "frozen release",
+            },
             "enables": "PM2 / BA1 / BS1 (population frequency)",
         },
         "alphamissense": {
             "path": config.ALPHAMISSENSE_PARQUET,
-            "key_columns": {"chrom", "pos", "ref", "alt", "am_pathogenicity", "am_class"},
-            "cadence": "frozen", "stale_after_days": None,
+            "key_columns": {
+                "chrom",
+                "pos",
+                "ref",
+                "alt",
+                "am_pathogenicity",
+                "am_class",
+            },
+            "cadence": "frozen",
+            "stale_after_days": None,
             # CC BY 4.0, NOT the CC BY-NC-SA 4.0 the downloaded file's own header still carries:
             # DeepMind relicensed the predictions in March 2024. This manifest is the
             # machine-readable provenance record a lab reads, so stamping the superseded
             # non-commercial licence here would wrongly tell them they cannot use it.
-            "source": {"name": "AlphaMissense hg38", "release": "2023",
-                       "license": "CC BY 4.0", "note": "frozen release"},
+            "source": {
+                "name": "AlphaMissense hg38",
+                "release": "2023",
+                "license": "CC BY 4.0",
+                "note": "frozen release",
+            },
             "enables": "PP3 / BP4 (missense pathogenicity)",
         },
         "clinvar": {
             "path": config.CLINVAR_PARQUET,
-            "key_columns": {"chrom", "pos", "ref", "alt", "significance",
-                            "review_status", "review_stars"},
-            "cadence": "weekly", "stale_after_days": 14,
-            "source": {"name": "ClinVar GRCh38", "release": "weekly",
-                       "url": "ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz",
-                       "license": "public domain (NCBI)"},
+            "key_columns": {
+                "chrom",
+                "pos",
+                "ref",
+                "alt",
+                "significance",
+                "review_status",
+                "review_stars",
+            },
+            "cadence": "weekly",
+            "stale_after_days": 14,
+            "source": {
+                "name": "ClinVar GRCh38",
+                "release": "weekly",
+                "url": "ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz",
+                "license": "public domain (NCBI)",
+            },
             "enables": "PS1 / PM5 / PP5 / BP6 + the >=2-star ClinVar safety flag",
         },
     }
@@ -78,7 +108,11 @@ def _registry() -> dict:
 
 def _parquet_files(path: Path) -> list[str]:
     if path.is_dir():
-        return [str(f) for f in sorted(path.rglob("*.parquet")) if not f.name.startswith("._")]
+        return [
+            str(f)
+            for f in sorted(path.rglob("*.parquet"))
+            if not f.name.startswith("._")
+        ]
     return [str(path)] if path.exists() else []
 
 
@@ -109,27 +143,54 @@ def _measure(path: Path) -> dict:
     (a corrupt/truncated Parquet raises here). Returns readable=False + error on failure."""
     duckdb = _get_duckdb()
     if duckdb is None:
-        return {"readable": None, "error": "duckdb not installed", "rows": None,
-                "chroms": [], "schema": []}
+        return {
+            "readable": None,
+            "error": "duckdb not installed",
+            "rows": None,
+            "chroms": [],
+            "schema": [],
+        }
     files = _parquet_files(path)
     if not files:
-        return {"readable": False, "error": "no parquet files", "rows": None,
-                "chroms": [], "schema": []}
+        return {
+            "readable": False,
+            "error": "no parquet files",
+            "rows": None,
+            "chroms": [],
+            "schema": [],
+        }
     q = ", ".join("'" + f.replace("'", "''") + "'" for f in files)
     src = f"read_parquet([{q}], hive_partitioning=true, union_by_name=true)"
     con = duckdb.connect()
     try:
-        schema = [r[0].lower() for r in con.execute(f"DESCRIBE SELECT * FROM {src}").fetchall()]
+        schema = [
+            r[0].lower()
+            for r in con.execute(f"DESCRIBE SELECT * FROM {src}").fetchall()
+        ]
         rows = con.execute(f"SELECT count(*) FROM {src}").fetchone()[0]
-        chroms = [r[0] for r in con.execute(
-            f"SELECT DISTINCT chrom FROM {src}").fetchall()] if "chrom" in schema else []
+        chroms = (
+            [r[0] for r in con.execute(f"SELECT DISTINCT chrom FROM {src}").fetchall()]
+            if "chrom" in schema
+            else []
+        )
     except Exception as exc:
         con.close()
-        return {"readable": False, "error": str(exc)[:200], "rows": None,
-                "chroms": [], "schema": []}
+        return {
+            "readable": False,
+            "error": str(exc)[:200],
+            "rows": None,
+            "chroms": [],
+            "schema": [],
+        }
     con.close()
-    return {"readable": True, "error": None, "rows": rows,
-            "chroms": sorted(chroms), "schema": schema, "n_files": len(files)}
+    return {
+        "readable": True,
+        "error": None,
+        "rows": rows,
+        "chroms": sorted(chroms),
+        "schema": schema,
+        "n_files": len(files),
+    }
 
 
 def _read_manifest(path: Path) -> Optional[dict]:
@@ -166,11 +227,18 @@ def store_health(name: Optional[str] = None, measure: bool = True) -> dict:
         spec = reg[nm]
         path = Path(spec["path"]) if spec["path"] else None
         present = bool(path and path.exists())
-        e: dict = {"present": present, "path": str(path) if path else None,
-                   "enables": spec["enables"], "cadence": spec["cadence"]}
+        e: dict = {
+            "present": present,
+            "path": str(path) if path else None,
+            "enables": spec["enables"],
+            "cadence": spec["cadence"],
+        }
         if not present:
-            e.update(status="missing", update_recommended=True,
-                     reason="store absent — build it (see docs/DATA_ARCHITECTURE.md)")
+            e.update(
+                status="missing",
+                update_recommended=True,
+                reason="store absent — build it (see docs/DATA_ARCHITECTURE.md)",
+            )
             out[nm] = e
             continue
         e["size_bytes"] = _dir_size(path)
@@ -191,7 +259,9 @@ def store_health(name: Optional[str] = None, measure: bool = True) -> dict:
             e["readable"] = m["readable"]
             if m["error"]:
                 e["error"] = m["error"]
-            schema_ok = bool(m["schema"]) and spec["key_columns"].issubset(set(m["schema"]))
+            schema_ok = bool(m["schema"]) and spec["key_columns"].issubset(
+                set(m["schema"])
+            )
             e["schema_ok"] = schema_ok
             missing_chroms = sorted(CORE_CHROMS - set(m["chroms"]))
             e["missing_core_chroms"] = missing_chroms
@@ -200,7 +270,9 @@ def store_health(name: Optional[str] = None, measure: bool = True) -> dict:
             expect_rows = (mf or {}).get("rows")
             rows_match = (expect_rows is None) or (m["rows"] == expect_rows)
             e["rows_expected"] = expect_rows
-            complete = bool(readable and schema_ok and not missing_chroms and rows_match)
+            complete = bool(
+                readable and schema_ok and not missing_chroms and rows_match
+            )
             e["complete"] = complete
             if expect_rows is not None and m["rows"] != expect_rows:
                 e["rows_mismatch"] = {"expected": expect_rows, "actual": m["rows"]}
@@ -213,12 +285,15 @@ def store_health(name: Optional[str] = None, measure: bool = True) -> dict:
                 reason = "no build date recorded — stamp/rebuild to track freshness"
             elif age > spec["stale_after_days"]:
                 stale = True
-                reason = (f"built {int(age)} d ago; ClinVar releases weekly — "
-                          f"rebuild (older than {spec['stale_after_days']} d)")
+                reason = (
+                    f"built {int(age)} d ago; ClinVar releases weekly — "
+                    f"rebuild (older than {spec['stale_after_days']} d)"
+                )
             else:
                 reason = f"built {int(age)} d ago — within the weekly window"
-        e["update_recommended"] = bool(stale) or (measure and complete is False) or \
-            (readable is False)
+        e["update_recommended"] = (
+            bool(stale) or (measure and complete is False) or (readable is False)
+        )
         e["reason"] = reason
         # Overall status.
         if measure and readable is False:
@@ -248,11 +323,20 @@ def gate(required=REQUIRED, measure: bool = True) -> dict:
     health = store_health(measure=measure)
     blocking = [n for n in required if health.get(n, {}).get("status") in _BLOCKING]
     stale = [n for n, e in health.items() if e.get("status") == "stale"]
-    return {"ready": not blocking, "blocking": blocking, "stale": stale, "health": health}
+    return {
+        "ready": not blocking,
+        "blocking": blocking,
+        "stale": stale,
+        "health": health,
+    }
 
 
-def write_manifest(name: str, source: Optional[dict] = None,
-                   built_at: Optional[str] = None, path: Optional[str] = None) -> dict:
+def write_manifest(
+    name: str,
+    source: Optional[dict] = None,
+    built_at: Optional[str] = None,
+    path: Optional[str] = None,
+) -> dict:
     """Measure a built store and write its ``_manifest.json`` (build date, source, row count,
     chromosomes, schema). Called by the build scripts (which pass their output ``path``) and by
     scripts/stamp_store_manifest.py (which stamps the registry path)."""
@@ -266,12 +350,16 @@ def write_manifest(name: str, source: Optional[dict] = None,
     manifest = {
         "store": name,
         "format": "parquet",
-        "built_at": built_at or datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "built_at": built_at
+        or datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source": source or spec["source"],
         "rows": m["rows"],
         "chroms": m["chroms"],
         "schema": m["schema"],
-        "update": {"cadence": spec["cadence"], "stale_after_days": spec["stale_after_days"]},
+        "update": {
+            "cadence": spec["cadence"],
+            "stale_after_days": spec["stale_after_days"],
+        },
     }
     mf = (path / MANIFEST) if path.is_dir() else path.with_name(path.name + MANIFEST)
     mf.write_text(json.dumps(manifest, indent=2))

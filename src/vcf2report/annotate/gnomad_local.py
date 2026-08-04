@@ -21,6 +21,7 @@ variant that is actually present in gnomAD):
     covered (recorded in the sidecar ``contigs``). A query on an uncovered contig
     (chrM/MT, a chromosome whose stream failed, an alt/decoy) returns None -> fallback.
 """
+
 from __future__ import annotations
 
 import threading
@@ -33,8 +34,8 @@ _tabix = None
 _tabix_tried = False
 _pysam = None
 _pysam_tried = False
-_mode: Optional[str] = None                 # "full" | "partial"
-_contigs: frozenset = frozenset()           # covered contigs (no 'chr') for a full table
+_mode: Optional[str] = None  # "full" | "partial"
+_contigs: frozenset = frozenset()  # covered contigs (no 'chr') for a full table
 _lock = threading.Lock()
 
 
@@ -44,6 +45,7 @@ def _get_pysam():
         _pysam_tried = True
         try:
             import pysam  # noqa: F401
+
             _pysam = pysam
         except Exception:
             _pysam = None
@@ -62,6 +64,7 @@ def _read_meta(fp) -> tuple[str, frozenset]:
     mode, contigs = "partial", frozenset()
     try:
         import json
+
         meta = fp.with_name(fp.name + ".meta")
         if meta.exists():
             d = json.loads(meta.read_text())
@@ -124,26 +127,28 @@ def query(variant: Variant) -> Optional[dict]:
         return None
     chrom = _norm_chrom(variant.chrom)
     rows: list = []
-    for name in (chrom, "chr" + chrom):   # tolerate either contig naming in the file
+    for name in (chrom, "chr" + chrom):  # tolerate either contig naming in the file
         try:
             rows = list(tabix.fetch(name, variant.pos - 1, variant.pos))
         except (ValueError, KeyError):
             rows = []
         if rows:
             break
-    ref, alt = variant.ref.upper(), variant.alt.upper()   # alleles are case-insensitive
+    ref, alt = variant.ref.upper(), variant.alt.upper()  # alleles are case-insensitive
     for row in rows:
         f = row.split("\t")
         if len(f) < 4:
             continue
         if _to_int(f[1]) != variant.pos or f[2].upper() != ref or f[3].upper() != alt:
             continue
-        return {"af": _to_float(f[4]) if len(f) > 4 else None,
-                "ac": _to_int(f[5]) if len(f) > 5 else None,
-                "an": _to_int(f[6]) if len(f) > 6 else None,
-                "hom": _to_int(f[7]) if len(f) > 7 else None,
-                "faf95": _to_float(f[8]) if len(f) > 8 else None,
-                "pop": (f[9].strip() or None) if len(f) > 9 else None}
+        return {
+            "af": _to_float(f[4]) if len(f) > 4 else None,
+            "ac": _to_int(f[5]) if len(f) > 5 else None,
+            "an": _to_int(f[6]) if len(f) > 6 else None,
+            "hom": _to_int(f[7]) if len(f) > 7 else None,
+            "faf95": _to_float(f[8]) if len(f) > 8 else None,
+            "pop": (f[9].strip() or None) if len(f) > 9 else None,
+        }
     # No exact allele match. A partial table cannot assert absence at all; a full
     # table may — but ONLY for a contig it actually covered (else chrM/MT, an
     # alt/decoy, or a chromosome whose build stream failed would be fabricated as 0.0).

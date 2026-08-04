@@ -5,6 +5,7 @@ Both the MCP ``data_status`` tool (Claude Desktop) and ``scripts/preflight.py``
 reports identically on every surface. MCP-free by design: this module must import
 without the ``mcp`` SDK so the Bash path stays lightweight.
 """
+
 from __future__ import annotations
 
 import os
@@ -18,7 +19,10 @@ from . import stores as _stores
 
 def snpeff_jar() -> Path:
     """Where scripts/setup_snpeff.sh installs SnpEff (SNPEFF_JAR overrides)."""
-    return Path(os.environ.get("SNPEFF_JAR") or (config.DATA_DIR / "tools" / "snpEff" / "snpEff.jar"))
+    return Path(
+        os.environ.get("SNPEFF_JAR")
+        or (config.DATA_DIR / "tools" / "snpEff" / "snpEff.jar")
+    )
 
 
 def _snpeff_available() -> bool:
@@ -26,7 +30,11 @@ def _snpeff_available() -> bool:
 
 
 def _store(present: bool, path, enables: str) -> dict:
-    return {"present": bool(present), "path": str(path) if path else None, "enables": enables}
+    return {
+        "present": bool(present),
+        "path": str(path) if path else None,
+        "enables": enables,
+    }
 
 
 def readiness() -> dict:
@@ -45,27 +53,35 @@ def readiness() -> dict:
     gnomad_parquet = config._resolve_gnomad_parquet()
     stores = {
         "gnomad_parquet": _store(
-            gnomad_parquet, gnomad_parquet,
+            gnomad_parquet,
+            gnomad_parquet,
             "PM2 / BA1 / BS1 — rare/common population frequency. Missing → these are "
-            "disabled and absence can't be asserted (over-call risk)."),
+            "disabled and absence can't be asserted (over-call risk).",
+        ),
         "alphamissense": _store(
-            config.ALPHAMISSENSE_LOCAL.exists(), config.ALPHAMISSENSE_LOCAL,
-            "PP3 / BP4 — calibrated missense pathogenicity. Missing → missense defers to VUS."),
+            config.ALPHAMISSENSE_LOCAL.exists(),
+            config.ALPHAMISSENSE_LOCAL,
+            "PP3 / BP4 — calibrated missense pathogenicity. Missing → missense defers to VUS.",
+        ),
         "clinvar_tabix": _store(
-            config.CLINVAR_TABIX.exists(), config.CLINVAR_TABIX,
+            config.CLINVAR_TABIX.exists(),
+            config.CLINVAR_TABIX,
             "PS1 / PM5 / PP5 / BP6 + the ≥2★ ClinVar safety flag. Missing → falls back to "
-            "the bundled slice / live NCBI."),
+            "the bundled slice / live NCBI.",
+        ),
         # This table now drives three things, not one: PP4, and — via the inheritance modes
         # HPO annotates per gene — the PVS1 recessive-LoF route and the PM2/BS1 AF ceilings.
         # Its absence degrades conservatively (PVS1 falls back to the constraint-only gate,
         # frequencies to the strict default) but SILENTLY, and recessive disease genes go
         # back to being unreachable by PVS1 — so name the full cost here.
         "hpo": _store(
-            config.HPO_GENES_LOCAL.exists(), config.HPO_GENES_LOCAL,
+            config.HPO_GENES_LOCAL.exists(),
+            config.HPO_GENES_LOCAL,
             "PP4 gene↔phenotype overlap + gene mode-of-inheritance (the PVS1 recessive-LoF "
             "route and the PM2/BS1 frequency ceilings). Missing → no phenotype "
             "prioritisation, PVS1 falls back to population constraint alone (blind to "
-            "recessive disease genes), and every gene takes the strict default AF ceiling."),
+            "recessive disease genes), and every gene takes the strict default AF ceiling.",
+        ),
     }
     bundled = {
         "sample_vcf": config.SAMPLE_VCF.exists(),
@@ -90,6 +106,6 @@ def readiness() -> dict:
         "annotation_tools_installed": tools["bcftools"] and tools["snpEff"],
         "network_egress_allowed": config.allow_network(),
         "note": "Patient data stays local by default: no gnomAD/NCBI calls unless "
-                "VCF2REPORT_ALLOW_NETWORK=1. Tools on PATH do not imply the annotation "
-                "databases are present; run scripts/setup_data.sh.",
+        "VCF2REPORT_ALLOW_NETWORK=1. Tools on PATH do not imply the annotation "
+        "databases are present; run scripts/setup_data.sh.",
     }

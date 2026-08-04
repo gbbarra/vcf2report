@@ -20,6 +20,7 @@ AlphaMissense *Database* on Zenodo — a different artefact.) See docs/DISCLAIME
 The derived Parquet is git-ignored and not redistributed by this project — a choice about what
 this repository ships, not a licence requirement.
 """
+
 import sys
 from pathlib import Path
 
@@ -35,8 +36,10 @@ SRC = Path(sys.argv[1]) if len(sys.argv) > 1 else config.ALPHAMISSENSE_LOCAL
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else config.ALPHAMISSENSE_PARQUET
 
 if not SRC.exists():
-    raise SystemExit(f"AlphaMissense TSV not found: {SRC}\n"
-                     f"Fetch it first: bash scripts/fetch_alphamissense.sh")
+    raise SystemExit(
+        f"AlphaMissense TSV not found: {SRC}\n"
+        f"Fetch it first: bash scripts/fetch_alphamissense.sh"
+    )
 
 # Build into a temp dir then swap, so a reader never sees a half-written store.
 TMP = OUT.with_name(OUT.name + ".building")
@@ -57,14 +60,18 @@ COPY (
   GROUP BY chrom, pos, ref, alt
 ) TO '{TMP.as_posix()}' (FORMAT PARQUET, PARTITION_BY (chrom), OVERWRITE_OR_IGNORE);
 """)
-n = con.execute(f"SELECT count(*) FROM read_parquet('{TMP.as_posix()}/**/*.parquet')").fetchone()[0]
+n = con.execute(
+    f"SELECT count(*) FROM read_parquet('{TMP.as_posix()}/**/*.parquet')"
+).fetchone()[0]
 con.close()
 
 import shutil  # noqa: E402
+
 if OUT.exists():
     shutil.rmtree(OUT)
 TMP.rename(OUT)
 print(f"[am-parquet] wrote {n:,} loci (MAX-per-locus) -> {OUT}")
 from vcf2report import stores  # noqa: E402
+
 stores.write_manifest("alphamissense", path=str(OUT))
 print("[am-parquet] _manifest.json stamped — verify with scripts/check_stores.py")

@@ -4,6 +4,7 @@ The NMD/exon decision tree only fires when the VCF is annotated with an exon ran
 (VEP EXON / SnpEff rank). Un-annotated variants keep PVS1 at Very Strong, so the
 synthetic demos and the frozen concordance panel are unaffected.
 """
+
 import pytest
 
 from vcf2report import config
@@ -20,9 +21,9 @@ from vcf2report.models import Annotation, Variant
 # ---------------------------------------------------------------------------
 def test_is_last_exon():
     assert _is_last_exon("12/12") is True
-    assert _is_last_exon("1/1") is True        # single-exon transcript escapes NMD
+    assert _is_last_exon("1/1") is True  # single-exon transcript escapes NMD
     assert _is_last_exon("11/12") is False
-    assert _is_last_exon("5") is False          # no denominator
+    assert _is_last_exon("5") is False  # no denominator
     assert _is_last_exon("0/0") is False
     assert _is_last_exon(None) is False
     assert _is_last_exon("") is False
@@ -33,22 +34,32 @@ def test_is_last_exon():
 # Decision tree
 # ---------------------------------------------------------------------------
 def _v(consequence, exon=None):
-    return Variant(chrom="1", pos=1, ref="A", alt="T", gene="G",
-                   consequence=consequence, exon=exon)
+    return Variant(
+        chrom="1", pos=1, ref="A", alt="T", gene="G", consequence=consequence, exon=exon
+    )
 
 
 def test_pvs1_strength_tree():
-    assert _pvs1_strength(_v("start_lost", "1/12")) == "moderate"          # annotated start-loss
-    assert _pvs1_strength(_v("stop_gained", "10/10")) == "strong"          # NMD-escaping
+    assert (
+        _pvs1_strength(_v("start_lost", "1/12")) == "moderate"
+    )  # annotated start-loss
+    assert _pvs1_strength(_v("stop_gained", "10/10")) == "strong"  # NMD-escaping
     assert _pvs1_strength(_v("frameshift_variant", "8/8")) == "strong"
-    assert _pvs1_strength(_v("stop_gained", "5/10")) == "very_strong"      # NMD-triggering
-    assert _pvs1_strength(_v("splice_donor_variant", "1/1")) == "very_strong"  # not in downgrade set
+    assert _pvs1_strength(_v("stop_gained", "5/10")) == "very_strong"  # NMD-triggering
+    assert (
+        _pvs1_strength(_v("splice_donor_variant", "1/1")) == "very_strong"
+    )  # not in downgrade set
 
 
 def test_pvs1_tree_gated_on_exon():
     # THE invariant: no exon rank -> the tree never engages, PVS1 stays Very Strong.
     # (start_lost must be gated too, not just the NMD-escape branch.)
-    for cons in ("start_lost", "stop_gained", "frameshift_variant", "splice_donor_variant"):
+    for cons in (
+        "start_lost",
+        "stop_gained",
+        "frameshift_variant",
+        "splice_donor_variant",
+    ):
         assert _pvs1_strength(_v(cons, None)) == "very_strong"
         assert _pvs1_strength(_v(cons, "")) == "very_strong"
 
@@ -57,8 +68,13 @@ def test_pvs1_tree_gated_on_exon():
 # Criterion wiring (applied_strength + met)
 # ---------------------------------------------------------------------------
 def _ann(**kw):
-    base = dict(gene_lof_intolerant=True, local_cohort_af=0.0, gnomad_af=0.0,
-                gnomad_faf95=0.0, source={})
+    base = dict(
+        gene_lof_intolerant=True,
+        local_cohort_af=0.0,
+        gnomad_af=0.0,
+        gnomad_faf95=0.0,
+        source={},
+    )
     base.update(kw)
     return Annotation(**base)
 
@@ -85,9 +101,14 @@ def test_pvs1_criterion_applied_strength():
 def moi(monkeypatch):
     """Stub the HPO-derived inheritance table (criteria imports the function by value,
     so patch the cache the function reads, not the name)."""
+
     def _set(mapping):
-        monkeypatch.setattr(inheritance, "_gene_moi",
-                            {g.upper(): frozenset(v) for g, v in mapping.items()})
+        monkeypatch.setattr(
+            inheritance,
+            "_gene_moi",
+            {g.upper(): frozenset(v) for g, v in mapping.items()},
+        )
+
     return _set
 
 
@@ -96,8 +117,15 @@ def test_pvs1_fires_for_recessive_gene_without_constraint(moi):
     recessive disease gene scores as tolerant (carriers are healthy) and the old
     constraint-only gate rejected the very variants whose mechanism IS loss of function."""
     moi({"RECGENE": ["AR"]})
-    v = Variant(chrom="1", pos=1, ref="A", alt="T", gene="RECGENE",
-                consequence="stop_gained", exon="5/10")
+    v = Variant(
+        chrom="1",
+        pos=1,
+        ref="A",
+        alt="T",
+        gene="RECGENE",
+        consequence="stop_gained",
+        exon="5/10",
+    )
     r = criteria.pvs1(v, _ann(gene_lof_intolerant=False))
     assert r.met and r.applied_strength == "very_strong"
     assert "autosomal-recessive" in r.evidence["lof_mechanism_basis"]
@@ -107,16 +135,30 @@ def test_pvs1_does_not_fire_for_unconstrained_dominant_gene(moi):
     """A dominant phenotype can be gain-of-function or dominant-negative, where a null is
     NOT the mechanism — so dominant genes still have to earn PVS1 via constraint."""
     moi({"DOMGENE": ["AD"]})
-    v = Variant(chrom="1", pos=1, ref="A", alt="T", gene="DOMGENE",
-                consequence="stop_gained", exon="5/10")
+    v = Variant(
+        chrom="1",
+        pos=1,
+        ref="A",
+        alt="T",
+        gene="DOMGENE",
+        consequence="stop_gained",
+        exon="5/10",
+    )
     r = criteria.pvs1(v, _ann(gene_lof_intolerant=False))
     assert not r.met and r.evidence["lof_mechanism_basis"] is None
 
 
 def test_pvs1_constraint_still_wins_when_inheritance_unknown(moi):
     moi({})
-    v = Variant(chrom="1", pos=1, ref="A", alt="T", gene="ANY",
-                consequence="stop_gained", exon="5/10")
+    v = Variant(
+        chrom="1",
+        pos=1,
+        ref="A",
+        alt="T",
+        gene="ANY",
+        consequence="stop_gained",
+        exon="5/10",
+    )
     assert criteria.pvs1(v, _ann(gene_lof_intolerant=True)).met
     assert not criteria.pvs1(v, _ann(gene_lof_intolerant=False)).met
 
@@ -125,10 +167,27 @@ def test_pvs1_basis_names_which_route_fired(moi):
     """The laudo must show WHY PVS1 fired — constraint and recessive-phenotype are
     different strengths of evidence and a reviewer has to be able to tell them apart."""
     moi({"BOTH": ["AR"]})
-    v = Variant(chrom="1", pos=1, ref="A", alt="T", gene="BOTH",
-                consequence="stop_gained", exon="5/10")
-    assert "constraint" in criteria.pvs1(v, _ann(gene_lof_intolerant=True)).evidence["lof_mechanism_basis"]
-    assert "recessive" in criteria.pvs1(v, _ann(gene_lof_intolerant=False)).evidence["lof_mechanism_basis"]
+    v = Variant(
+        chrom="1",
+        pos=1,
+        ref="A",
+        alt="T",
+        gene="BOTH",
+        consequence="stop_gained",
+        exon="5/10",
+    )
+    assert (
+        "constraint"
+        in criteria.pvs1(v, _ann(gene_lof_intolerant=True)).evidence[
+            "lof_mechanism_basis"
+        ]
+    )
+    assert (
+        "recessive"
+        in criteria.pvs1(v, _ann(gene_lof_intolerant=False)).evidence[
+            "lof_mechanism_basis"
+        ]
+    )
 
 
 def test_multimode_gene_takes_a_different_pole_per_criterion(moi):
@@ -163,12 +222,14 @@ def test_single_mode_gene_thresholds_unchanged(moi):
 
 
 def test_curated_inheritance_beats_hpo(moi):
-    moi({"CFTR": ["AD"]})            # HPO disagrees...
-    assert config.gene_inheritance("CFTR") == "AR"   # ...curated map wins
+    moi({"CFTR": ["AD"]})  # HPO disagrees...
+    assert config.gene_inheritance("CFTR") == "AR"  # ...curated map wins
     assert config.gene_inheritance("NOTAGENE") is None
 
 
-@pytest.mark.skipif(not config.HPO_GENES_LOCAL.exists(), reason="HPO table not installed")
+@pytest.mark.skipif(
+    not config.HPO_GENES_LOCAL.exists(), reason="HPO table not installed"
+)
 def test_real_multimode_genes_never_call_a_carrier_frequency_benign():
     """Named regression, on the REAL HPO table — the variants a directional slip destroys.
 
@@ -179,15 +240,34 @@ def test_real_multimode_genes_never_call_a_carrier_frequency_benign():
     PKLR, ALPL, MSH2, CDH23...). Calling a known pathogenic variant benign is the worst
     error this tool can make.
     """
-    for gene in ("HBB", "ABCA4", "ANO5", "FLG", "SPG7", "GNE", "MPO", "GBA1", "MEFV",
-                 "PKLR", "ALPL", "MSH2", "CDH23"):
+    for gene in (
+        "HBB",
+        "ABCA4",
+        "ANO5",
+        "FLG",
+        "SPG7",
+        "GNE",
+        "MPO",
+        "GBA1",
+        "MEFV",
+        "PKLR",
+        "ALPL",
+        "MSH2",
+        "CDH23",
+    ):
         cutoff, moi_used = config.bs1_af_cutoff(gene)
-        assert moi_used == "AR", f"{gene}: BS1 must take the recessive pole, got {moi_used}"
+        assert moi_used == "AR", (
+            f"{gene}: BS1 must take the recessive pole, got {moi_used}"
+        )
         assert cutoff == config.BS1_AF_RECESSIVE
-        assert 0.00433 < cutoff, f"{gene}: a carrier-frequency allele would be called benign"
+        assert 0.00433 < cutoff, (
+            f"{gene}: a carrier-frequency allele would be called benign"
+        )
 
 
-@pytest.mark.skipif(not config.HPO_GENES_LOCAL.exists(), reason="HPO table not installed")
+@pytest.mark.skipif(
+    not config.HPO_GENES_LOCAL.exists(), reason="HPO table not installed"
+)
 def test_every_multimode_gene_keeps_both_poles():
     """The property, over EVERY gene HPO gives two modes (~590), not just the named ones.
 
@@ -198,8 +278,11 @@ def test_every_multimode_gene_keeps_both_poles():
     too cheaply). The two poles are independent — that independence IS the fix.
     """
     from vcf2report.annotate.inheritance import _load
+
     multi = [g for g, m in _load().items() if len(m) > 1]
-    assert len(multi) > 100, f"expected HPO to give many multi-mode genes, got {len(multi)}"
+    assert len(multi) > 100, (
+        f"expected HPO to give many multi-mode genes, got {len(multi)}"
+    )
     for gene in multi:
         m = config.gene_inheritance_modes(gene)
         if "AR" in m:
@@ -234,17 +317,32 @@ def test_pvs1_clingen_haploinsufficiency_route(moi):
     late-onset / incompletely-penetrant dominants that population constraint misses (TP53: LOEUF
     0.469, 'not intolerant', yet a textbook haploinsufficient tumour suppressor)."""
     from vcf2report.annotate import dosage
+
     moi({})  # no HPO inheritance
     monkey = dosage._hi
     dosage._hi = {"TP53"}
     try:
-        v = Variant(chrom="17", pos=1, ref="C", alt="A", gene="TP53",
-                    consequence="stop_gained", exon="4/11")
+        v = Variant(
+            chrom="17",
+            pos=1,
+            ref="C",
+            alt="A",
+            gene="TP53",
+            consequence="stop_gained",
+            exon="4/11",
+        )
         r = criteria.pvs1(v, _ann(gene_lof_intolerant=False))
         assert r.met and "Haploinsufficiency=3" in r.evidence["lof_mechanism_basis"]
         # a gene that is neither HI, constrained, nor recessive still does not fire
-        v2 = Variant(chrom="1", pos=1, ref="A", alt="T", gene="RANDO",
-                     consequence="stop_gained", exon="2/5")
+        v2 = Variant(
+            chrom="1",
+            pos=1,
+            ref="A",
+            alt="T",
+            gene="RANDO",
+            consequence="stop_gained",
+            exon="2/5",
+        )
         assert not criteria.pvs1(v2, _ann(gene_lof_intolerant=False)).met
     finally:
         dosage._hi = monkey
@@ -256,15 +354,25 @@ def test_clingen_hi_store_data_integrity():
     drops TP53, or leaks a score-30 (recessive) / score-40 (dosage-unlikely) gene would otherwise
     stay green. Skips cleanly if the file is not installed."""
     from vcf2report.annotate import dosage
+
     if not config.CLINGEN_HI_LOCAL.exists():
         pytest.skip("ClinGen HI store not installed")
-    dosage._hi = None                       # force a real load from the committed file
+    dosage._hi = None  # force a real load from the committed file
     try:
         genes = dosage._load()
-        assert len(genes) >= 400, f"HI store shrank to {len(genes)} — suspect a truncated fetch"
-        for canary in ("TP53", "BRCA1", "BRCA2", "NF1", "PTEN"):   # classic HI=3
-            assert dosage.haploinsufficient(canary), f"{canary} missing — HI=3 filter/fetch broke"
-        for leaked in ("A4GALT", "AARS2"):    # ClinGen score 30 (autosomal recessive) — must NOT leak
-            assert not dosage.haploinsufficient(leaked), f"{leaked} (score-30) leaked past the HI=3 filter"
+        assert len(genes) >= 400, (
+            f"HI store shrank to {len(genes)} — suspect a truncated fetch"
+        )
+        for canary in ("TP53", "BRCA1", "BRCA2", "NF1", "PTEN"):  # classic HI=3
+            assert dosage.haploinsufficient(canary), (
+                f"{canary} missing — HI=3 filter/fetch broke"
+            )
+        for leaked in (
+            "A4GALT",
+            "AARS2",
+        ):  # ClinGen score 30 (autosomal recessive) — must NOT leak
+            assert not dosage.haploinsufficient(leaked), (
+                f"{leaked} (score-30) leaked past the HI=3 filter"
+            )
     finally:
         dosage._hi = None

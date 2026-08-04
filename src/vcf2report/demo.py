@@ -22,6 +22,7 @@ The failure mode is asymmetric by design: a genuine analysis mislabelled "demo" 
 under-claims, while a demo laudo passing as real is the dangerous direction — so the check
 errs toward stamping.
 """
+
 from __future__ import annotations
 
 import os
@@ -67,21 +68,30 @@ def requested() -> bool:
     The environment is the channel that reaches every surface — CLI, headless script, MCP
     server — without each having to thread a flag down to the pipeline.
     """
-    return os.environ.get("VCF2REPORT_DEMO", "").strip().lower() in {"1", "true", "yes", "on"}
+    return os.environ.get("VCF2REPORT_DEMO", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
 
 @dataclass
 class DemoDecision:
     """Outcome of asking "may this run proceed under the demo exemption?"."""
 
-    active: bool = False           # demo mode is in force for this run
-    refused: bool = False          # --demo was asked for but must NOT be honoured
-    reason: str = ""               # human-readable, shown in the progress surface
-    vcf: str = ""                  # the example file, repo-relative, for the stamp
+    active: bool = False  # demo mode is in force for this run
+    refused: bool = False  # --demo was asked for but must NOT be honoured
+    reason: str = ""  # human-readable, shown in the progress surface
+    vcf: str = ""  # the example file, repo-relative, for the stamp
 
     def to_dict(self) -> dict:
-        return {"active": self.active, "refused": self.refused,
-                "reason": self.reason, "vcf": self.vcf}
+        return {
+            "active": self.active,
+            "refused": self.refused,
+            "reason": self.reason,
+            "vcf": self.vcf,
+        }
 
 
 def decide(vcf: str | Path | None, demo_requested: bool | None = None) -> DemoDecision:
@@ -99,10 +109,12 @@ def decide(vcf: str | Path | None, demo_requested: bool | None = None) -> DemoDe
     if not is_demo_vcf(vcf):
         return DemoDecision(
             refused=True,
-            reason=(f"demo mode REFUSED — {vcf!r} is not one of this repository's committed "
-                    f"example VCFs ({DEMO_VCF_DIR}). Demo mode is not a store override: it "
-                    "exists only to demonstrate the pipeline on its own fixtures. Build the "
-                    "Parquet stores to analyse this file."),
+            reason=(
+                f"demo mode REFUSED — {vcf!r} is not one of this repository's committed "
+                f"example VCFs ({DEMO_VCF_DIR}). Demo mode is not a store override: it "
+                "exists only to demonstrate the pipeline on its own fixtures. Build the "
+                "Parquet stores to analyse this file."
+            ),
         )
     try:
         rel = str(Path(vcf).resolve().relative_to(config.REPO_ROOT.resolve()))
@@ -110,15 +122,20 @@ def decide(vcf: str | Path | None, demo_requested: bool | None = None) -> DemoDe
         rel = str(vcf)
     return DemoDecision(
         active=True,
-        reason=(f"demo mode ACTIVE — {rel} is a committed synthetic example with a known "
-                "planted diagnosis. The store gate is relaxed for it and the laudo is "
-                "stamped as a demonstration."),
+        reason=(
+            f"demo mode ACTIVE — {rel} is a committed synthetic example with a known "
+            "planted diagnosis. The store gate is relaxed for it and the laudo is "
+            "stamped as a demonstration."
+        ),
         vcf=rel,
     )
 
 
-def gate(vcf: str | Path | None = None, demo_requested: bool | None = None,
-         measure: bool = True) -> dict:
+def gate(
+    vcf: str | Path | None = None,
+    demo_requested: bool | None = None,
+    measure: bool = True,
+) -> dict:
     """The guided flow's Stage-1 store gate, with the demo exemption applied.
 
     Returns the fields of :func:`stores.gate` plus:
@@ -175,13 +192,19 @@ def provenance(vcf: str | Path | None = None, measure: bool = False) -> dict:
     except (ValueError, OSError):
         rel = str(vcf)
     health = stores.store_health(measure=measure)
-    absent = [n for n in stores.REQUIRED if health.get(n, {}).get("status") in stores._BLOCKING]
+    absent = [
+        n
+        for n in stores.REQUIRED
+        if health.get(n, {}).get("status") in stores._BLOCKING
+    ]
     return {
         "mode": "demo",
         "vcf": rel,
-        "reason": (f"{rel} is a synthetic exome committed to this repository with a known "
-                   "planted diagnosis (docs/SYNTHETIC_CASES.md) — a demonstration fixture, "
-                   "not patient data."),
+        "reason": (
+            f"{rel} is a synthetic exome committed to this repository with a known "
+            "planted diagnosis (docs/SYNTHETIC_CASES.md) — a demonstration fixture, "
+            "not patient data."
+        ),
         "stores_absent": absent,
         # Kept apart because they fail differently — see the comment on _BAKED_INTO_FIXTURE.
         "criteria_from_fixture_info": baked_criteria(absent),
@@ -274,7 +297,7 @@ def stamp_line(prov: dict) -> str:
         parts.append(
             f" {', '.join(sliced)} rest on the repository's **frozen ClinVar residue slice**, "
             "which covers only the demo genes — for any other gene they report "
-            "\"not assessed\" rather than a negative."
+            '"not assessed" rather than a negative.'
         )
     if not (baked or sliced):
         # Defensive: a provenance dict carrying only the union (an older persisted results.json,

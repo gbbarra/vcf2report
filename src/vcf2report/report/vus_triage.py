@@ -12,6 +12,7 @@ suggestive-pathogenic evidence they carry, itemises *why* (so the operator sees 
 not a black-box score), and hands the top ones back to be surfaced for expert exploration —
 the deterministic engine having done its part, this is where human + model judgement takes over.
 """
+
 from __future__ import annotations
 
 from .. import config
@@ -27,29 +28,65 @@ def _signals(c) -> list[dict]:
     am = a.am_pathogenicity
     if am is not None:
         if am >= config.AM_PP3_SUPPORTING:
-            out.append({"signal": "AlphaMissense likely-pathogenic", "value": round(am, 3),
-                        "weight": 3, "note": f"AM {am:.3f} ≥ {config.AM_PP3_SUPPORTING} (PP3 threshold)"})
+            out.append(
+                {
+                    "signal": "AlphaMissense likely-pathogenic",
+                    "value": round(am, 3),
+                    "weight": 3,
+                    "note": f"AM {am:.3f} ≥ {config.AM_PP3_SUPPORTING} (PP3 threshold)",
+                }
+            )
         elif am >= config.AM_BP4_SUPPORTING:
-            out.append({"signal": "AlphaMissense ambiguous", "value": round(am, 3),
-                        "weight": 1, "note": f"AM {am:.3f} in the ambiguous band — leans deleterious"})
+            out.append(
+                {
+                    "signal": "AlphaMissense ambiguous",
+                    "value": round(am, 3),
+                    "weight": 1,
+                    "note": f"AM {am:.3f} in the ambiguous band — leans deleterious",
+                }
+            )
 
     hpo = a.hpo_match_score
     if hpo is not None and hpo >= config.HPO_RELATED_MIN:
-        out.append({"signal": "phenotype match", "value": round(hpo, 3),
-                    "weight": 2, "note": f"gene↔patient HPO match {hpo:.2f} ≥ {config.HPO_RELATED_MIN}"})
+        out.append(
+            {
+                "signal": "phenotype match",
+                "value": round(hpo, 3),
+                "weight": 2,
+                "note": f"gene↔patient HPO match {hpo:.2f} ≥ {config.HPO_RELATED_MIN}",
+            }
+        )
 
     sig = (a.clinvar_significance or "").lower()
     if "pathogenic" in sig and "conflict" not in sig:
-        out.append({"signal": "ClinVar Pathogenic assertion", "value": a.clinvar_significance,
-                    "weight": 2, "note": "not counted at tier (capped for anti-circularity) — "
-                                         "review the assertion + its evidence directly"})
+        out.append(
+            {
+                "signal": "ClinVar Pathogenic assertion",
+                "value": a.clinvar_significance,
+                "weight": 2,
+                "note": "not counted at tier (capped for anti-circularity) — "
+                "review the assertion + its evidence directly",
+            }
+        )
     elif "conflict" in sig:
-        out.append({"signal": "ClinVar conflicting", "value": a.clinvar_significance,
-                    "weight": 1, "note": "conflicting interpretations — expert adjudication needed"})
+        out.append(
+            {
+                "signal": "ClinVar conflicting",
+                "value": a.clinvar_significance,
+                "weight": 1,
+                "note": "conflicting interpretations — expert adjudication needed",
+            }
+        )
 
     if a.gene_lof_intolerant:
-        out.append({"signal": "LoF-intolerant gene", "value": True,
-                    "weight": 1, "note": "constraint suggests the gene is dosage-sensitive"})
+        out.append(
+            {
+                "signal": "LoF-intolerant gene",
+                "value": True,
+                "weight": 1,
+                "note": "constraint suggests the gene is dosage-sensitive",
+            }
+        )
 
     return out
 
@@ -80,7 +117,13 @@ def probable_pathogenic_vus(classifications, min_molecular: int = 2):
         molecular = sum(s["weight"] for s in sig if s["signal"] != "phenotype match")
         if molecular < min_molecular:
             continue
-        ranked.append({"classification": c, "signals": sig, "score": sum(s["weight"] for s in sig)})
+        ranked.append(
+            {
+                "classification": c,
+                "signals": sig,
+                "score": sum(s["weight"] for s in sig),
+            }
+        )
     ranked.sort(key=lambda r: r["score"], reverse=True)
     return ranked
 
@@ -91,6 +134,8 @@ def exploration_prompt(entry) -> str:
     v = c.variant
     names = ", ".join(s["signal"] for s in entry["signals"])
     hgvs = v.hgvs_p or v.hgvs_c or v.key
-    return (f"{v.gene} {hgvs} — VUS with {names}. Worth expert exploration "
-            f"(literature on this residue/gene, domain/functional context, splicing prediction, "
-            f"and the ClinVar assertion's underlying evidence).")
+    return (
+        f"{v.gene} {hgvs} — VUS with {names}. Worth expert exploration "
+        f"(literature on this residue/gene, domain/functional context, splicing prediction, "
+        f"and the ClinVar assertion's underlying evidence)."
+    )

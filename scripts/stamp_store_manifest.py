@@ -5,6 +5,7 @@ freshness. The build scripts stamp automatically; run this to stamp stores built
 
     python3 scripts/stamp_store_manifest.py [gnomad|alphamissense|clinvar|all]
 """
+
 import sys
 from pathlib import Path
 

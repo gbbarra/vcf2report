@@ -1,4 +1,5 @@
 """Assemble the end-to-end result into a single report model."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -6,8 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from .. import __version__, demo
-from ..config import (AF_BA1, AF_RECESSIVE_MAX, GENOME_BUILD, QC_MIN_DP,
-                      QC_MIN_GQ)
+from ..config import AF_BA1, AF_RECESSIVE_MAX, GENOME_BUILD, QC_MIN_DP, QC_MIN_GQ
 from ..models import Classification, QCSummary, SeqQuality
 from .vus_triage import probable_pathogenic_vus
 
@@ -45,15 +45,25 @@ class ReportModel:
         }
 
 
-def build_report(sample_id: str, hpo_terms: list[str], qc: QCSummary,
-                 classifications: list[Classification],
-                 provenance: Optional[dict] = None) -> ReportModel:
+def build_report(
+    sample_id: str,
+    hpo_terms: list[str],
+    qc: QCSummary,
+    classifications: list[Classification],
+    provenance: Optional[dict] = None,
+) -> ReportModel:
     methods = {
         "genome_build": GENOME_BUILD,
         "qc_thresholds": {"min_DP": QC_MIN_DP, "min_GQ": QC_MIN_GQ},
         "rarity_cutoff_popmax_af": AF_RECESSIVE_MAX,
         "ba1_cutoff": AF_BA1,
-        "databases": ["ClinVar", "gnomAD r4", "local cohort", "HPO", "gnomAD constraint"],
+        "databases": [
+            "ClinVar",
+            "gnomAD r4",
+            "local cohort",
+            "HPO",
+            "gnomAD constraint",
+        ],
         "standards": [
             "ACMG/AMP variant classification (Richards et al., Genet Med 2015)",
             "ClinGen SVI criteria refinements",
@@ -69,24 +79,44 @@ def build_report(sample_id: str, hpo_terms: list[str], qc: QCSummary,
         absent = provenance.get("stores_absent") or []
         methods["data_mode"] = (
             "DEMONSTRATION — committed synthetic example VCF; Parquet stores "
-            + (f"absent ({', '.join(absent)}) — nothing looked up live" if absent else "present")
+            + (
+                f"absent ({', '.join(absent)}) — nothing looked up live"
+                if absent
+                else "present"
+            )
         )
         # Two separate keys, because "baked into the fixture from the full databases" and
         # "a slice covering only the demo genes" are different claims about the same laudo.
         if provenance.get("criteria_from_fixture_info"):
-            methods["criteria_from_fixture_baked_info"] = provenance["criteria_from_fixture_info"]
+            methods["criteria_from_fixture_baked_info"] = provenance[
+                "criteria_from_fixture_info"
+            ]
         if provenance.get("criteria_from_frozen_slice"):
-            methods["criteria_from_frozen_demo_slice"] = provenance["criteria_from_frozen_slice"]
+            methods["criteria_from_frozen_demo_slice"] = provenance[
+                "criteria_from_frozen_slice"
+            ]
     # reportable = anything not benign, ordered by clinical relevance
-    order = {"Pathogenic": 0, "Likely Pathogenic": 1,
-             "Uncertain Significance (VUS)": 2, "Likely Benign": 3, "Benign": 4}
+    order = {
+        "Pathogenic": 0,
+        "Likely Pathogenic": 1,
+        "Uncertain Significance (VUS)": 2,
+        "Likely Benign": 3,
+        "Benign": 4,
+    }
     ranked = sorted(classifications, key=lambda c: order.get(c.tier, 9))
     generated = datetime.now(timezone.utc).isoformat(timespec="seconds")
     # Report the DETECTED build (qc.build), not the assumed default, so the header
     # can't disagree with the build-mismatch warning.
-    return ReportModel(sample_id=sample_id, hpo_terms=hpo_terms, qc=qc, build=qc.build,
-                       classifications=ranked, methods=methods, generated=generated,
-                       provenance=provenance)
+    return ReportModel(
+        sample_id=sample_id,
+        hpo_terms=hpo_terms,
+        qc=qc,
+        build=qc.build,
+        classifications=ranked,
+        methods=methods,
+        generated=generated,
+        provenance=provenance,
+    )
 
 
 _PLP = {"Pathogenic", "Likely Pathogenic"}
@@ -109,6 +139,7 @@ def split_findings(classifications):
     :func:`phenotype_compared`.
     """
     from ..config import ACMG_SF_GENES, HPO_RELATED_MIN
+
     primary, secondary, other = [], [], []
     plp_hits = _plp_hits_by_gene(classifications)
     for c in classifications:
@@ -128,7 +159,11 @@ def split_findings(classifications):
         # then asserted the gene was "not on the ACMG SF actionable list". It carries the same
         # confirm-the-genotype caveat instead.
         _sf_plp = c.variant.gene in ACMG_SF_GENES and c.tier in _PLP
-        if is_hom_absent_artifact(c) and not (related and c.tier in _PLP) and not _sf_plp:
+        if (
+            is_hom_absent_artifact(c)
+            and not (related and c.tier in _PLP)
+            and not _sf_plp
+        ):
             other.append(c)
             continue
         # Carrier caution: a lone heterozygous null in a recessive-only gene is a PATHOGENIC
@@ -184,6 +219,7 @@ def _plp_hits_by_gene(classifications) -> dict:
 
 def _is_carrier(c, hits: dict) -> bool:
     from .. import config
+
     if c.tier not in _PLP or c.variant.zygosity != "het":
         return False
     m = config.gene_inheritance_modes(c.variant.gene)
@@ -246,8 +282,11 @@ def is_hom_absent_artifact(c) -> bool:
     explicitly vouched for.
     """
     a = c.annotation
-    return (c.variant.zygosity == "hom") and (a.gnomad_af == 0.0) \
+    return (
+        (c.variant.zygosity == "hom")
+        and (a.gnomad_af == 0.0)
         and (a.gnomad_absence_vouched or bool(a.gnomad_an))
+    )
 
 
 def is_hom_gnomad_uncovered(c) -> bool:
@@ -261,7 +300,11 @@ def is_hom_gnomad_uncovered(c) -> bool:
     A store-vouched absence is NOT uncovered, even though it also carries AN=0 — see
     :func:`is_hom_absent_artifact`."""
     a = c.annotation
-    return (c.variant.zygosity == "hom") and not a.gnomad_an and not a.gnomad_absence_vouched
+    return (
+        (c.variant.zygosity == "hom")
+        and not a.gnomad_an
+        and not a.gnomad_absence_vouched
+    )
 
 
 #: How many variants a QC ADVISORY may name inline in the conclusion before it summarises.
@@ -271,8 +314,12 @@ def is_hom_gnomad_uncovered(c) -> bool:
 _ADVISORY_INLINE_MAX = 6
 
 
-def advisory_listing(items, render, limit: int = _ADVISORY_INLINE_MAX,
-                     where: str = "the variant tables below") -> str:
+def advisory_listing(
+    items,
+    render,
+    limit: int = _ADVISORY_INLINE_MAX,
+    where: str = "the variant tables below",
+) -> str:
     """Name up to `limit` items inline, then summarise the remainder and say where it lives.
 
     Measured on SYN-016 before this existed: the conclusion ran 6,633 characters over 10
@@ -307,7 +354,11 @@ def clinvar_stars(review_status) -> int:
         return 3
     if "multiple submitters" in r and "no conflict" in r:
         return 2
-    if r.startswith("criteria provided") or "single submitter" in r or "conflicting" in r:
+    if (
+        r.startswith("criteria provided")
+        or "single submitter" in r
+        or "conflicting" in r
+    ):
         return 1
     return 0
 
@@ -326,7 +377,11 @@ def clinvar_pathogenic_flags(classifications):
         # value would be dropped by the filter and invisible to this net at the same time.
         sig = (c.annotation.clinvar_significance or "").lower().replace("_", " ")
         is_plp = sig.startswith("pathogenic") or sig.startswith("likely pathogenic")
-        if is_plp and clinvar_stars(c.annotation.clinvar_review_status) >= 2 and c.tier not in _PLP:
+        if (
+            is_plp
+            and clinvar_stars(c.annotation.clinvar_review_status) >= 2
+            and c.tier not in _PLP
+        ):
             out.append(c)
     return out
 
@@ -365,10 +420,15 @@ def summarize(report: "ReportModel") -> list[str]:
     diag = [c for c in primary if c.tier in _PLP]
     if diag:
         g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in diag)
-        where = (" (in a gene overlapping the patient's phenotype)" if compared else
-                 " (phenotype overlap NOT assessed)")
-        lines.append(f"Likely explanatory finding for the clinical indication: **{g}**"
-                     f"{where} — confirm and review.")
+        where = (
+            " (in a gene overlapping the patient's phenotype)"
+            if compared
+            else " (phenotype overlap NOT assessed)"
+        )
+        lines.append(
+            f"Likely explanatory finding for the clinical indication: **{g}**"
+            f"{where} — confirm and review."
+        )
     elif not report.classifications and report.qc.total_variants == 0:
         # "No pathogenic finding" is a RESULT. With nothing analysed there is no result — only
         # an absence of input, which is the one thing this report may never dress up as
@@ -383,11 +443,14 @@ def summarize(report: "ReportModel") -> list[str]:
             "**No analysis was performed** — the callset contained no variants to classify "
             f"({report.qc.total_variants} in the VCF, {report.qc.after_qc} after QC). This is "
             "NOT a negative result: nothing was examined. Check that the input is a variant "
-            "callset and re-run.")
+            "callset and re-run."
+        )
     else:
         vus = [c for c in primary if c.tier == "Uncertain Significance (VUS)"]
-        msg = ("**No Pathogenic / Likely Pathogenic finding** by the engine's independent "
-               "ACMG classification" + (" in phenotype-matched genes" if compared else ""))
+        msg = (
+            "**No Pathogenic / Likely Pathogenic finding** by the engine's independent "
+            "ACMG classification" + (" in phenotype-matched genes" if compared else "")
+        )
         if vus:
             msg += f"; {len(vus)} variant(s) of uncertain significance need further evaluation"
         lines.append(msg + ".")
@@ -398,15 +461,22 @@ def summarize(report: "ReportModel") -> list[str]:
         # TWO Pathogenic variants. The qualifier "in phenotype-matched genes" is accurate and
         # easy to miss, and an incomplete referral phenotype — the norm, not the exception —
         # is exactly what puts a real finding outside the match.
-        elsewhere = [c for c in (secondary + other) if c.tier in _PLP
-                     and not is_unconfirmed_ar_carrier(c, report.classifications)]
+        elsewhere = [
+            c
+            for c in (secondary + other)
+            if c.tier in _PLP
+            and not is_unconfirmed_ar_carrier(c, report.classifications)
+        ]
         if elsewhere and compared:
-            g = "; ".join(f"{c.variant.gene or c.variant.key} — {c.tier}" for c in elsewhere)
+            g = "; ".join(
+                f"{c.variant.gene or c.variant.key} — {c.tier}" for c in elsewhere
+            )
             lines.append(
                 f"**But {len(elsewhere)} Pathogenic / Likely Pathogenic variant(s) were called "
                 f"OUTSIDE the phenotype match**: {g}. The phenotype supplied does not overlap "
                 "these genes — which may mean the referral phenotype is incomplete rather than "
-                "that the variant is irrelevant. Review before concluding the case is negative.")
+                "that the variant is irrelevant. Review before concluding the case is negative."
+            )
 
     # Safety flag: a known ClinVar-Pathogenic variant the QC gate removed BEFORE annotation.
     # The do-not-dismiss net below cannot reach these — they are not classifications at all —
@@ -423,16 +493,24 @@ def summarize(report: "ReportModel") -> list[str]:
     # behind a lower engine tier (surfaced independently of the ACMG math).
     flagged = clinvar_pathogenic_flags(report.classifications)
     if flagged:
-        g = "; ".join(f"{c.variant.gene} ({clinvar_stars(c.annotation.clinvar_review_status)}★; "
-                      f"engine: {c.tier})" for c in flagged)
-        lines.append(f"⚠️ **Classified Pathogenic/Likely Pathogenic in ClinVar** (≥2-star review) — "
-                     f"the engine's independent tier is lower, but DO NOT dismiss: **{g}**. Review the "
-                     "ClinVar assertion and its underlying evidence.")
+        g = "; ".join(
+            f"{c.variant.gene} ({clinvar_stars(c.annotation.clinvar_review_status)}★; "
+            f"engine: {c.tier})"
+            for c in flagged
+        )
+        lines.append(
+            f"⚠️ **Classified Pathogenic/Likely Pathogenic in ClinVar** (≥2-star review) — "
+            f"the engine's independent tier is lower, but DO NOT dismiss: **{g}**. Review the "
+            "ClinVar assertion and its underlying evidence."
+        )
 
     # gnomAD has no coverage here, so the frequency is UNKNOWN. Not a demotion (see
     # is_hom_gnomad_uncovered) but the reader must not read a blank AF as "absent".
-    uncovered = [c for c in report.classifications
-                 if is_hom_gnomad_uncovered(c) and c.tier not in _BENIGN]
+    uncovered = [
+        c
+        for c in report.classifications
+        if is_hom_gnomad_uncovered(c) and c.tier not in _BENIGN
+    ]
     if uncovered:
         g = advisory_listing(uncovered, lambda c: f"{c.variant.gene} — {c.tier}")
         lines.append(
@@ -447,20 +525,27 @@ def summarize(report: "ReportModel") -> list[str]:
     # gated on _PLP — the same condition that exempts a variant from the demotion — so a
     # phenotype-matched homozygote the engine held at VUS was routed to "Not routinely
     # reported" AND given no explanation. Nothing leaves the diagnostic sections silently.
-    artifacts = [c for c in report.classifications
-                 if is_hom_absent_artifact(c) and c.tier not in _BENIGN]
+    artifacts = [
+        c
+        for c in report.classifications
+        if is_hom_absent_artifact(c) and c.tier not in _BENIGN
+    ]
     if artifacts:
         g = advisory_listing(artifacts, lambda c: f"{c.variant.gene} — {c.tier}")
-        lines.append(f"⚠️ **Verify the genotype before interpreting** — {len(artifacts)} homozygous "
-                     f"variant(s) that are absent from gnomAD (AC=0), which is implausible for a real "
-                     f"allele and a common calling-artifact signature in difficult regions: {g}. Confirm "
-                     "the call (orthogonal / Sanger) before interpreting these.")
+        lines.append(
+            f"⚠️ **Verify the genotype before interpreting** — {len(artifacts)} homozygous "
+            f"variant(s) that are absent from gnomAD (AC=0), which is implausible for a real "
+            f"allele and a common calling-artifact signature in difficult regions: {g}. Confirm "
+            "the call (orthogonal / Sanger) before interpreting these."
+        )
 
     sec = [c for c in secondary if c.tier in _PLP]
     if sec:
         g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in sec)
-        lines.append(f"Reportable **secondary finding** (ACMG SF v3.2 — actionable, subject to "
-                     f"the patient's opt-in policy): {g}.")
+        lines.append(
+            f"Reportable **secondary finding** (ACMG SF v3.2 — actionable, subject to "
+            f"the patient's opt-in policy): {g}."
+        )
 
     # Recessive carriers get their own sentence: "clinical relevance is uncertain" is simply
     # WRONG for them — the relevance is known and it is reproductive, not diagnostic. Lumping a
@@ -468,10 +553,12 @@ def summarize(report: "ReportModel") -> list[str]:
     carriers = carrier_findings(report.classifications)
     if carriers:
         g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in carriers)
-        lines.append(f"**Carrier finding(s)** — heterozygous {('allele' if len(carriers) == 1 else 'alleles')} "
-                     f"in gene(s) whose disease mechanism is recessive: {g}. A single copy does NOT "
-                     "cause the condition and does NOT explain the indication; this is carrier "
-                     "status, relevant to reproductive counselling, not a diagnosis.")
+        lines.append(
+            f"**Carrier finding(s)** — heterozygous {('allele' if len(carriers) == 1 else 'alleles')} "
+            f"in gene(s) whose disease mechanism is recessive: {g}. A single copy does NOT "
+            "cause the condition and does NOT explain the indication; this is carrier "
+            "status, relevant to reproductive counselling, not a diagnosis."
+        )
 
     # An engine-P/LP variant that is neither phenotype-matched nor on the SF list still
     # belongs in the conclusion — it is in the ranked table but must not be silent here.
@@ -479,38 +566,56 @@ def summarize(report: "ReportModel") -> list[str]:
     if inc:
         g = "; ".join(f"{c.variant.gene} — {c.tier}" for c in inc)
         # Only claim a non-match where a phenotype score actually existed for that gene.
-        why = ("not matching the stated phenotype and not on the ACMG SF actionable list"
-               if compared else "not on the ACMG SF actionable list (phenotype not assessed)")
-        lines.append(f"Additional **Pathogenic / Likely Pathogenic** variant(s) {why}: {g}. "
-                     "Clinical relevance to the indication is uncertain — review in context.")
+        why = (
+            "not matching the stated phenotype and not on the ACMG SF actionable list"
+            if compared
+            else "not on the ACMG SF actionable list (phenotype not assessed)"
+        )
+        lines.append(
+            f"Additional **Pathogenic / Likely Pathogenic** variant(s) {why}: {g}. "
+            "Clinical relevance to the indication is uncertain — review in context."
+        )
 
     # Probable-pathogenic VUS: the engine held these at Uncertain Significance (correctly — the
     # evidence is Supporting-only), but they overlap the phenotype AND carry molecular signal, so
     # they are the VUS most worth a human+model second look. Tier unchanged; this is triage.
     vus = probable_pathogenic_vus(report.classifications)
     if vus:
-        g = "; ".join(f"{e['classification'].variant.gene} ("
-                      f"{', '.join(s['signal'] for s in e['signals'])})" for e in vus[:3])
-        lines.append(f"**Probable-pathogenic VUS for expert review** — phenotype-relevant variant(s) "
-                     f"the engine held at Uncertain Significance but which carry suggestive evidence: "
-                     f"{g}. Still VUS by ACMG — prioritised for exploration (literature, domain/"
-                     "functional context, the ClinVar assertion), which Claude can help work through.")
+        g = "; ".join(
+            f"{e['classification'].variant.gene} ("
+            f"{', '.join(s['signal'] for s in e['signals'])})"
+            for e in vus[:3]
+        )
+        lines.append(
+            f"**Probable-pathogenic VUS for expert review** — phenotype-relevant variant(s) "
+            f"the engine held at Uncertain Significance but which carry suggestive evidence: "
+            f"{g}. Still VUS by ACMG — prioritised for exploration (literature, domain/"
+            "functional context, the ClinVar assertion), which Claude can help work through."
+        )
 
     sq = report.seq_quality
     if sq and sq.dp_median is not None and sq.dp_median < 20:
-        lines.append(f"⚠️ **Coverage limitation:** median depth at variant sites is {sq.dp_median}x, "
-                     "below a 20–30x clinical target. Findings in low-coverage regions are less "
-                     "reliable and a negative result does not exclude a diagnosis — consider "
-                     "higher-depth resequencing before ruling out a genetic cause.")
+        lines.append(
+            f"⚠️ **Coverage limitation:** median depth at variant sites is {sq.dp_median}x, "
+            "below a 20–30x clinical target. Findings in low-coverage regions are less "
+            "reliable and a negative result does not exclude a diagnosis — consider "
+            "higher-depth resequencing before ruling out a genetic cause."
+        )
     elif sq and sq.dp_median is not None:
-        lines.append(f"Sequencing depth at called sites is adequate (median {sq.dp_median}x); note "
-                     "that a variant-only VCF conveys no breadth of coverage, so poorly-covered "
-                     "regions cannot be assessed from this input.")
+        lines.append(
+            f"Sequencing depth at called sites is adequate (median {sq.dp_median}x); note "
+            "that a variant-only VCF conveys no breadth of coverage, so poorly-covered "
+            "regions cannot be assessed from this input."
+        )
 
-    lines.append("Single-proband analysis: de novo / segregation / phasing criteria (PS2, PM3, "
-                 "PM6, PP1, BS4) are N/A — parental or trio testing could upgrade candidates or "
-                 "resolve VUS.")
-    lines.append("**Recommended next steps:** expert review and sign-out; orthogonal confirmation "
-                 "(e.g. Sanger) of any reported P/LP variant; segregation / functional evidence to "
-                 "resolve variants of uncertain significance.")
+    lines.append(
+        "Single-proband analysis: de novo / segregation / phasing criteria (PS2, PM3, "
+        "PM6, PP1, BS4) are N/A — parental or trio testing could upgrade candidates or "
+        "resolve VUS."
+    )
+    lines.append(
+        "**Recommended next steps:** expert review and sign-out; orthogonal confirmation "
+        "(e.g. Sanger) of any reported P/LP variant; segregation / functional evidence to "
+        "resolve variants of uncertain significance."
+    )
     return lines

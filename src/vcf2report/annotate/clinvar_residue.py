@@ -17,6 +17,7 @@ Two sources are merged, both optional: the committed *frozen slice*
 conflicts. When neither is present the lookup returns empty matches, so PS1/PM5 report
 "index unavailable" rather than a fabricated hit.
 """
+
 from __future__ import annotations
 
 import re
@@ -38,8 +39,28 @@ _baselines: dict[str, float] = {}
 # query and when BUILDING the index from ClinVar's Name column, so the index itself carried
 # indels recorded as missense and handed them to PS1 as Strong evidence.
 _P_RE = re.compile(r"p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})$")
-_AA3 = {"Ala", "Arg", "Asn", "Asp", "Cys", "Gln", "Glu", "Gly", "His", "Ile",
-        "Leu", "Lys", "Met", "Phe", "Pro", "Ser", "Thr", "Trp", "Tyr", "Val"}
+_AA3 = {
+    "Ala",
+    "Arg",
+    "Asn",
+    "Asp",
+    "Cys",
+    "Gln",
+    "Glu",
+    "Gly",
+    "His",
+    "Ile",
+    "Leu",
+    "Lys",
+    "Met",
+    "Phe",
+    "Pro",
+    "Ser",
+    "Thr",
+    "Trp",
+    "Tyr",
+    "Val",
+}
 
 
 def parse_hgvs_p(hgvs_p: Optional[str]) -> Optional[tuple[str, int, str]]:
@@ -72,6 +93,7 @@ def _read_rows(fp):
     # `_read_lines` handles plain OR gzip, which matters because VCF2REPORT_CLINVAR_RESIDUE lets a
     # user point this at an uncompressed .tsv; opening with gzip unconditionally would fail there.
     from .extra import _read_lines
+
     for line in _read_lines(fp):
         if not line.strip() or line.startswith("#") or line.startswith("gene\t"):
             continue
@@ -98,8 +120,9 @@ def _load() -> dict:
                 prev = residues.get(alt_aa)
                 if prev is None or stars >= prev[1]:
                     residues[alt_aa] = (ref_aa, stars, key, acc)
-        b = {g: len(res) / max(max(res) - min(res) + 1, 1)
-             for g, res in d.items() if res}
+        b = {
+            g: len(res) / max(max(res) - min(res) + 1, 1) for g, res in d.items() if res
+        }
         _index, _baselines = d, b  # publish only when fully built, and together
     return _index
 
@@ -121,7 +144,9 @@ HOTSPOT_MIN_RESIDUES = 3
 HOTSPOT_MIN_ENRICHMENT = 2.0
 
 
-def hotspot(gene: Optional[str], aa_pos: Optional[int], window: int = HOTSPOT_WINDOW) -> dict:
+def hotspot(
+    gene: Optional[str], aa_pos: Optional[int], window: int = HOTSPOT_WINDOW
+) -> dict:
     """Local density of pathogenic missense around a residue — the PM1 signal.
 
     Counts DISTINCT neighbouring residues (excluding ``aa_pos`` itself) that carry at least one
@@ -131,8 +156,15 @@ def hotspot(gene: Optional[str], aa_pos: Optional[int], window: int = HOTSPOT_WI
     never double-counts the same-residue evidence PS1 and PM5 already carry.
     """
     idx = _load()
-    out = {"n_residues": 0, "n_changes": 0, "window": window, "residues": [],
-           "enrichment": 0.0, "gene_baseline": 0.0, "available": bool(idx)}
+    out = {
+        "n_residues": 0,
+        "n_changes": 0,
+        "window": window,
+        "residues": [],
+        "enrichment": 0.0,
+        "gene_baseline": 0.0,
+        "available": bool(idx),
+    }
     if not gene or aa_pos is None:
         return out
     residues = idx.get(gene)
@@ -141,8 +173,11 @@ def hotspot(gene: Optional[str], aa_pos: Optional[int], window: int = HOTSPOT_WI
     # Walk the WINDOW, not the gene: O(2*window+1) regardless of how densely the gene is
     # catalogued. Scanning `residues` made the cost grow with the catalogue — backwards, since the
     # best-studied genes are the ones most often queried.
-    near = [p for p in range(aa_pos - window, aa_pos + window + 1)
-            if p != aa_pos and residues.get(p)]
+    near = [
+        p
+        for p in range(aa_pos - window, aa_pos + window + 1)
+        if p != aa_pos and residues.get(p)
+    ]
     out["n_residues"] = len(near)
     out["n_changes"] = sum(len(residues[p]) for p in near)
     out["residues"] = near  # the range walk already emits them in ascending order
@@ -154,7 +189,9 @@ def hotspot(gene: Optional[str], aa_pos: Optional[int], window: int = HOTSPOT_WI
     return out
 
 
-def lookup(gene: Optional[str], hgvs_p: Optional[str], variant_key: Optional[str]) -> dict:
+def lookup(
+    gene: Optional[str], hgvs_p: Optional[str], variant_key: Optional[str]
+) -> dict:
     """Residue matches for PS1 / PM5.
 
     Returns ``{"ps1": match|None, "pm5": match|None, "available": bool, "residue": str|None,
@@ -172,8 +209,13 @@ def lookup(gene: Optional[str], hgvs_p: Optional[str], variant_key: Optional[str
     # Coverage is PER GENE. A global "some rows loaded" flag made every gene outside the index
     # report "checked, no match" at high confidence — the shipped frozen slice covers 15 genes, so
     # ~20,000 genes were getting a confident negative for a table they were never in.
-    out = {"ps1": None, "pm5": None, "available": bool(gene and gene in idx),
-           "residue": None, "aa_pos": None}
+    out = {
+        "ps1": None,
+        "pm5": None,
+        "available": bool(gene and gene in idx),
+        "residue": None,
+        "aa_pos": None,
+    }
     parsed = parse_hgvs_p(hgvs_p)
     if not gene or parsed is None:
         return out
@@ -199,8 +241,13 @@ def lookup(gene: Optional[str], hgvs_p: Optional[str], variant_key: Optional[str
     same = residues.get(alt_aa)
     known_same = same is not None
     if known_same and same[2] and variant_key and same[2] != variant_key:
-        out["ps1"] = {"alt_aa": alt_aa, "ref_aa": same[0], "stars": same[1],
-                      "genomic_key": same[2], "accession": same[3]}
+        out["ps1"] = {
+            "alt_aa": alt_aa,
+            "ref_aa": same[0],
+            "stars": same[1],
+            "genomic_key": same[2],
+            "accession": same[3],
+        }
     # If the row has no genomic key (or the query has none), we CANNOT establish that the hit is a
     # different variant — and "same change as a DIFFERENT pathogenic variant" is the entire claim
     # PS1 makes. Granting it anyway was anti-conservative on *pathogenic* evidence: the match could
@@ -216,8 +263,13 @@ def lookup(gene: Optional[str], hgvs_p: Optional[str], variant_key: Optional[str
                 continue
             n_other += 1
             if best is None or o_stars > best["stars"]:
-                best = {"alt_aa": other_alt, "ref_aa": o_ref, "stars": o_stars,
-                        "genomic_key": o_key, "accession": o_acc}
+                best = {
+                    "alt_aa": other_alt,
+                    "ref_aa": o_ref,
+                    "stars": o_stars,
+                    "genomic_key": o_key,
+                    "accession": o_acc,
+                }
         if best is not None:
             best["n_other"] = n_other
         out["pm5"] = best

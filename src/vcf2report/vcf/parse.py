@@ -11,6 +11,7 @@ Annotation carried in INFO is read from these keys when present:
 ``GENE``, ``CSQ`` (consequence), ``HGVSC``, ``HGVSP``. Real exomes annotated
 with VEP/SnpEff can be mapped here; the bundled sample uses these plain keys.
 """
+
 from __future__ import annotations
 
 import gzip
@@ -49,8 +50,15 @@ def detect_build(header_lines: list[str]) -> str | None:
     # not declared" instead of "this is GRCh37" — and a GRCh37 callset that slips past the
     # build guard is classified against GRCh38 coordinates, which silently mismatches every
     # store lookup. Unknown-build is the safe answer; wrongly-known would not be.
-    if ("grch37" in blob or "hg19" in blob or "b37" in blob or "g1k_v37" in blob
-            or "hs37d5" in blob or "assembly19" in blob or "hs37" in blob):
+    if (
+        "grch37" in blob
+        or "hg19" in blob
+        or "b37" in blob
+        or "g1k_v37" in blob
+        or "hs37d5" in blob
+        or "assembly19" in blob
+        or "hs37" in blob
+    ):
         return "GRCh37"
     return None
 
@@ -79,7 +87,7 @@ def zygosity(alleles: list[str], alt_num: int) -> Optional[str]:
     ALT), so callers can drop non-carriers. Shared by the pure and cyvcf2 paths.
     """
     alleles = [str(a) for a in alleles]
-    if len(alleles) == 1:                      # hemizygous (e.g. chrX/Y male)
+    if len(alleles) == 1:  # hemizygous (e.g. chrX/Y male)
         a = alleles[0]
         if a in _MISSING:
             return None
@@ -93,10 +101,10 @@ def zygosity(alleles: list[str], alt_num: int) -> Optional[str]:
         called = [a for a in alleles if a not in _MISSING]
         if called and any(a == str(alt_num) for a in called):
             return "het"
-        return None                            # no-call -> unknown, never "hom"
+        return None  # no-call -> unknown, never "hom"
     count = sum(1 for a in alleles if a == str(alt_num))
     if count == 0:
-        return None                            # not a carrier of THIS allele
+        return None  # not a carrier of THIS allele
     return "hom" if count == len(alleles) else "het"  # 1/2 compound -> het
 
 
@@ -108,15 +116,19 @@ def is_partial_call(alleles: list[str]) -> bool:
     alleles = [str(a) for a in alleles]
     if len(alleles) < 2:
         return False
-    return any(a in _MISSING for a in alleles) and any(a not in _MISSING for a in alleles)
+    return any(a in _MISSING for a in alleles) and any(
+        a not in _MISSING for a in alleles
+    )
 
 
 def _sample_metrics(fmt: str, sample: str, alt_index: int) -> dict:
     """Per-sample + per-ALT metrics. alt_index is 0-based into ALT."""
     d = dict(zip(fmt.split(":"), sample.split(":")))
     gt_alleles = _alleles(d.get("GT", "./."))
-    out: dict = {"zygosity": zygosity(gt_alleles, alt_index + 1),
-                 "partial_call": is_partial_call(gt_alleles)}
+    out: dict = {
+        "zygosity": zygosity(gt_alleles, alt_index + 1),
+        "partial_call": is_partial_call(gt_alleles),
+    }
     if d.get("DP", ".").isdigit():
         out["depth"] = int(d["DP"])
     gq = d.get("GQ", ".")
@@ -170,8 +182,9 @@ def _resolve_sample_index(header: list[str], sample: str | None) -> int:
     raise ValueError(f"sample {sample!r} not found in VCF (samples: {names})")
 
 
-def parse_vcf(path: str | Path, sample: str | None = None
-              ) -> tuple[list[Variant], str | None, list[str]]:
+def parse_vcf(
+    path: str | Path, sample: str | None = None
+) -> tuple[list[Variant], str | None, list[str]]:
     """Parse a VCF into (variants, detected_build, header_lines).
 
     Multi-allelic records are split into one :class:`Variant` per ALT allele
@@ -184,7 +197,11 @@ def parse_vcf(path: str | Path, sample: str | None = None
     path = Path(path)
     # cyvcf2 (htslib) is the fast path for real exomes; the pure reader is the
     # dependency-free default. Set VCF2REPORT_NO_CYVCF2=1 to force the pure reader.
-    if os.environ.get("VCF2REPORT_NO_CYVCF2", "").strip().lower() not in {"1", "true", "yes"}:
+    if os.environ.get("VCF2REPORT_NO_CYVCF2", "").strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+    }:
         try:  # pragma: no cover - exercised only when cyvcf2 present
             import cyvcf2  # type: ignore  # noqa: F401
 
@@ -194,8 +211,9 @@ def parse_vcf(path: str | Path, sample: str | None = None
     return _parse_pure(path, sample)
 
 
-def _parse_pure(path: Path, sample: str | None = None
-                ) -> tuple[list[Variant], str | None, list[str]]:
+def _parse_pure(
+    path: Path, sample: str | None = None
+) -> tuple[list[Variant], str | None, list[str]]:
     variants: list[Variant] = []
     header: list[str] = []
     csq_format = None
@@ -228,27 +246,36 @@ def _parse_pure(path: Path, sample: str | None = None
                 if not _reportable_alt(alt_allele):
                     continue  # '*' / symbolic ALT: never annotate/report
                 metrics = _sample_metrics(fmt, samp, i) if fmt and samp else {}
-                ann = annparse.extract(info_d, alt_allele, csq_format, ref, i, len(alts),
-                                       ann_format) or {}
-                variants.append(Variant(
-                    chrom=chrom, pos=int(pos), ref=ref, alt=alt_allele,
-                    gene=ann.get("gene"),
-                    hgvs_c=ann.get("hgvs_c"),
-                    hgvs_p=ann.get("hgvs_p"),
-                    consequence=ann.get("consequence"),
-                    exon=ann.get("exon"),
-                    transcript=ann.get("transcript"),
-                    filter_status=filt,
-                    variant_id=_id if _id not in (".", "") else None,
-                    n_alts=len(alts),
-                    zygosity=metrics.get("zygosity"),
-                    partial_call=metrics.get("partial_call", False),
-                    depth=metrics.get("depth"),
-                    gq=metrics.get("gq"),
-                    allele_balance=metrics.get("allele_balance"),
-                    info=info_d,
-                    alt_index=i,
-                ))
+                ann = (
+                    annparse.extract(
+                        info_d, alt_allele, csq_format, ref, i, len(alts), ann_format
+                    )
+                    or {}
+                )
+                variants.append(
+                    Variant(
+                        chrom=chrom,
+                        pos=int(pos),
+                        ref=ref,
+                        alt=alt_allele,
+                        gene=ann.get("gene"),
+                        hgvs_c=ann.get("hgvs_c"),
+                        hgvs_p=ann.get("hgvs_p"),
+                        consequence=ann.get("consequence"),
+                        exon=ann.get("exon"),
+                        transcript=ann.get("transcript"),
+                        filter_status=filt,
+                        variant_id=_id if _id not in (".", "") else None,
+                        n_alts=len(alts),
+                        zygosity=metrics.get("zygosity"),
+                        partial_call=metrics.get("partial_call", False),
+                        depth=metrics.get("depth"),
+                        gq=metrics.get("gq"),
+                        allele_balance=metrics.get("allele_balance"),
+                        info=info_d,
+                        alt_index=i,
+                    )
+                )
     return variants, detect_build(header), header
 
 
@@ -261,8 +288,9 @@ def _cyvcf2_int(v):  # pragma: no cover
     return iv if iv >= 0 else None
 
 
-def _parse_cyvcf2(path: Path, sample: str | None = None
-                  ) -> tuple[list[Variant], str | None, list[str]]:  # pragma: no cover
+def _parse_cyvcf2(
+    path: Path, sample: str | None = None
+) -> tuple[list[Variant], str | None, list[str]]:  # pragma: no cover
     from cyvcf2 import VCF  # type: ignore
 
     vcf = VCF(str(path))
@@ -272,7 +300,9 @@ def _parse_cyvcf2(path: Path, sample: str | None = None
     s = 0
     if sample is not None:
         if sample not in list(vcf.samples):
-            raise ValueError(f"sample {sample!r} not found (samples: {list(vcf.samples)})")
+            raise ValueError(
+                f"sample {sample!r} not found (samples: {list(vcf.samples)})"
+            )
         s = list(vcf.samples).index(sample)
     variants: list[Variant] = []
     for rec in vcf:
@@ -297,7 +327,9 @@ def _parse_cyvcf2(path: Path, sample: str | None = None
                     # Same denominator rule as the pure reader: measure against the
                     # alleles the genotype carries, not the whole multiallelic site.
                     called = {int(a) for a in (gts or []) if str(a).isdigit()}
-                    denom = sum(ad[a] for a in called if a < len(ad)) if called else total
+                    denom = (
+                        sum(ad[a] for a in called if a < len(ad)) if called else total
+                    )
                     if denom > 0 and len(ad) > i + 1:
                         allele_balance = round(ad[i + 1] / denom, 3)
                     if depth_i is None and total > 0:  # DP absent -> sum(AD)
@@ -305,19 +337,36 @@ def _parse_cyvcf2(path: Path, sample: str | None = None
                 except (TypeError, ValueError, IndexError):
                     allele_balance = None
             info = {k: str(v) for k, v in dict(rec.INFO).items()}
-            ann = annparse.extract(info, str(alt_allele), csq_format, rec.REF, i, len(alts),
-                                   ann_format) or {}
-            variants.append(Variant(
-                chrom=rec.CHROM, pos=rec.POS, ref=rec.REF, alt=alt_allele,
-                gene=ann.get("gene"), hgvs_c=ann.get("hgvs_c"),
-                hgvs_p=ann.get("hgvs_p"), consequence=ann.get("consequence"),
-                exon=ann.get("exon"), transcript=ann.get("transcript"),
-                filter_status=rec.FILTER or "PASS", zygosity=zyg, partial_call=partial,
-                variant_id=rec.ID if rec.ID not in (None, ".", "") else None,
-                n_alts=len(alts),
-                depth=depth_i, gq=gq, allele_balance=allele_balance, info=info,
-                alt_index=i,
-            ))
+            ann = (
+                annparse.extract(
+                    info, str(alt_allele), csq_format, rec.REF, i, len(alts), ann_format
+                )
+                or {}
+            )
+            variants.append(
+                Variant(
+                    chrom=rec.CHROM,
+                    pos=rec.POS,
+                    ref=rec.REF,
+                    alt=alt_allele,
+                    gene=ann.get("gene"),
+                    hgvs_c=ann.get("hgvs_c"),
+                    hgvs_p=ann.get("hgvs_p"),
+                    consequence=ann.get("consequence"),
+                    exon=ann.get("exon"),
+                    transcript=ann.get("transcript"),
+                    filter_status=rec.FILTER or "PASS",
+                    zygosity=zyg,
+                    partial_call=partial,
+                    variant_id=rec.ID if rec.ID not in (None, ".", "") else None,
+                    n_alts=len(alts),
+                    depth=depth_i,
+                    gq=gq,
+                    allele_balance=allele_balance,
+                    info=info,
+                    alt_index=i,
+                )
+            )
     return variants, detect_build(header), header
 
 

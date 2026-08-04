@@ -4,16 +4,29 @@
 the MCP ``annotate`` tool. It records, per field, which source (and date) it came
 from so the ACMG criteria and the report can cite provenance.
 """
+
 from __future__ import annotations
 
 from ..models import Annotation, Variant
-from . import local_cohort, alphamissense, clinvar, clinvar_residue, extra, from_vcf, gnomad, hpo
+from . import (
+    local_cohort,
+    alphamissense,
+    clinvar,
+    clinvar_residue,
+    extra,
+    from_vcf,
+    gnomad,
+    hpo,
+)
 
 
-def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
-                     build_trusted: bool = True,
-                     with_alphamissense: bool = True,
-                     with_clinvar_residue: bool = True) -> Annotation:
+def annotate_variant(
+    variant: Variant,
+    patient_hpo: list[str] | None = None,
+    build_trusted: bool = True,
+    with_alphamissense: bool = True,
+    with_clinvar_residue: bool = True,
+) -> Annotation:
     """Merge all sources into an :class:`Annotation`.
 
     ``build_trusted=False`` (a detected genome-build mismatch) means the variant's
@@ -49,38 +62,73 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         # frequency and skipped the local snapshot entirely — the variant then looked
         # absent from gnomAD when the data was simply never consulted.
         if vi.get("gnomad_af") is not None:
-            g = {"af": vi["gnomad_af"], "ac": vi.get("gnomad_ac"),
-                 "an": vi.get("gnomad_an"), "hom": vi.get("gnomad_hom"),
-                 "faf95": vi.get("gnomad_faf95"), "pop": None, "_source": "VCF INFO"}
+            g = {
+                "af": vi["gnomad_af"],
+                "ac": vi.get("gnomad_ac"),
+                "an": vi.get("gnomad_an"),
+                "hom": vi.get("gnomad_hom"),
+                "faf95": vi.get("gnomad_faf95"),
+                "pop": None,
+                "_source": "VCF INFO",
+            }
         else:
             g = gnomad.lookup(variant)
         if "clinvar_significance" in vi:
-            cv = {"significance": vi["clinvar_significance"],
-                  "review_status": vi.get("clinvar_review_status"),
-                  "accession": vi.get("clinvar_accession"),
-                  "condition": vi.get("clinvar_condition"), "date": None,
-                  "_source": "VCF INFO"}
+            cv = {
+                "significance": vi["clinvar_significance"],
+                "review_status": vi.get("clinvar_review_status"),
+                "accession": vi.get("clinvar_accession"),
+                "condition": vi.get("clinvar_condition"),
+                "date": None,
+                "_source": "VCF INFO",
+            }
         else:
             cv = clinvar.lookup(variant)
-        ab = {"af": vi["local_cohort_af"], "_source": "VCF INFO"} \
-            if vi.get("local_cohort_af") is not None else local_cohort.lookup(variant)
+        ab = (
+            {"af": vi["local_cohort_af"], "_source": "VCF INFO"}
+            if vi.get("local_cohort_af") is not None
+            else local_cohort.lookup(variant)
+        )
         if "revel" in vi or "cadd" in vi:
-            isi = {"revel": vi.get("revel"), "cadd": vi.get("cadd"), "_source": "VCF INFO"}
+            isi = {
+                "revel": vi.get("revel"),
+                "cadd": vi.get("cadd"),
+                "_source": "VCF INFO",
+            }
         else:
             isi = extra.insilico(variant)
         if "am_pathogenicity" in vi:
-            am = {"am_pathogenicity": vi["am_pathogenicity"],
-                  "am_class": vi.get("am_class"), "_source": "VCF INFO"}
+            am = {
+                "am_pathogenicity": vi["am_pathogenicity"],
+                "am_class": vi.get("am_class"),
+                "_source": "VCF INFO",
+            }
         elif with_alphamissense:
             am = alphamissense.lookup(variant)
         else:
-            am = {"am_pathogenicity": None, "am_class": None,
-                  "_source": "AlphaMissense (deferred to candidate stage)"}
+            am = {
+                "am_pathogenicity": None,
+                "am_class": None,
+                "_source": "AlphaMissense (deferred to candidate stage)",
+            }
     else:
         note = "skipped — genome-build mismatch (coordinates not GRCh38)"
-        g = {"af": None, "ac": None, "an": None, "hom": None, "pop": None, "_source": note}
-        cv = {"significance": None, "review_status": None, "accession": None,
-              "condition": None, "date": None, "_source": note}
+        g = {
+            "af": None,
+            "ac": None,
+            "an": None,
+            "hom": None,
+            "pop": None,
+            "_source": note,
+        }
+        cv = {
+            "significance": None,
+            "review_status": None,
+            "accession": None,
+            "condition": None,
+            "date": None,
+            "_source": note,
+        }
         ab = {"af": None, "_source": note}
         isi = {"revel": None, "cadd": None, "_source": note}
         am = {"am_pathogenicity": None, "am_class": None, "_source": note}
@@ -105,8 +153,8 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
         # A store that covers the locus and holds no record vouches for the absence; a
         # pre-annotated VCF vouches when it reports a real AN alongside AF=0. Neither is the
         # same as an annotator writing AF=0/AN=0 where gnomAD has no coverage at all.
-        gnomad_absence_vouched=bool(g.get("vouched_absent")) or (
-            g.get("af") == 0.0 and bool(g.get("an"))),
+        gnomad_absence_vouched=bool(g.get("vouched_absent"))
+        or (g.get("af") == 0.0 and bool(g.get("an"))),
         local_cohort_af=ab.get("af"),
         gene_lof_intolerant=con.get("lof_intolerant"),
         gene_mis_z=con.get("mis_z"),
@@ -137,8 +185,9 @@ def annotate_variant(variant: Variant, patient_hpo: list[str] | None = None,
     return ann
 
 
-def add_clinvar_residue(variant: Variant, annotation: Annotation,
-                        build_trusted: bool = True) -> None:
+def add_clinvar_residue(
+    variant: Variant, annotation: Annotation, build_trusted: bool = True
+) -> None:
     """Populate the residue-level ClinVar evidence (PS1/PM5/PM1) — the lazy path.
 
     Deferred for the same reason as :func:`add_alphamissense`: these fields feed classification

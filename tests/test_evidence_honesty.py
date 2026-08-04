@@ -7,6 +7,7 @@ of a fabricated observation.
 
 Each test below pins one criterion that used to collapse an unknown into a measured value.
 """
+
 import pytest
 
 from vcf2report.acmg.engine import evaluate_criteria
@@ -14,8 +15,15 @@ from vcf2report.models import Annotation, Variant
 
 
 def _v(consequence="missense_variant", gene="TESTG", hgvs_p="p.Arg123Cys"):
-    return Variant(chrom="1", pos=100, ref="C", alt="T", gene=gene,
-                   consequence=consequence, hgvs_p=hgvs_p)
+    return Variant(
+        chrom="1",
+        pos=100,
+        ref="C",
+        alt="T",
+        gene=gene,
+        consequence=consequence,
+        hgvs_p=hgvs_p,
+    )
 
 
 def _c(code, a, v=None):
@@ -27,8 +35,12 @@ def test_bs2_does_not_invent_zero_homozygotes():
     # `homs = a.gnomad_homozygotes or 0` reported "0 homozygotes (below 2)" at confidence=high,
     # citing a source that never supplied the field — including on the build-mismatch path where
     # gnomAD was explicitly skipped.
-    cr = _c("BS2", Annotation(gnomad_af=0.08, gnomad_homozygotes=None,
-                              source={"gnomad": "VCF INFO"}))
+    cr = _c(
+        "BS2",
+        Annotation(
+            gnomad_af=0.08, gnomad_homozygotes=None, source={"gnomad": "VCF INFO"}
+        ),
+    )
     assert not cr.met
     assert "unavailable" in cr.reasoning and "cannot assess" in cr.reasoning
     assert cr.evidence["gnomad_homozygotes"] is None
@@ -59,9 +71,12 @@ def test_pp4_does_not_invent_a_zero_phenotype_match():
 
 def test_hpo_match_returns_none_when_no_comparison_is_possible():
     from vcf2report.annotate import hpo
-    assert hpo.match("SCN1A", [])["score"] is None        # no patient terms
+
+    assert hpo.match("SCN1A", [])["score"] is None  # no patient terms
     assert hpo.match(None, ["HP:0001250"])["score"] is None  # no gene
-    assert hpo.match("NOT_A_GENE_XYZ", ["HP:0001250"])["score"] is None  # gene not annotated
+    assert (
+        hpo.match("NOT_A_GENE_XYZ", ["HP:0001250"])["score"] is None
+    )  # gene not annotated
 
 
 # --- BA1 / BS1: the frequency band -----------------------------------------
@@ -88,8 +103,16 @@ def test_residue_criteria_say_not_assessed_for_a_gene_outside_the_index():
     # ~20,000 genes were getting "checked, no match" at high confidence for a table they were
     # never in.
     from vcf2report.annotate import annotate_variant
-    v = Variant(chrom="17", pos=43093464, ref="C", alt="T", gene="BRCA1",
-                consequence="missense_variant", hgvs_p="p.Arg1699Trp")
+
+    v = Variant(
+        chrom="17",
+        pos=43093464,
+        ref="C",
+        alt="T",
+        gene="BRCA1",
+        consequence="missense_variant",
+        hgvs_p="p.Arg1699Trp",
+    )
     ann = annotate_variant(v, [])
     assert ann.clinvar_residue_available is False, "BRCA1 is not in the committed slice"
     for code in ("PS1", "PM5", "PM1"):
@@ -100,15 +123,33 @@ def test_residue_criteria_say_not_assessed_for_a_gene_outside_the_index():
 def test_pm1_does_not_fire_when_the_tolerance_metric_is_unknown():
     # `bool(None)` made "unknown" behave exactly like "proven constrained", so PM1's stand-in for
     # ACMG's "without benign variation" clause silently vanished.
-    hot = {"n_residues": 5, "n_changes": 12, "window": 7, "enrichment": 4.0,
-           "gene_baseline": 0.05, "available": True}
-    unknown = _c("PM1", Annotation(clinvar_residue_available=True, clinvar_hotspot=hot,
-                                   gene_missense_tolerant=None))
+    hot = {
+        "n_residues": 5,
+        "n_changes": 12,
+        "window": 7,
+        "enrichment": 4.0,
+        "gene_baseline": 0.05,
+        "available": True,
+    }
+    unknown = _c(
+        "PM1",
+        Annotation(
+            clinvar_residue_available=True,
+            clinvar_hotspot=hot,
+            gene_missense_tolerant=None,
+        ),
+    )
     assert not unknown.met
     assert "no gnomAD missense-constraint metric" in unknown.reasoning
 
-    known = _c("PM1", Annotation(clinvar_residue_available=True, clinvar_hotspot=hot,
-                                 gene_missense_tolerant=False))
+    known = _c(
+        "PM1",
+        Annotation(
+            clinvar_residue_available=True,
+            clinvar_hotspot=hot,
+            gene_missense_tolerant=False,
+        ),
+    )
     assert known.met
 
 
@@ -116,23 +157,33 @@ def test_pm1_does_not_fire_when_the_tolerance_metric_is_unknown():
 def test_pvs1_does_not_cite_sources_when_it_did_not_fire():
     # An unmet PVS1 printed "ClinGen Dosage Sensitivity (HI=3)" in the Source column of a row whose
     # reasoning is about consequence type.
-    cr = _c("PVS1", Annotation(gene_lof_intolerant=True,
-                               source={"gene_constraint": "gnomAD v4.1 constraint"}),
-            _v(consequence="missense_variant"))
+    cr = _c(
+        "PVS1",
+        Annotation(
+            gene_lof_intolerant=True,
+            source={"gene_constraint": "gnomAD v4.1 constraint"},
+        ),
+        _v(consequence="missense_variant"),
+    )
     assert not cr.met and cr.citation == []
 
 
 def test_bp4_cites_the_predictor_that_drove_it():
     # PP3's identical REVEL/CADD branch cited this; BP4's did not.
-    cr = _c("BP4", Annotation(revel=0.05, cadd_phred=3.0,
-                              source={"insilico": "dbNSFP v4.4"}))
+    cr = _c(
+        "BP4",
+        Annotation(revel=0.05, cadd_phred=3.0, source={"insilico": "dbNSFP v4.4"}),
+    )
     assert cr.met and cr.citation == ["dbNSFP v4.4"]
 
 
-@pytest.mark.parametrize("code,ann", [
-    ("PP3", Annotation(cadd_phred=35.0, revel=None)),
-    ("BP4", Annotation(revel=0.05, cadd_phred=None)),
-])
+@pytest.mark.parametrize(
+    "code,ann",
+    [
+        ("PP3", Annotation(cadd_phred=35.0, revel=None)),
+        ("BP4", Annotation(revel=0.05, cadd_phred=None)),
+    ],
+)
 def test_insilico_reasons_name_only_the_predictors_that_ran(code, ann):
     # "REVEL=None, CADD=35.0" reads as a rendering failure and hides how many predictors actually
     # contributed. REVEL is missense-only, so a missing value is the norm on LoF variants.

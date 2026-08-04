@@ -29,6 +29,7 @@ Reproducible, no auth, no local reference FASTA:
 Network egress is required (opt-in): it reads directly from
 storage.googleapis.com via htslib remote tabix.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,17 +42,23 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 
-GNOMAD_BASE = ("https://storage.googleapis.com/gcp-public-data--gnomad/release/"
-               "3.1.2/vcf/genomes/gnomad.genomes.v3.1.2.hgdp_tgp.{chrom}.vcf.bgz")
-EXOME_INTERVALS_URL = ("https://storage.googleapis.com/gcp-public-data--broad-"
-                       "references/hg38/v0/exome_calling_regions.v1.interval_list")
+GNOMAD_BASE = (
+    "https://storage.googleapis.com/gcp-public-data--gnomad/release/"
+    "3.1.2/vcf/genomes/gnomad.genomes.v3.1.2.hgdp_tgp.{chrom}.vcf.bgz"
+)
+EXOME_INTERVALS_URL = (
+    "https://storage.googleapis.com/gcp-public-data--broad-"
+    "references/hg38/v0/exome_calling_regions.v1.interval_list"
+)
 
-VEP_FORMAT = ("Allele|Consequence|IMPACT|SYMBOL|Gene|Feature_type|Feature|BIOTYPE|"
-              "EXON|INTRON|HGVSc|HGVSp|cDNA_position|CDS_position|Protein_position|"
-              "Amino_acids|Codons|ALLELE_NUM|DISTANCE|STRAND|VARIANT_CLASS|MINIMISED|"
-              "SYMBOL_SOURCE|HGNC_ID|CANONICAL|TSL|APPRIS|CCDS|ENSP|SWISSPROT|TREMBL|"
-              "UNIPARC|GENE_PHENO|SIFT|PolyPhen|DOMAINS|HGVS_OFFSET|MOTIF_NAME|"
-              "MOTIF_POS|HIGH_INF_POS|MOTIF_SCORE_CHANGE|LoF|LoF_filter|LoF_flags|LoF_info")
+VEP_FORMAT = (
+    "Allele|Consequence|IMPACT|SYMBOL|Gene|Feature_type|Feature|BIOTYPE|"
+    "EXON|INTRON|HGVSc|HGVSp|cDNA_position|CDS_position|Protein_position|"
+    "Amino_acids|Codons|ALLELE_NUM|DISTANCE|STRAND|VARIANT_CLASS|MINIMISED|"
+    "SYMBOL_SOURCE|HGNC_ID|CANONICAL|TSL|APPRIS|CCDS|ENSP|SWISSPROT|TREMBL|"
+    "UNIPARC|GENE_PHENO|SIFT|PolyPhen|DOMAINS|HGVS_OFFSET|MOTIF_NAME|"
+    "MOTIF_POS|HIGH_INF_POS|MOTIF_SCORE_CHANGE|LoF|LoF_filter|LoF_flags|LoF_info"
+)
 _ALLELE_NUM_IDX = VEP_FORMAT.split("|").index("ALLELE_NUM")
 
 AUTOSOMES = [f"chr{i}" for i in range(1, 23)] + ["chrX"]
@@ -60,7 +67,7 @@ AUTOSOMES = [f"chr{i}" for i in range(1, 23)] + ["chrX"]
 # windows TIGHT (minimal intronic over-read = minimal bytes transferred). The
 # exome-membership test still guards emitted records.
 MERGE_GAP = 10000
-THROTTLE_S = 0.0    # raw-text reads are light; no extra pacing needed at low workers
+THROTTLE_S = 0.0  # raw-text reads are light; no extra pacing needed at low workers
 
 
 def load_intervals(path: Path) -> dict[str, list[tuple[int, int]]]:
@@ -92,7 +99,8 @@ def load_intervals(path: Path) -> dict[str, list[tuple[int, int]]]:
 def _in_exome(starts: list[int], ivs: list[tuple[int, int]], pos: int) -> bool:
     """True if 1-based ``pos`` falls within any exome interval (bisect on starts)."""
     import bisect
-    i = bisect.bisect_right(starts, pos) - 1   # rightmost interval starting <= pos
+
+    i = bisect.bisect_right(starts, pos) - 1  # rightmost interval starting <= pos
     return i >= 0 and pos <= ivs[i][1]
 
 
@@ -145,8 +153,13 @@ def _col_index(header_lines, sample: str) -> int:
     raise SystemExit("no #CHROM header line")
 
 
-def process_batch(chrom: str, sample: str, windows: list[tuple[int, int]],
-                  raw_ivs: list[tuple[int, int]], out_path: Path) -> tuple[str, int, int]:
+def process_batch(
+    chrom: str,
+    sample: str,
+    windows: list[tuple[int, int]],
+    raw_ivs: list[tuple[int, int]],
+    out_path: Path,
+) -> tuple[str, int, int]:
     """Stream one chromosome's exome windows; write this sample's carrier rows.
 
     Reads the joint VCF as *raw tabix text* and pulls only the one sample's
@@ -163,7 +176,7 @@ def process_batch(chrom: str, sample: str, windows: list[tuple[int, int]],
 
     url = GNOMAD_BASE.format(chrom=chrom)
     tb = None
-    for attempt in range(4):                 # remote opens flake; retry with backoff
+    for attempt in range(4):  # remote opens flake; retry with backoff
         try:
             tb = pysam.TabixFile(url)
             break
@@ -176,9 +189,9 @@ def process_batch(chrom: str, sample: str, windows: list[tuple[int, int]],
     starts = [s for s, _ in raw_ivs]
     rows: list[tuple[int, str]] = []
     n_seen = 0
-    for (start, end) in windows:
+    for start, end in windows:
         lines = None
-        for attempt in range(5):             # transient fetch resets → retry the window
+        for attempt in range(5):  # transient fetch resets → retry the window
             try:
                 lines = list(tb.fetch(chrom, start, end))
                 break
@@ -203,11 +216,15 @@ def process_batch(chrom: str, sample: str, windows: list[tuple[int, int]],
                 continue  # hom-ref / no-call → not a carrier
             ref, alts = f[3], f[4].split(",")
             info = _parse_info(f[7])
-            vep = (info.get("vep") or "")
+            vep = info.get("vep") or ""
             vep_entries = vep.split(",") if vep and vep is not True else []
             smp_map = dict(zip(fmt, smp_fields))
-            dp, gq, ad = smp_map.get("DP", "."), smp_map.get("GQ", "."), smp_map.get("AD")
-            for a in carried:                       # 1-based ALT allele number
+            dp, gq, ad = (
+                smp_map.get("DP", "."),
+                smp_map.get("GQ", "."),
+                smp_map.get("AD"),
+            )
+            for a in carried:  # 1-based ALT allele number
                 if a > len(alts):
                     continue
                 alt = alts[a - 1]
@@ -215,7 +232,7 @@ def process_batch(chrom: str, sample: str, windows: list[tuple[int, int]],
                     continue
                 af = _info_a(info, "gnomad_AF_popmax", a - 1)
                 pop = _info_a(info, "gnomad_popmax", a - 1)
-                if af is None or af == ".":         # subset-only site → real subset AF
+                if af is None or af == ".":  # subset-only site → real subset AF
                     af = _info_a(info, "AF", a - 1)
                     pop = "hgdp_tgp"
                 sfx = "" if pop == "hgdp_tgp" else "_popmax"
@@ -230,9 +247,13 @@ def process_batch(chrom: str, sample: str, windows: list[tuple[int, int]],
                     if len(sub) > _ALLELE_NUM_IDX and sub[_ALLELE_NUM_IDX] == str(a):
                         sub[_ALLELE_NUM_IDX] = "1"
                         csq_parts.append("|".join(sub))
-                out_info = [f"gnomad_AF={af or '.'}", f"gnomad_AC={ac or '.'}",
-                            f"gnomad_AN={an or '.'}", f"gnomad_nhomalt={hom or '.'}",
-                            f"gnomad_popmax={pop or '.'}"]
+                out_info = [
+                    f"gnomad_AF={af or '.'}",
+                    f"gnomad_AC={ac or '.'}",
+                    f"gnomad_AN={an or '.'}",
+                    f"gnomad_nhomalt={hom or '.'}",
+                    f"gnomad_popmax={pop or '.'}",
+                ]
                 if csq_parts:
                     out_info.append("CSQ=" + ",".join(csq_parts))
                 cnt = sum(1 for x in alleles if x == str(a))
@@ -243,8 +264,20 @@ def process_batch(chrom: str, sample: str, windows: list[tuple[int, int]],
                     if len(ad_parts) > a:
                         ad_s = f"{ad_parts[0]},{ad_parts[a]}"
                 smp_s = ":".join([gt_s, dp, gq, ad_s])
-                row = "\t".join([chrom, str(pos), ".", ref, alt, "999",
-                                 "PASS", ";".join(out_info), "GT:DP:GQ:AD", smp_s])
+                row = "\t".join(
+                    [
+                        chrom,
+                        str(pos),
+                        ".",
+                        ref,
+                        alt,
+                        "999",
+                        "PASS",
+                        ";".join(out_info),
+                        "GT:DP:GQ:AD",
+                        smp_s,
+                    ]
+                )
                 rows.append((pos, row))
     rows.sort(key=lambda r: r[0])
     out_path.write_text("\n".join(l for _, l in rows) + ("\n" if rows else ""))
@@ -256,14 +289,21 @@ def main() -> int:
     ap.add_argument("--sample", default="HG01565")
     ap.add_argument("--out", default=str(REPO / "data" / "real" / "HG01565_exome.vcf"))
     ap.add_argument("--chroms", default=",".join(AUTOSOMES))
-    ap.add_argument("--intervals", default=str(REPO / "scratch" / "exome.interval_list"))
-    ap.add_argument("--workers", type=int, default=3,
-                    help="chromosomes processed concurrently (keep low: one reused "
-                         "remote handle each; too many opens => proxy refuses)")
+    ap.add_argument(
+        "--intervals", default=str(REPO / "scratch" / "exome.interval_list")
+    )
+    ap.add_argument(
+        "--workers",
+        type=int,
+        default=3,
+        help="chromosomes processed concurrently (keep low: one reused "
+        "remote handle each; too many opens => proxy refuses)",
+    )
     ap.add_argument("--tmp", default=str(REPO / "scratch" / "real"))
     args = ap.parse_args()
 
     from vcf2report import config
+
     if config.offline():
         raise SystemExit("network egress required: set VCF2REPORT_ALLOW_NETWORK=1")
 
@@ -275,25 +315,37 @@ def main() -> int:
     # One task per chromosome: each opens ONE remote handle and reuses it for all
     # of that chromosome's windows (reopening a 20 GB file per batch is what made
     # the proxy refuse connections). Low --workers keeps only a few handles open.
-    print(f"sample={args.sample} chroms={len(chroms)} workers={args.workers}", flush=True)
+    print(
+        f"sample={args.sample} chroms={len(chroms)} workers={args.workers}", flush=True
+    )
     t0 = time.time()
     per_chrom: dict[str, int] = {}
     done = 0
     with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        futs = {ex.submit(process_batch, c, args.sample, windows_by_chrom[c],
-                          raw_intervals[c], tmp / f"{c}.0.rows"): c
-                for c in chroms}
+        futs = {
+            ex.submit(
+                process_batch,
+                c,
+                args.sample,
+                windows_by_chrom[c],
+                raw_intervals[c],
+                tmp / f"{c}.0.rows",
+            ): c
+            for c in chroms
+        }
         failed = 0
         for fut in as_completed(futs):
             c = futs[fut]
             try:
                 _, n, _ = fut.result()
                 per_chrom[c] = n
-                print(f"  {c}: {n} carriers [{time.time()-t0:.0f}s]", flush=True)
-            except Exception as e:            # a chromosome that fails is simply not
-                failed += 1                   # written; a resume run retries it
-                print(f"  ! {c} failed: {type(e).__name__} "
-                      f"[{time.time()-t0:.0f}s]", flush=True)
+                print(f"  {c}: {n} carriers [{time.time() - t0:.0f}s]", flush=True)
+            except Exception as e:  # a chromosome that fails is simply not
+                failed += 1  # written; a resume run retries it
+                print(
+                    f"  ! {c} failed: {type(e).__name__} [{time.time() - t0:.0f}s]",
+                    flush=True,
+                )
             done += 1
 
     # merge batches per chromosome, sorted by position, into one VCF
@@ -317,9 +369,15 @@ def main() -> int:
                 w.write(line + "\n")
             total += len(rows)
     dt = time.time() - t0
-    status = "COMPLETE" if missing == 0 else f"PARTIAL ({missing} chroms missing — rerun to resume)"
-    print(f"\nWrote {total} real exome variants for {args.sample} to {out} "
-          f"in {dt:.0f}s [{status}]")
+    status = (
+        "COMPLETE"
+        if missing == 0
+        else f"PARTIAL ({missing} chroms missing — rerun to resume)"
+    )
+    print(
+        f"\nWrote {total} real exome variants for {args.sample} to {out} "
+        f"in {dt:.0f}s [{status}]"
+    )
     return 0
 
 

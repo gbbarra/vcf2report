@@ -1,16 +1,24 @@
 """In-frame indels must be recognised regardless of annotator term (VEP inframe_insertion/
 deletion, SnpEff disruptive_/conservative_inframe_*, or a generic inframe_indel) — both by the
 impact filter (so they are not dropped before classification) and by PM4."""
+
 from vcf2report.acmg.criteria import pm4
 from vcf2report.models import Annotation, Variant
 from vcf2report.vcf.filter import filter_variants, is_impactful, is_inframe_indel
 
-INFRAME_TERMS = ("inframe_insertion", "inframe_deletion", "disruptive_inframe_deletion",
-                 "conservative_inframe_insertion", "inframe_indel")
+INFRAME_TERMS = (
+    "inframe_insertion",
+    "inframe_deletion",
+    "disruptive_inframe_deletion",
+    "conservative_inframe_insertion",
+    "inframe_indel",
+)
 
 
 def _v(cons):
-    return Variant(chrom="1", pos=100, ref="ATCTCT", alt="A", gene="G", consequence=cons)
+    return Variant(
+        chrom="1", pos=100, ref="ATCTCT", alt="A", gene="G", consequence=cons
+    )
 
 
 def test_inframe_terms_recognised_by_filter_and_pm4():

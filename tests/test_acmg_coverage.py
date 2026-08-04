@@ -8,6 +8,7 @@ These tests make the claim enforceable — the registry must hold exactly the 28
 et al. 2015, the engine must emit all of them in canonical order, and docs/ACMG_CRITERIA.md must
 agree with the code about how each one is decided.
 """
+
 import re
 from pathlib import Path
 
@@ -19,18 +20,48 @@ from vcf2report.models import Annotation, Variant
 
 # Richards et al., Genet Med 2015 — the complete set, in the canonical reporting order.
 ACMG_28 = [
-    "PVS1", "PS1", "PS2", "PS3", "PS4",
-    "PM1", "PM2", "PM3", "PM4", "PM5", "PM6",
-    "PP1", "PP2", "PP3", "PP4", "PP5",
-    "BA1", "BS1", "BS2", "BS3", "BS4",
-    "BP1", "BP2", "BP3", "BP4", "BP5", "BP6", "BP7",
+    "PVS1",
+    "PS1",
+    "PS2",
+    "PS3",
+    "PS4",
+    "PM1",
+    "PM2",
+    "PM3",
+    "PM4",
+    "PM5",
+    "PM6",
+    "PP1",
+    "PP2",
+    "PP3",
+    "PP4",
+    "PP5",
+    "BA1",
+    "BS1",
+    "BS2",
+    "BS3",
+    "BS4",
+    "BP1",
+    "BP2",
+    "BP3",
+    "BP4",
+    "BP5",
+    "BP6",
+    "BP7",
 ]
 DOC = Path(__file__).resolve().parent.parent / "docs" / "ACMG_CRITERIA.md"
 
 
 def _v():
-    return Variant(chrom="1", pos=100, ref="C", alt="T", gene="TESTG",
-                   consequence="missense_variant", hgvs_p="p.Arg123Cys")
+    return Variant(
+        chrom="1",
+        pos=100,
+        ref="C",
+        alt="T",
+        gene="TESTG",
+        consequence="missense_variant",
+        hgvs_p="p.Arg123Cys",
+    )
 
 
 def _results():
@@ -78,14 +109,18 @@ def test_model_adjudicated_criteria_are_the_judgement_calls():
 def test_model_and_na_criteria_never_default_to_met():
     for cr in _results():
         if _kind(cr) != "engine":
-            assert cr.met is False, f"{cr.code} defaulted to met without engine evidence"
+            assert cr.met is False, (
+                f"{cr.code} defaulted to met without engine evidence"
+            )
 
 
 # --- the doc must not drift from the code -----------------------------------
 def _doc_rows() -> dict[str, str]:
     """code -> 'decided by', parsed from the tables in docs/ACMG_CRITERIA.md."""
     rows = {}
-    for m in re.finditer(r"^\|\s*`(\w+)`\s*\|[^|]*\|\s*([^|]+?)\s*\|", DOC.read_text(), re.M):
+    for m in re.finditer(
+        r"^\|\s*`(\w+)`\s*\|[^|]*\|\s*([^|]+?)\s*\|", DOC.read_text(), re.M
+    ):
         rows[m.group(1)] = m.group(2)
     return rows
 
@@ -115,21 +150,27 @@ def test_every_registered_criterion_is_on_a_known_side():
     so a future benign criterion would be scored as pathogenic evidence, silently. Two such
     criteria would combine to `Pathogenic [PATH-2 (>=2 Strong)]`. Pin the invariant."""
     from vcf2report.acmg.rules import BENIGN_CODES, side_of
+
     registered = set(all_criteria())
     for code in registered:
         expected = "benign" if code.startswith("B") else "pathogenic"
         assert side_of(code) == expected, (
-            f"{code} is scored as {side_of(code)} evidence; add it to rules.BENIGN_CODES")
+            f"{code} is scored as {side_of(code)} evidence; add it to rules.BENIGN_CODES"
+        )
     # ...and nothing stale in the other direction (reserved simulation codes excepted).
     from vcf2report.acmg import rules
+
     stale = (BENIGN_CODES - registered) - {rules.HYPOTHETICAL_BENIGN}
-    assert not stale, f"BENIGN_CODES names criteria that are not registered: {sorted(stale)}"
+    assert not stale, (
+        f"BENIGN_CODES names criteria that are not registered: {sorted(stale)}"
+    )
 
 
 def test_reserved_simulation_codes_are_not_real_criteria():
     """explore.missing_evidence feeds these to rules.combine; if an evaluator ever claimed one
     of the names, the simulation would double-count a real criterion."""
     from vcf2report.acmg import rules
+
     for code in (rules.HYPOTHETICAL_PATHOGENIC, rules.HYPOTHETICAL_BENIGN):
         assert code not in all_criteria()
     assert rules.side_of(rules.HYPOTHETICAL_BENIGN) == "benign"
@@ -138,6 +179,7 @@ def test_reserved_simulation_codes_are_not_real_criteria():
 
 def _codes_in(text, prefix_ok=("PVS", "PS", "PM", "PP", "BA", "BS", "BP")):
     import re
+
     return {c for c in re.findall(r"\b(?:PVS|PS|PM|PP|BA|BS|BP)\d\b", text)}
 
 
@@ -151,19 +193,25 @@ def test_rendered_report_criterion_lists_match_the_registry():
     from vcf2report.models import Annotation, Variant
     from vcf2report.acmg.engine import evaluate_criteria
 
-    results = evaluate_criteria(Variant(chrom="1", pos=1, ref="A", alt="T"), Annotation())
+    results = evaluate_criteria(
+        Variant(chrom="1", pos=1, ref="A", alt="T"), Annotation()
+    )
     na = {c.code for c in results if not c.applies}
     model = {c.code for c in results if c.applies and c.adjudicated_by == "model"}
 
     template = pathlib.Path("templates/report.md.j2").read_text()
     for line in template.splitlines():
         if "reported as N/A" in line:
-            assert _codes_in(line) == na, f"template N/A list {_codes_in(line)} != registry {na}"
+            assert _codes_in(line) == na, (
+                f"template N/A list {_codes_in(line)} != registry {na}"
+            )
         if "Judgment criteria" in line:
-            assert _codes_in(line) == model, \
+            assert _codes_in(line) == model, (
                 f"template judgment list {_codes_in(line)} != registry {model}"
+            )
 
     from vcf2report.report import render
+
     builtin = pathlib.Path(render.__file__).read_text()
     for line in builtin.splitlines():
         if "reported as N/A" in line:

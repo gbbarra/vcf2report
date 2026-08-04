@@ -20,6 +20,7 @@ over an af_grpmax-only table; the per-population AFs reach parity with a lakehou
 Needs ``bcftools`` (stream/extract) and ``duckdb`` (write Parquet). ~1 GB output for
 the full v4.1 joint (29.6M variants, incl. per-population AFs); the raw VCFs are never kept.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -51,26 +52,47 @@ def _pops(info_prefix: str, pops):
 _PRESETS = {
     "joint": (
         f"{_GCS}/joint/gnomad.joint.v4.1.sites.{{chrom}}.vcf.bgz",
-        [("af", "AF_joint"), ("af_grpmax", "AF_grpmax_joint"), ("ac", "AC_joint"),
-         ("an", "AN_joint"), ("nhomalt", "nhomalt_joint"),
-         ("faf95", "fafmax_faf95_max_joint"), ("grpmax_pop", "grpmax_joint")]
+        [
+            ("af", "AF_joint"),
+            ("af_grpmax", "AF_grpmax_joint"),
+            ("ac", "AC_joint"),
+            ("an", "AN_joint"),
+            ("nhomalt", "nhomalt_joint"),
+            ("faf95", "fafmax_faf95_max_joint"),
+            ("grpmax_pop", "grpmax_joint"),
+        ]
         + _pops("AF_joint", _POPS),
     ),
     "exomes": (
         f"{_GCS}/exomes/gnomad.exomes.v4.1.sites.{{chrom}}.vcf.bgz",
-        [("af", "AF"), ("af_grpmax", "AF_grpmax"), ("ac", "AC"), ("an", "AN"),
-         ("nhomalt", "nhomalt"), ("faf95", "fafmax_faf95_max"), ("grpmax_pop", "grpmax")]
+        [
+            ("af", "AF"),
+            ("af_grpmax", "AF_grpmax"),
+            ("ac", "AC"),
+            ("an", "AN"),
+            ("nhomalt", "nhomalt"),
+            ("faf95", "fafmax_faf95_max"),
+            ("grpmax_pop", "grpmax"),
+        ]
         + _pops("AF", _POPS_EXOMES),
     ),
 }
 _LEAD = ["chrom", "pos", "ref", "alt", "filter"]
-_NUMERIC = {"pos": "INTEGER", "af": "DOUBLE", "af_grpmax": "DOUBLE", "ac": "BIGINT",
-            "an": "BIGINT", "nhomalt": "BIGINT", "faf95": "DOUBLE",
-            **{f"af_{p}": "DOUBLE" for p in _POPS}}
+_NUMERIC = {
+    "pos": "INTEGER",
+    "af": "DOUBLE",
+    "af_grpmax": "DOUBLE",
+    "ac": "BIGINT",
+    "an": "BIGINT",
+    "nhomalt": "BIGINT",
+    "faf95": "DOUBLE",
+    **{f"af_{p}": "DOUBLE" for p in _POPS},
+}
 
 
 def _which(tool: str) -> bool:
     from shutil import which
+
     return which(tool) is not None
 
 
@@ -124,17 +146,40 @@ def _download(url_tmpl: str, chrom: str, dl_dir: str) -> tuple[str, list[Path]]:
     Path(dl_dir).mkdir(parents=True, exist_ok=True)
     bgz = Path(dl_dir) / Path(url).name
     tbi = Path(str(bgz) + ".tbi")
-    for u, dst in [(url + ".tbi", tbi), (url, bgz)]:   # index first (small), then data
+    for u, dst in [(url + ".tbi", tbi), (url, bgz)]:  # index first (small), then data
         print(f"[{label}] downloading {dst.name} ...", file=sys.stderr)
-        subprocess.run(["curl", "-fsSL", "-C", "-", "--retry", "10", "--retry-delay", "5",
-                        "-o", str(dst), u], check=True)
+        subprocess.run(
+            [
+                "curl",
+                "-fsSL",
+                "-C",
+                "-",
+                "--retry",
+                "10",
+                "--retry-delay",
+                "5",
+                "-o",
+                str(dst),
+                u,
+            ],
+            check=True,
+        )
     return str(bgz), [bgz, tbi]
 
 
-def build_chrom(chrom: str, url_tmpl: str, fields, src: str | None,
-                out_dir: Path, region: str | None, bed: str | None = None,
-                download_dir: str | None = None, preset: str | None = None) -> int:
+def build_chrom(
+    chrom: str,
+    url_tmpl: str,
+    fields,
+    src: str | None,
+    out_dir: Path,
+    region: str | None,
+    bed: str | None = None,
+    download_dir: str | None = None,
+    preset: str | None = None,
+) -> int:
     import duckdb
+
     label = chrom if chrom.lower().startswith("chr") else f"chr{chrom}"
     cols = _LEAD + [out for out, _info in fields]
     part_dir = out_dir / f"chrom={label}"
@@ -145,10 +190,15 @@ def build_chrom(chrom: str, url_tmpl: str, fields, src: str | None,
     # A partition is only reusable if it was built under the SAME scope; otherwise a later
     # broader build (dropping --bed, or switching preset) would silently reuse a narrow
     # slice and then declare mode=full over incomplete contigs -> fabricated absence.
-    scope = {"region": region, "bed": (str(Path(bed).resolve()) if bed else None),
-             "preset": preset}
+    scope = {
+        "region": region,
+        "bed": (str(Path(bed).resolve()) if bed else None),
+        "preset": preset,
+    }
 
-    if parquet.exists() and parquet.stat().st_size > 0:   # resume — only on a scope match
+    if (
+        parquet.exists() and parquet.stat().st_size > 0
+    ):  # resume — only on a scope match
         prev = None
         if scope_file.exists():
             try:
@@ -157,9 +207,14 @@ def build_chrom(chrom: str, url_tmpl: str, fields, src: str | None,
                 prev = None
         if prev == scope:
             con = duckdb.connect()
-            n = con.execute(f"SELECT count(*) FROM read_parquet('{parquet}')").fetchone()[0]
+            n = con.execute(
+                f"SELECT count(*) FROM read_parquet('{parquet}')"
+            ).fetchone()[0]
             con.close()
-            print(f"[{label}] {n:,} variants (already built, same scope — skipped)", file=sys.stderr)
+            print(
+                f"[{label}] {n:,} variants (already built, same scope — skipped)",
+                file=sys.stderr,
+            )
             return n
         print(f"[{label}] scope changed — rebuilding", file=sys.stderr)
 
@@ -169,8 +224,16 @@ def build_chrom(chrom: str, url_tmpl: str, fields, src: str | None,
     else:
         source = _source(url_tmpl, chrom, src)
 
-    cmd = ["bcftools", "query", "-f", _bcftools_fmt(fields).replace("\\t", "\t").replace("\\n", "\n")]
-    cmd += ["-i", 'FILTER="PASS"']   # PASS-only frequencies (ClinGen filtering-AF standard)
+    cmd = [
+        "bcftools",
+        "query",
+        "-f",
+        _bcftools_fmt(fields).replace("\\t", "\t").replace("\\n", "\n"),
+    ]
+    cmd += [
+        "-i",
+        'FILTER="PASS"',
+    ]  # PASS-only frequencies (ClinGen filtering-AF standard)
     if region:
         cmd += ["-r", region]
     if bed:
@@ -178,66 +241,98 @@ def build_chrom(chrom: str, url_tmpl: str, fields, src: str | None,
         # the exome-panel intervals via the tabix index, not the whole ~17-67 GB file).
         chrom_bed = part_dir / "_regions.bed"
         want = (label, chrom)
-        rows = [ln for ln in Path(bed).read_text().splitlines()
-                if ln and not ln.startswith(("#", "track", "browser"))
-                and ln.split("\t", 1)[0] in want]
+        rows = [
+            ln
+            for ln in Path(bed).read_text().splitlines()
+            if ln
+            and not ln.startswith(("#", "track", "browser"))
+            and ln.split("\t", 1)[0] in want
+        ]
         chrom_bed.write_text("\n".join(rows) + "\n")
         if not rows:
-            print(f"[{label}] no BED regions for this contig — skipped", file=sys.stderr)
+            print(
+                f"[{label}] no BED regions for this contig — skipped", file=sys.stderr
+            )
             for f in cleanup:
                 f.unlink(missing_ok=True)
             return 0
         cmd += ["-R", str(chrom_bed)]
     cmd.append(source)
-    print(f"[{label}] {'extracting from ' + Path(source).name if cleanup or src else 'streaming ' + source} ...",
-          file=sys.stderr)
+    print(
+        f"[{label}] {'extracting from ' + Path(source).name if cleanup or src else 'streaming ' + source} ...",
+        file=sys.stderr,
+    )
     with open(tsv, "w") as fh:
         p = subprocess.run(cmd, stdout=fh, stderr=subprocess.PIPE)
     if p.returncode != 0:
         sys.stderr.write(p.stderr.decode("utf-8", "replace")[-500:] + "\n")
         tsv.unlink(missing_ok=True)
-        for f in cleanup:                 # keep the (resumable) download for a retry? no —
-            f.unlink(missing_ok=True)     # a failed extract is likely a bad/partial file
+        for f in cleanup:  # keep the (resumable) download for a retry? no —
+            f.unlink(missing_ok=True)  # a failed extract is likely a bad/partial file
         return 0
 
     con = duckdb.connect()
     con.execute(_copy_sql(tsv, parquet, cols))
     n = con.execute(f"SELECT count(*) FROM read_parquet('{parquet}')").fetchone()[0]
     con.close()
-    tsv.unlink(missing_ok=True)           # never keep the raw extract
-    for f in cleanup:                     # free the ~one-chrom scratch before the next
+    tsv.unlink(missing_ok=True)  # never keep the raw extract
+    for f in cleanup:  # free the ~one-chrom scratch before the next
         f.unlink(missing_ok=True)
-    scope_file.write_text(json.dumps(scope))   # record scope so resume only reuses a match
+    scope_file.write_text(
+        json.dumps(scope)
+    )  # record scope so resume only reuses a match
     print(f"[{label}] {n:,} variants -> {parquet}", file=sys.stderr)
     return n
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--preset", choices=list(_PRESETS), default="joint",
-                    help="gnomAD dataset (default: joint = exomes+genomes v4.1).")
+    ap.add_argument(
+        "--preset",
+        choices=list(_PRESETS),
+        default="joint",
+        help="gnomAD dataset (default: joint = exomes+genomes v4.1).",
+    )
     ap.add_argument("--chroms", default="1-22,X,Y", help="e.g. 21 | 1-22,X,Y")
     ap.add_argument("--src", help="dir of local per-chrom gnomAD VCFs (no network).")
-    ap.add_argument("--download-dir", help="download each chrom's VCF here (resumable), "
-                    "process it locally, then delete it — robust vs streaming (which stalls "
-                    "on remote reads) and needs only ~one chrom of scratch at a time. Point "
-                    "at a disk with room (e.g. an external SSD).")
-    ap.add_argument("--region", help="a single region (e.g. chr21:31659622-31668931) "
-                                     "for a quick end-to-end test on one chromosome.")
-    ap.add_argument("--bed", help="restrict to an exome-panel BED (the genomic-lakehouse "
-                                  "method: fetch only the panel intervals via the tabix "
-                                  "index — ~600 MB total, feasible from a laptop). Best "
-                                  "with --preset exomes. Produces a panel-scoped store.")
-    ap.add_argument("--out", default=str(Path(config.GNOMAD_LOCAL_TABIX).parent / "gnomad_parquet"),
-                    help="output partitioned-parquet dir (default: %(default)s).")
+    ap.add_argument(
+        "--download-dir",
+        help="download each chrom's VCF here (resumable), "
+        "process it locally, then delete it — robust vs streaming (which stalls "
+        "on remote reads) and needs only ~one chrom of scratch at a time. Point "
+        "at a disk with room (e.g. an external SSD).",
+    )
+    ap.add_argument(
+        "--region",
+        help="a single region (e.g. chr21:31659622-31668931) "
+        "for a quick end-to-end test on one chromosome.",
+    )
+    ap.add_argument(
+        "--bed",
+        help="restrict to an exome-panel BED (the genomic-lakehouse "
+        "method: fetch only the panel intervals via the tabix "
+        "index — ~600 MB total, feasible from a laptop). Best "
+        "with --preset exomes. Produces a panel-scoped store.",
+    )
+    ap.add_argument(
+        "--out",
+        default=str(Path(config.GNOMAD_LOCAL_TABIX).parent / "gnomad_parquet"),
+        help="output partitioned-parquet dir (default: %(default)s).",
+    )
     args = ap.parse_args(argv)
 
     if not args.src and config.offline():
-        print("ERROR: needs network to stream gnomAD (or pass --src DIR of local VCFs).\n"
-              "  Set VCF2REPORT_ALLOW_NETWORK=1.", file=sys.stderr)
+        print(
+            "ERROR: needs network to stream gnomAD (or pass --src DIR of local VCFs).\n"
+            "  Set VCF2REPORT_ALLOW_NETWORK=1.",
+            file=sys.stderr,
+        )
         return 2
     if not _which("bcftools"):
-        print("ERROR: bcftools not found (conda install -c bioconda bcftools).", file=sys.stderr)
+        print(
+            "ERROR: bcftools not found (conda install -c bioconda bcftools).",
+            file=sys.stderr,
+        )
         return 2
     try:
         import duckdb  # noqa: F401
@@ -254,8 +349,17 @@ def main(argv: list[str] | None = None) -> int:
     built: dict[str, int] = {}
     total = 0
     for c in chroms:
-        n = build_chrom(c, url_tmpl, fields, args.src, out_dir, args.region, args.bed,
-                        args.download_dir, args.preset)
+        n = build_chrom(
+            c,
+            url_tmpl,
+            fields,
+            args.src,
+            out_dir,
+            args.region,
+            args.bed,
+            args.download_dir,
+            args.preset,
+        )
         built[c] = n
         total += n
 
@@ -273,28 +377,49 @@ def main(argv: list[str] | None = None) -> int:
         mode = "bed"
     else:
         mode = "partial"
-    meta = {"mode": mode, "contigs": sorted(_pref(c) for c in ok),
-            "preset": args.preset, "rows": total,
-            "source": f"gnomAD v4.1 {args.preset}" + (" (BED-sliced)" if args.bed else "")}
+    meta = {
+        "mode": mode,
+        "contigs": sorted(_pref(c) for c in ok),
+        "preset": args.preset,
+        "rows": total,
+        "source": f"gnomAD v4.1 {args.preset}" + (" (BED-sliced)" if args.bed else ""),
+    }
     if args.bed:
         import shutil
-        shutil.copy(args.bed, out_dir / "panel.bed")   # bundle so the store is self-contained
-        meta["bed_path"] = "panel.bed"                  # resolved relative to the store dir
+
+        shutil.copy(
+            args.bed, out_dir / "panel.bed"
+        )  # bundle so the store is self-contained
+        meta["bed_path"] = "panel.bed"  # resolved relative to the store dir
     (out_dir / "_meta.json").write_text(json.dumps(meta, indent=2) + "\n")
     try:
         from vcf2report import stores
-        stores.write_manifest("gnomad", path=str(out_dir),
-                              source={"name": "gnomAD", "release": "v4.1",
-                                      "preset": args.preset, "note": "frozen release"})
+
+        stores.write_manifest(
+            "gnomad",
+            path=str(out_dir),
+            source={
+                "name": "gnomAD",
+                "release": "v4.1",
+                "preset": args.preset,
+                "note": "frozen release",
+            },
+        )
     except Exception as exc:
         _warn(f"manifest not stamped: {exc}")
 
-    print(f"\nDone ({meta['mode']}): {total:,} variants across {len(ok)} chrom(s) -> {out_dir}",
-          file=sys.stderr)
+    print(
+        f"\nDone ({meta['mode']}): {total:,} variants across {len(ok)} chrom(s) -> {out_dir}",
+        file=sys.stderr,
+    )
     if mode == "partial" and not args.region:
-        _warn("mode=partial: some chromosomes did not build — the client will NOT assert "
-              "absence off this store (falls back instead). Re-run to complete.")
-    print(f"Point vcf2report at it: VCF2REPORT_GNOMAD_PARQUET={out_dir}", file=sys.stderr)
+        _warn(
+            "mode=partial: some chromosomes did not build — the client will NOT assert "
+            "absence off this store (falls back instead). Re-run to complete."
+        )
+    print(
+        f"Point vcf2report at it: VCF2REPORT_GNOMAD_PARQUET={out_dir}", file=sys.stderr
+    )
     return 0
 
 

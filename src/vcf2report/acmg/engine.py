@@ -4,6 +4,7 @@ Evaluates every registered criterion against a variant + its annotation, then
 applies the combining rules to reach a 5-tier call. The output is the full
 criterion trail (not just the tier) so the report can show *why*.
 """
+
 from __future__ import annotations
 
 from ..models import Annotation, Classification, CriterionResult, Variant
@@ -11,14 +12,39 @@ from . import criteria as _criteria
 from . import rules as _rules
 
 
-def evaluate_criteria(variant: Variant, annotation: Annotation) -> list[CriterionResult]:
+def evaluate_criteria(
+    variant: Variant, annotation: Annotation
+) -> list[CriterionResult]:
     """Run all criterion evaluators; return results in a stable, readable order."""
     order = [
-        "PVS1", "PS1", "PS2", "PS3", "PS4",
-        "PM1", "PM2", "PM3", "PM4", "PM5", "PM6",
-        "PP1", "PP2", "PP3", "PP4", "PP5",
-        "BA1", "BS1", "BS2", "BS3", "BS4",
-        "BP1", "BP2", "BP3", "BP4", "BP5", "BP6", "BP7",
+        "PVS1",
+        "PS1",
+        "PS2",
+        "PS3",
+        "PS4",
+        "PM1",
+        "PM2",
+        "PM3",
+        "PM4",
+        "PM5",
+        "PM6",
+        "PP1",
+        "PP2",
+        "PP3",
+        "PP4",
+        "PP5",
+        "BA1",
+        "BS1",
+        "BS2",
+        "BS3",
+        "BS4",
+        "BP1",
+        "BP2",
+        "BP3",
+        "BP4",
+        "BP5",
+        "BP6",
+        "BP7",
     ]
     fns = _criteria.all_criteria()
     results: list[CriterionResult] = []

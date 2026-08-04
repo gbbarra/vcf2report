@@ -1,4 +1,5 @@
 """Annotation detection + the ACMG capability map (Stages 3 & 5 of the guided flow)."""
+
 from vcf2report import status
 from vcf2report.inspect import _detect_annotation, analysis_capabilities
 from vcf2report.models import Variant
@@ -29,20 +30,34 @@ def test_detect_unannotated():
 
 
 def _insp(annotated=True, source="consequence", build="GRCh38"):
-    return {"annotated": annotated, "annotation_source": source, "build": build,
-            "total_variants": 100, "pass_filter": 90}
+    return {
+        "annotated": annotated,
+        "annotation_source": source,
+        "build": build,
+        "total_variants": 100,
+        "pass_filter": 90,
+    }
 
 
 def _rd(gnomad=True, am=True, clinvar=True, hpo=True):
     def s(p):
         return {"present": p, "path": None, "enables": ""}
-    return {"stores": {"gnomad_parquet": s(gnomad), "alphamissense": s(am),
-                       "clinvar_tabix": s(clinvar), "hpo": s(hpo)},
-            "bundled_local_data": {"clinvar_slice": clinvar}}
+
+    return {
+        "stores": {
+            "gnomad_parquet": s(gnomad),
+            "alphamissense": s(am),
+            "clinvar_tabix": s(clinvar),
+            "hpo": s(hpo),
+        },
+        "bundled_local_data": {"clinvar_slice": clinvar},
+    }
 
 
 def test_caps_unannotated_limits_lof_criteria():
-    caps = analysis_capabilities("x", inspection=_insp(annotated=False, source=None), rd=_rd())["criteria"]
+    caps = analysis_capabilities(
+        "x", inspection=_insp(annotated=False, source=None), rd=_rd()
+    )["criteria"]
     assert caps["PVS1 (LoF)"]["status"] == "limited"
     assert caps["PM4 (in-frame / stop-loss)"]["status"] == "limited"
 
@@ -54,7 +69,9 @@ def test_caps_single_proband_segregation_na():
 
 def test_caps_gnomad_absent_limits_frequency():
     # The never-fabricate-absence invariant surfaced honestly: no store -> frequency limited.
-    caps = analysis_capabilities("x", inspection=_insp(), rd=_rd(gnomad=False))["criteria"]
+    caps = analysis_capabilities("x", inspection=_insp(), rd=_rd(gnomad=False))[
+        "criteria"
+    ]
     assert caps["PM2 / BA1 / BS1 (frequency)"]["status"] == "limited"
     assert "over-call" in caps["PM2 / BA1 / BS1 (frequency)"]["reason"]
 
@@ -65,7 +82,9 @@ def test_caps_missense_limited_without_alphamissense():
 
 
 def test_caps_all_available_when_fully_provisioned():
-    caps = analysis_capabilities("x", hpo_given=True, inspection=_insp(), rd=_rd())["criteria"]
+    caps = analysis_capabilities("x", hpo_given=True, inspection=_insp(), rd=_rd())[
+        "criteria"
+    ]
     assert caps["PVS1 (LoF)"]["status"] == "available"
     assert caps["PP3 / BP4 (missense)"]["status"] == "available"
     assert caps["PM2 / BA1 / BS1 (frequency)"]["status"] == "available"
@@ -73,7 +92,9 @@ def test_caps_all_available_when_fully_provisioned():
 
 
 def test_caps_pp4_na_without_hpo_store():
-    caps = analysis_capabilities("x", hpo_given=True, inspection=_insp(), rd=_rd(hpo=False))["criteria"]
+    caps = analysis_capabilities(
+        "x", hpo_given=True, inspection=_insp(), rd=_rd(hpo=False)
+    )["criteria"]
     assert caps["PP4 (phenotype)"]["status"] == "na"
 
 
@@ -105,7 +126,11 @@ def test_annotation_readiness_ignores_vcfanno(tmp_path, monkeypatch):
     jar = tmp_path / "snpEff.jar"
     jar.write_text("")
     monkeypatch.setenv("SNPEFF_JAR", str(jar))
-    monkeypatch.setattr(status.shutil, "which", lambda t: "/usr/bin/bcftools" if t == "bcftools" else None)
+    monkeypatch.setattr(
+        status.shutil,
+        "which",
+        lambda t: "/usr/bin/bcftools" if t == "bcftools" else None,
+    )
     r = status.readiness()
     assert r["annotation_tools_on_path"]["vcfanno"] is False
     assert r["annotation_tools_installed"] is True
