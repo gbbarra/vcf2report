@@ -21,6 +21,7 @@ A variant absent from the table is reported as **unknown**, never as a checked z
 the table is a slice of one cohort, so a miss means "not in this table", not "confirmed
 absent locally". The criteria that read it say which databases were actually consulted.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -69,10 +70,22 @@ def lookup(variant: Variant) -> dict:
     row = _load_local().get(variant.key)
     if row is not None:
         af = _num(row, "af", float)
-        if af is None:                      # a row with no usable AF answers nothing
-            return {"af": None, "ac": None, "an": None,
-                    "_source": "local cohort (row present, no usable AF)"}
-        return {"af": af, "ac": _num(row, "ac", int), "an": _num(row, "an", int),
-                "_source": "local cohort (local table)"}
-    return {"af": None, "ac": None, "an": None,
-            "_source": "local cohort (not in local table)"}
+        if af is None:  # a row with no usable AF answers nothing
+            return {
+                "af": None,
+                "ac": None,
+                "an": None,
+                "_source": "local cohort (row present, no usable AF)",
+            }
+        return {
+            "af": af,
+            "ac": _num(row, "ac", int),
+            "an": _num(row, "an", int),
+            "_source": "local cohort (local table)",
+        }
+    return {
+        "af": None,
+        "ac": None,
+        "an": None,
+        "_source": "local cohort (not in local table)",
+    }

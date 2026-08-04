@@ -7,6 +7,7 @@ The residue index gives two distinct signals, and the split between them is what
   established the residue is;
 * **neighbouring residues** → PM1, and only when the query's own residue carries nothing.
 """
+
 import gzip
 
 from vcf2report.acmg.criteria import _pm5_strength, all_criteria
@@ -18,13 +19,27 @@ _pm5 = all_criteria()["PM5"]
 
 
 def _v(consequence="missense_variant", gene="TESTG", hgvs_p="p.Arg123Cys"):
-    return Variant(chrom="1", pos=100, ref="C", alt="T", gene=gene,
-                   consequence=consequence, hgvs_p=hgvs_p)
+    return Variant(
+        chrom="1",
+        pos=100,
+        ref="C",
+        alt="T",
+        gene=gene,
+        consequence=consequence,
+        hgvs_p=hgvs_p,
+    )
 
 
 def _hot(n_residues=4, n_changes=9, window=7, enrichment=3.5):
-    return {"n_residues": n_residues, "n_changes": n_changes, "window": window,
-            "residues": [], "enrichment": enrichment, "gene_baseline": 0.08, "available": True}
+    return {
+        "n_residues": n_residues,
+        "n_changes": n_changes,
+        "window": window,
+        "residues": [],
+        "enrichment": enrichment,
+        "gene_baseline": 0.08,
+        "available": True,
+    }
 
 
 def _ann(**kw):
@@ -95,21 +110,35 @@ def test_pm5_strength_needs_both_breadth_and_review_quality():
     # two single-submitter 1* records at one residue are suggestive, not Strong (that combination
     # otherwise carried a variant to Likely Pathogenic on two unreviewed submissions).
     assert _pm5_strength({"n_other": 3, "stars": 3}) == "strong"
-    assert _pm5_strength({"n_other": 2, "stars": 1}) == "moderate"    # breadth, no quality
-    assert _pm5_strength({"n_other": 1, "stars": 2}) == "moderate"    # quality, no breadth
+    assert (
+        _pm5_strength({"n_other": 2, "stars": 1}) == "moderate"
+    )  # breadth, no quality
+    assert (
+        _pm5_strength({"n_other": 1, "stars": 2}) == "moderate"
+    )  # quality, no breadth
     assert _pm5_strength({"n_other": 1, "stars": 1}) == "supporting"  # neither
     assert _pm5_strength(None) is None
 
 
 def test_pm5_applies_the_graded_strength():
-    strong = {"alt_aa": "His", "ref_aa": "Arg", "stars": 2, "n_other": 2,
-              "accession": "VCV000001"}
+    strong = {
+        "alt_aa": "His",
+        "ref_aa": "Arg",
+        "stars": 2,
+        "n_other": 2,
+        "accession": "VCV000001",
+    }
     cr = _pm5(_v(), _ann(clinvar_pm5=strong))
     assert cr.met and cr.applied_strength == "strong"
     assert "PM5_strong" in cr.reasoning
 
-    weak = {"alt_aa": "His", "ref_aa": "Arg", "stars": 1, "n_other": 1,
-            "accession": "VCV000002"}
+    weak = {
+        "alt_aa": "His",
+        "ref_aa": "Arg",
+        "stars": 1,
+        "n_other": 1,
+        "accession": "VCV000002",
+    }
     cr = _pm5(_v(), _ann(clinvar_pm5=weak))
     assert cr.met and cr.applied_strength == "supporting"
 
@@ -127,8 +156,11 @@ def test_pp2_stands_down_when_pm1_fires():
 
 def test_pp2_still_fires_without_a_hotspot():
     _pp2 = all_criteria()["PP2"]
-    a = _ann(clinvar_hotspot=_hot(n_residues=0, enrichment=0.0),
-             gene_mis_z=5.5, gene_missense_constrained=True)
+    a = _ann(
+        clinvar_hotspot=_hot(n_residues=0, enrichment=0.0),
+        gene_mis_z=5.5,
+        gene_missense_constrained=True,
+    )
     assert not _pm1(_v(), a).met
     assert _pp2(_v(), a).met
 
@@ -141,16 +173,38 @@ def _write_index(path, rows):
             w.write("\t".join(map(str, r)) + "\n")
 
 
-def test_hotspot_counts_neighbours_and_excludes_the_query_residue(tmp_path, monkeypatch):
+def test_hotspot_counts_neighbours_and_excludes_the_query_residue(
+    tmp_path, monkeypatch
+):
     from vcf2report import config
+
     fp = tmp_path / "res.tsv.gz"
-    _write_index(fp, [
-        ("HOTG", 100, "Arg", "Cys", 2, "1-1-A-T", "VCV1"),   # the query residue itself
-        ("HOTG", 102, "Gly", "Asp", 2, "1-2-A-T", "VCV2"),
-        ("HOTG", 104, "Leu", "Pro", 1, "1-3-A-T", "VCV3"),
-        ("HOTG", 105, "Val", "Met", 3, "1-4-A-T", "VCV4"),
-        ("HOTG", 130, "Ser", "Asn", 2, "1-5-A-T", "VCV5"),   # outside the +/-7 window
-    ])
+    _write_index(
+        fp,
+        [
+            (
+                "HOTG",
+                100,
+                "Arg",
+                "Cys",
+                2,
+                "1-1-A-T",
+                "VCV1",
+            ),  # the query residue itself
+            ("HOTG", 102, "Gly", "Asp", 2, "1-2-A-T", "VCV2"),
+            ("HOTG", 104, "Leu", "Pro", 1, "1-3-A-T", "VCV3"),
+            ("HOTG", 105, "Val", "Met", 3, "1-4-A-T", "VCV4"),
+            (
+                "HOTG",
+                130,
+                "Ser",
+                "Asn",
+                2,
+                "1-5-A-T",
+                "VCV5",
+            ),  # outside the +/-7 window
+        ],
+    )
     monkeypatch.setattr(config, "CLINVAR_RESIDUE_FROZEN", fp)
     monkeypatch.setattr(config, "CLINVAR_RESIDUE_LOCAL", None)
     # via monkeypatch so the cached index/baselines are restored at teardown — a plain assignment
@@ -159,7 +213,7 @@ def test_hotspot_counts_neighbours_and_excludes_the_query_residue(tmp_path, monk
     monkeypatch.setattr(clinvar_residue, "_baselines", {})
 
     h = clinvar_residue.hotspot("HOTG", 100)
-    assert h["n_residues"] == 3          # 102/104/105 — 100 itself excluded, 130 out of window
+    assert h["n_residues"] == 3  # 102/104/105 — 100 itself excluded, 130 out of window
     assert h["residues"] == [102, 104, 105]
     assert h["n_changes"] == 3
 
@@ -176,9 +230,16 @@ def test_hotspot_enrichment_is_relative_to_the_genes_own_density(tmp_path, monke
     residue every 2 aa across the whole span (an exhaustively studied gene, no local signal).
     """
     from vcf2report import config
-    rows = [("CLUSTER", p, "Arg", "Cys", 2, f"1-{p}-A-T", "VCV1") for p in (302, 304, 305)]
-    rows += [("CLUSTER", 900, "Arg", "Cys", 2, "1-900-A-T", "VCV1")]      # stretches the span
-    rows += [("DENSE", p, "Arg", "Cys", 2, f"2-{p}-A-T", "VCV2") for p in range(200, 400, 2)]
+
+    rows = [
+        ("CLUSTER", p, "Arg", "Cys", 2, f"1-{p}-A-T", "VCV1") for p in (302, 304, 305)
+    ]
+    rows += [
+        ("CLUSTER", 900, "Arg", "Cys", 2, "1-900-A-T", "VCV1")
+    ]  # stretches the span
+    rows += [
+        ("DENSE", p, "Arg", "Cys", 2, f"2-{p}-A-T", "VCV2") for p in range(200, 400, 2)
+    ]
     fp = tmp_path / "res.tsv.gz"
     _write_index(fp, rows)
     monkeypatch.setattr(config, "CLINVAR_RESIDUE_FROZEN", fp)
@@ -190,6 +251,8 @@ def test_hotspot_enrichment_is_relative_to_the_genes_own_density(tmp_path, monke
 
     tight = clinvar_residue.hotspot("CLUSTER", 303)
     spread = clinvar_residue.hotspot("DENSE", 303)
-    assert tight["n_residues"] == 3 and spread["n_residues"] >= 3   # same raw density...
+    assert tight["n_residues"] == 3 and spread["n_residues"] >= 3  # same raw density...
     assert tight["enrichment"] >= clinvar_residue.HOTSPOT_MIN_ENRICHMENT
-    assert spread["enrichment"] < clinvar_residue.HOTSPOT_MIN_ENRICHMENT  # ...different meaning
+    assert (
+        spread["enrichment"] < clinvar_residue.HOTSPOT_MIN_ENRICHMENT
+    )  # ...different meaning

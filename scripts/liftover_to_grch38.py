@@ -23,6 +23,7 @@ Notes / caveats:
   * On a '-' strand hit only SNVs are safe (reverse-complemented); indels,
     MNVs and symbolic ALTs on '-' are dropped and counted (skipped_strand).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -35,16 +36,14 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CHAIN = REPO_ROOT / "data" / "liftover" / "hg19ToHg38.over.chain.gz"
-CHAIN_URL = ("https://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/"
-             "hg19ToHg38.over.chain.gz")
+CHAIN_URL = (
+    "https://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz"
+)
 
 _ACGT = frozenset("ACGT")
 _COMP = {"A": "T", "T": "A", "C": "G", "G": "C"}
 
-_PROVENANCE = (
-    "##reference=GRCh38\n"
-    "##liftover=hg19ToHg38 via pyliftover\n"
-)
+_PROVENANCE = "##reference=GRCh38\n##liftover=hg19ToHg38 via pyliftover\n"
 
 
 def _truthy(val: str | None) -> bool:
@@ -71,12 +70,16 @@ def resolve_chain(chain_arg: str | None) -> Path | None:
         return DEFAULT_CHAIN
 
     if _truthy(os.environ.get("VCF2REPORT_ALLOW_NETWORK")):
-        print(f"Chain absent; downloading {CHAIN_URL}\n  -> {DEFAULT_CHAIN}",
-              file=sys.stderr)
+        print(
+            f"Chain absent; downloading {CHAIN_URL}\n  -> {DEFAULT_CHAIN}",
+            file=sys.stderr,
+        )
         try:
             DEFAULT_CHAIN.parent.mkdir(parents=True, exist_ok=True)
-            with urllib.request.urlopen(CHAIN_URL) as resp, \
-                    open(DEFAULT_CHAIN, "wb") as out:
+            with (
+                urllib.request.urlopen(CHAIN_URL) as resp,
+                open(DEFAULT_CHAIN, "wb") as out,
+            ):
                 shutil.copyfileobj(resp, out)
         except Exception as exc:  # network / IO — leave no partial file behind
             if DEFAULT_CHAIN.exists():
@@ -136,8 +139,12 @@ def _lift_record(fields: list[str], lo) -> list[str] | str | None:
     ref, alt = fields[3], fields[4]
 
     if strand == "-":
-        is_snv = (len(ref) == 1 and len(alt) == 1
-                  and ref.upper() in _ACGT and alt.upper() in _ACGT)
+        is_snv = (
+            len(ref) == 1
+            and len(alt) == 1
+            and ref.upper() in _ACGT
+            and alt.upper() in _ACGT
+        )
         if not is_snv:
             return "strand"  # indel/MNV/symbolic on '-' is not safe to flip
         ref = _COMP[ref.upper()]
@@ -169,8 +176,14 @@ def _write_header_line(line: str, fout, state: dict) -> None:
 
 
 def liftover(in_path: Path, out_path: Path, lo) -> dict:
-    counts = {"total": 0, "lifted": 0, "unmapped": 0, "ambiguous": 0,
-              "strand": 0, "malformed": 0}
+    counts = {
+        "total": 0,
+        "lifted": 0,
+        "unmapped": 0,
+        "ambiguous": 0,
+        "strand": 0,
+        "malformed": 0,
+    }
     state = {"first": True, "injected": False}
 
     with _open_text(in_path) as fin, open(out_path, "wt") as fout:
@@ -216,7 +229,8 @@ def liftover(in_path: Path, out_path: Path, lo) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
-        description="Lift a GRCh37/hg19 VCF over to GRCh38/hg38 (pyliftover).")
+        description="Lift a GRCh37/hg19 VCF over to GRCh38/hg38 (pyliftover)."
+    )
     ap.add_argument("input", help="input VCF (plain or .gz)")
     ap.add_argument("output", help="output VCF (plain text)")
     ap.add_argument("--chain", help="UCSC hg19->hg38 chain (.over.chain[.gz])")
@@ -225,8 +239,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         from pyliftover import LiftOver
     except ImportError:
-        print("ERROR: pyliftover is not installed. Run: pip install pyliftover",
-              file=sys.stderr)
+        print(
+            "ERROR: pyliftover is not installed. Run: pip install pyliftover",
+            file=sys.stderr,
+        )
         return 2
 
     in_path = Path(args.input).expanduser()

@@ -1,4 +1,5 @@
 """Regression tests for the adversarial-audit fixes."""
+
 from vcf2report import config
 from vcf2report.acmg.engine import classify
 from vcf2report.annotate import annotate_variant
@@ -35,8 +36,8 @@ def test_multiallelic_per_allele_metrics(tmp_path):
     assert g.zygosity == "het" and t.zygosity == "het"
     assert g.allele_balance == 0.5 and t.allele_balance == 0.5
     # non-carriers keep zygosity None
-    assert by_key["3-200-C-G"].zygosity is None   # 0/0 hom-ref
-    assert by_key["4-300-T-A"].zygosity is None   # ./. no-call
+    assert by_key["3-200-C-G"].zygosity is None  # 0/0 hom-ref
+    assert by_key["4-300-T-A"].zygosity is None  # ./. no-call
 
 
 # --- #7 carrier gate ---------------------------------------------------------
@@ -44,15 +45,17 @@ def test_carrier_gate_drops_noncarriers(tmp_path):
     variants, _, _ = parse_vcf(_write(tmp_path, MULTI))
     kept, dropped = apply_qc(variants)
     dropped_keys = {v.key for v, _ in dropped}
-    assert "3-200-C-G" in dropped_keys   # hom-ref never reportable
-    assert "4-300-T-A" in dropped_keys   # no-call never reportable
+    assert "3-200-C-G" in dropped_keys  # hom-ref never reportable
+    assert "4-300-T-A" in dropped_keys  # no-call never reportable
     assert "2-100-A-G" in {v.key for v in kept}
 
 
 # --- #1/#4 build detection ---------------------------------------------------
 def test_detect_build_does_not_misread_grch37_as_grch38():
-    hdr = ["##reference=/ref/human_g1k_v37.fasta",
-           "##contig=<ID=7,length=159138663>"]   # length contains "38"
+    hdr = [
+        "##reference=/ref/human_g1k_v37.fasta",
+        "##contig=<ID=7,length=159138663>",
+    ]  # length contains "38"
     assert detect_build(hdr) == "GRCh37"
 
 
@@ -62,22 +65,28 @@ def test_detect_build_unknown_returns_none():
 
 # --- #2/#5 shared zygosity helper -------------------------------------------
 def test_zygosity_helper_edge_cases():
-    assert zygosity(["1", "2"], 1) == "het"    # compound het, allele 1
-    assert zygosity(["1", "2"], 2) == "het"    # compound het, allele 2
-    assert zygosity([".", "."], 1) is None     # no-call
-    assert zygosity(["-1", "-1"], 1) is None   # cyvcf2 missing encoding
-    assert zygosity(["0", "0"], 1) is None      # hom-ref
+    assert zygosity(["1", "2"], 1) == "het"  # compound het, allele 1
+    assert zygosity(["1", "2"], 2) == "het"  # compound het, allele 2
+    assert zygosity([".", "."], 1) is None  # no-call
+    assert zygosity(["-1", "-1"], 1) is None  # cyvcf2 missing encoding
+    assert zygosity(["0", "0"], 1) is None  # hom-ref
     assert zygosity(["1", "1"], 1) == "hom"
     assert zygosity(["0", "1"], 1) == "het"
-    assert zygosity(["0", "2"], 1) is None      # carries a different ALT
+    assert zygosity(["0", "2"], 1) is None  # carries a different ALT
 
 
 # --- #8 build-gated annotation ----------------------------------------------
 def test_untrusted_build_skips_coordinate_annotation():
-    v = Variant(chrom="2", pos=166003360, ref="C", alt="T", gene="SCN1A",
-                consequence="stop_gained")
+    v = Variant(
+        chrom="2",
+        pos=166003360,
+        ref="C",
+        alt="T",
+        gene="SCN1A",
+        consequence="stop_gained",
+    )
     a = annotate_variant(v, [], build_trusted=False)
-    assert a.gnomad_af is None            # unknown, not a fabricated 0.0
+    assert a.gnomad_af is None  # unknown, not a fabricated 0.0
     assert a.clinvar_significance is None
     # PM2 must not fire on unavailable frequency
     pm2 = next(c for c in classify(v, a).criteria if c.code == "PM2")
@@ -86,12 +95,13 @@ def test_untrusted_build_skips_coordinate_annotation():
 
 # --- #12 PP3/BP4 mutual exclusivity -----------------------------------------
 def test_insilico_conflict_fires_neither_pp3_nor_bp4():
-    v = Variant(chrom="1", pos=1, ref="A", alt="G", gene="X",
-                consequence="missense_variant")
+    v = Variant(
+        chrom="1", pos=1, ref="A", alt="G", gene="X", consequence="missense_variant"
+    )
     a = Annotation(gnomad_af=0.0, local_cohort_af=0.0, revel=0.95, cadd_phred=5.0)
     codes = {c.code: c for c in classify(v, a).criteria}
-    assert codes["PP3"].met is False      # revel says pathogenic...
-    assert codes["BP4"].met is False      # ...cadd says benign -> conflict -> neither
+    assert codes["PP3"].met is False  # revel says pathogenic...
+    assert codes["BP4"].met is False  # ...cadd says benign -> conflict -> neither
 
 
 # --- #3/#10 report render ----------------------------------------------------
@@ -100,24 +110,26 @@ def test_report_render_no_placeholder_and_expected_content():
     report = run_pipeline(config.SAMPLE_VCF, hpo_terms=hpo)
     md = render_markdown(report)
     assert "(timestamp filled by caller)" not in md
-    assert report.generated                       # real ISO timestamp
+    assert report.generated  # real ISO timestamp
     for gene in ("SCN1A", "PAX6", "RB1", "KCNQ2", "CACNA1A"):
         assert gene in md
-    assert "OBSCN" in md                          # reaches the shortlist without a cohort
+    assert "OBSCN" in md  # reaches the shortlist without a cohort
     assert "Candidates classified: 6" in md
 
 
 def test_primary_vs_secondary_findings_split():
     from vcf2report.report.assemble import split_findings
-    report = run_pipeline(config.SAMPLE_VCF,
-                          hpo_terms=["HP:0001250", "HP:0002133", "HP:0011097"])
+
+    report = run_pipeline(
+        config.SAMPLE_VCF, hpo_terms=["HP:0001250", "HP:0002133", "HP:0011097"]
+    )
     primary, secondary, other = split_findings(report.classifications)
     pg = {c.variant.gene for c in primary}
     sg = {c.variant.gene for c in secondary}
     og = {c.variant.gene for c in other}
-    assert {"SCN1A", "KCNQ2", "CACNA1A"} <= pg   # phenotype-related
-    assert "RB1" in sg                          # unrelated P/LP in an ACMG SF gene
-    assert "PAX6" in og                          # unrelated P/LP but NOT on the SF list
+    assert {"SCN1A", "KCNQ2", "CACNA1A"} <= pg  # phenotype-related
+    assert "RB1" in sg  # unrelated P/LP in an ACMG SF gene
+    assert "PAX6" in og  # unrelated P/LP but NOT on the SF list
     assert all(c.tier in ("Pathogenic", "Likely Pathogenic") for c in secondary)
 
 
@@ -138,12 +150,26 @@ def test_pipeline_reports_per_stage_timings():
 
 # --- #13 ClinVar modeled as PP5 (supporting), PS1 no longer strong ----------
 def test_clinvar_is_pp5_supporting_not_ps1_strong():
-    v = Variant(chrom="20", pos=63446204, ref="G", alt="A", gene="KCNQ2",
-                consequence="missense_variant", hgvs_p="p.Arg213Trp")
-    a = Annotation(gnomad_af=0.0, local_cohort_af=0.0, clinvar_significance="Pathogenic",
-                   clinvar_review_status="criteria_provided,_single_submitter",
-                   clinvar_accession="VCV1", revel=0.92, cadd_phred=32.0,
-                   hpo_match_score=0.7, hpo_matched_terms=["x"])
+    v = Variant(
+        chrom="20",
+        pos=63446204,
+        ref="G",
+        alt="A",
+        gene="KCNQ2",
+        consequence="missense_variant",
+        hgvs_p="p.Arg213Trp",
+    )
+    a = Annotation(
+        gnomad_af=0.0,
+        local_cohort_af=0.0,
+        clinvar_significance="Pathogenic",
+        clinvar_review_status="criteria_provided,_single_submitter",
+        clinvar_accession="VCV1",
+        revel=0.92,
+        cadd_phred=32.0,
+        hpo_match_score=0.7,
+        hpo_matched_terms=["x"],
+    )
     result = classify(v, a)
     codes = {c.code: c for c in result.criteria}
     # PS1 is now engine-decided from the ClinVar residue index; the variant's OWN
@@ -156,19 +182,25 @@ def test_clinvar_is_pp5_supporting_not_ps1_strong():
 
 def test_pp5_review_status_gate():
     from vcf2report.acmg.criteria import pp5
+
     v = Variant(chrom="1", pos=1, ref="A", alt="G")
     # >=1-star, both ClinVar formatting styles -> PP5 fires
-    for review in ("criteria_provided,_multiple_submitters,_no_conflicts",
-                   "criteria provided, single submitter",
-                   "reviewed by expert panel"):
+    for review in (
+        "criteria_provided,_multiple_submitters,_no_conflicts",
+        "criteria provided, single submitter",
+        "reviewed by expert panel",
+    ):
         a = Annotation(clinvar_significance="Pathogenic", clinvar_review_status=review)
         assert pp5(v, a).met is True, review
     # 0-star: contains the substring "criteria provided" but must NOT fire
-    a0 = Annotation(clinvar_significance="Pathogenic",
-                    clinvar_review_status="no assertion criteria provided")
+    a0 = Annotation(
+        clinvar_significance="Pathogenic",
+        clinvar_review_status="no assertion criteria provided",
+    )
     assert pp5(v, a0).met is False
     # Likely pathogenic is accepted too
-    alp = Annotation(clinvar_significance="Likely pathogenic",
-                     clinvar_review_status="criteria provided, single submitter")
+    alp = Annotation(
+        clinvar_significance="Likely pathogenic",
+        clinvar_review_status="criteria provided, single submitter",
+    )
     assert pp5(v, alp).met is True
-

@@ -6,6 +6,7 @@ authoritative, offline, deterministic coordinate lookup; the live path is a
 best-effort enrichment that only accepts an exact location match. Returns
 significance, review status, accession, condition, and date.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -49,6 +50,7 @@ def _get_tabix():
         if fp is not None and Path(fp).exists():
             try:
                 import pysam
+
                 _tabix = pysam.TabixFile(str(fp))
             except Exception:
                 _tabix = False
@@ -65,10 +67,19 @@ def _tabix_lookup(variant: Variant) -> Optional[dict]:
     try:
         for line in tb.fetch(chrom, variant.pos - 1, variant.pos):
             f = line.rstrip("\n").split("\t")
-            if len(f) >= 6 and int(f[1]) == variant.pos and f[2].upper() == ref and f[3].upper() == alt:
-                return {"significance": f[4] or None, "review_status": f[5] or None,
-                        "accession": (f[6] or None) if len(f) > 6 else None,
-                        "condition": (f[7] or None) if len(f) > 7 else None, "date": "local snapshot"}
+            if (
+                len(f) >= 6
+                and int(f[1]) == variant.pos
+                and f[2].upper() == ref
+                and f[3].upper() == alt
+            ):
+                return {
+                    "significance": f[4] or None,
+                    "review_status": f[5] or None,
+                    "accession": (f[6] or None) if len(f) > 6 else None,
+                    "condition": (f[7] or None) if len(f) > 7 else None,
+                    "date": "local snapshot",
+                }
     except (ValueError, OSError):
         return None
     return None
@@ -79,8 +90,13 @@ def _chrpos_field() -> str:
 
 
 def _ncbi_params() -> dict:
-    return {"db": "clinvar", "retmode": "json", "tool": "vcf2report",
-            "email": config.NCBI_EMAIL, "api_key": config.NCBI_API_KEY}
+    return {
+        "db": "clinvar",
+        "retmode": "json",
+        "tool": "vcf2report",
+        "email": config.NCBI_EMAIL,
+        "api_key": config.NCBI_API_KEY,
+    }
 
 
 def _spdi_alleles(vset: dict) -> tuple[Optional[str], Optional[str]]:
@@ -100,7 +116,9 @@ def _loc_matches(variant: Variant, docsum: dict) -> bool:
     confirmed (missing from both variation_loc and the SPDI) is REJECTED — the
     caller then falls back to the authoritative local slice.
     """
-    chrom = variant.chrom[3:] if variant.chrom.lower().startswith("chr") else variant.chrom
+    chrom = (
+        variant.chrom[3:] if variant.chrom.lower().startswith("chr") else variant.chrom
+    )
     want_ref, want_alt = variant.ref.upper(), variant.alt.upper()
     for vset in docsum.get("variation_set", []) or []:
         spdi_ref, spdi_alt = _spdi_alleles(vset)
@@ -128,12 +146,18 @@ def _extract(docsum: dict) -> dict:
     review = germ.get("review_status") or legacy.get("review_status")
     date = germ.get("last_evaluated") or legacy.get("last_evaluated")
     traits = germ.get("trait_set") or docsum.get("trait_set") or []
-    condition = "; ".join(
-        t.get("trait_name", "") for t in traits if t.get("trait_name")
-    ) or None
+    condition = (
+        "; ".join(t.get("trait_name", "") for t in traits if t.get("trait_name"))
+        or None
+    )
     accession = docsum.get("accession")  # VCV...; do not fall back to obj_type
-    return {"significance": significance, "review_status": review,
-            "accession": accession, "condition": condition, "date": date}
+    return {
+        "significance": significance,
+        "review_status": review,
+        "accession": accession,
+        "condition": condition,
+        "date": date,
+    }
 
 
 def _live(variant: Variant) -> Optional[dict]:
@@ -146,19 +170,24 @@ def _live(variant: Variant) -> Optional[dict]:
     """
     from . import _http
 
-    chrom = variant.chrom[3:] if variant.chrom.lower().startswith("chr") else variant.chrom
+    chrom = (
+        variant.chrom[3:] if variant.chrom.lower().startswith("chr") else variant.chrom
+    )
     # NCBI: 3 req/s anonymous, 10 req/s with an API key.
     interval = 0.11 if config.NCBI_API_KEY else 0.34
 
     _http.throttle("ncbi", interval)
     search = _http.get_json(
         f"{config.NCBI_EUTILS}/esearch.fcgi",
-        {**_ncbi_params(), "retmax": 20,
-         "term": f"{variant.pos}[{_chrpos_field()}] AND {chrom}[chr]"},
+        {
+            **_ncbi_params(),
+            "retmax": 20,
+            "term": f"{variant.pos}[{_chrpos_field()}] AND {chrom}[chr]",
+        },
     )
     if not search:
         return None
-    ids = (((search.get("esearchresult") or {}).get("idlist")) or [])
+    ids = ((search.get("esearchresult") or {}).get("idlist")) or []
     if not ids:
         return None  # no live enrichment -> fall back to the local slice
 
@@ -221,5 +250,11 @@ def lookup(variant: Variant) -> dict:
         date = local.get("date", "")
         return {**local, "_source": f"ClinVar slice ({date})"}
 
-    return {"significance": None, "review_status": None, "accession": None,
-            "condition": None, "date": None, "_source": "ClinVar (no record)"}
+    return {
+        "significance": None,
+        "review_status": None,
+        "accession": None,
+        "condition": None,
+        "date": None,
+        "_source": "ClinVar (no record)",
+    }

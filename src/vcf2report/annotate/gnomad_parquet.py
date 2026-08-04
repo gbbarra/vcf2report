@@ -18,6 +18,7 @@ Safety: like the full-mode tabix, absence (af 0.0) is asserted ONLY for a contig
 parquet actually covers; a variant on an uncovered contig is left unprimed so the
 caller falls back — never a fabricated absence.
 """
+
 from __future__ import annotations
 
 import threading
@@ -53,12 +54,12 @@ def _is_canonical(key: str) -> bool:
     if len(parts) != 4:
         return True
     ref, alt = parts[2], parts[3]
-    if len(ref) == 1 and len(alt) == 1:          # SNV — always canonical
+    if len(ref) == 1 and len(alt) == 1:  # SNV — always canonical
         return True
     if not ref or not alt:
         return True
     if ref[0] == alt[0] and len(ref) > 1 and len(alt) > 1:
-        return False                              # shared leading base -> untrimmed
+        return False  # shared leading base -> untrimmed
     return not (ref[-1] == alt[-1] and len(ref) > 1 and len(alt) > 1)
 
 
@@ -68,6 +69,7 @@ def _get_duckdb():
         _duckdb_tried = True
         try:
             import duckdb  # noqa: F401
+
             _duckdb = duckdb
         except Exception:
             _duckdb = None
@@ -91,8 +93,10 @@ def _norm_chrom(chrom: str) -> str:
 # naming. A store written with bare contigs ('1') therefore matched nothing while
 # `chrom in covered` stayed true, so mode=full wrote the absent sentinel for EVERY variant —
 # a whole exome of fabricated vouched absences, PM2 firing throughout, BA1/BS1 unable to fire.
-_CHROM_SQL = ("CASE WHEN lower(CAST(g.chrom AS VARCHAR)) LIKE 'chr%' "
-              "THEN CAST(g.chrom AS VARCHAR) ELSE 'chr' || CAST(g.chrom AS VARCHAR) END")
+_CHROM_SQL = (
+    "CASE WHEN lower(CAST(g.chrom AS VARCHAR)) LIKE 'chr%' "
+    "THEN CAST(g.chrom AS VARCHAR) ELSE 'chr' || CAST(g.chrom AS VARCHAR) END"
+)
 
 
 def _q(path: str) -> str:
@@ -104,7 +108,9 @@ def _source_expr() -> str:
     (excluding macOS '._' AppleDouble sidecars that break the glob on exFAT)."""
     p = Path(config.GNOMAD_PARQUET)
     if p.is_dir():
-        files = [str(f) for f in sorted(p.rglob("*.parquet")) if not f.name.startswith("._")]
+        files = [
+            str(f) for f in sorted(p.rglob("*.parquet")) if not f.name.startswith("._")
+        ]
         lst = ", ".join("'" + _q(f) + "'" for f in files)
         return f"read_parquet([{lst}], hive_partitioning=true, union_by_name=true)"
     return f"read_parquet('{_q(str(p))}')"
@@ -130,7 +136,10 @@ def _load_bed(path: str) -> dict:
     out = {}
     for c, lst in ivs.items():
         lst.sort()
-        out[c] = ([s for s, _e in lst], [e for _s, e in lst])   # merged BED -> non-overlapping
+        out[c] = (
+            [s for s, _e in lst],
+            [e for _s, e in lst],
+        )  # merged BED -> non-overlapping
     _bed_cache[path] = out
     return out
 
@@ -141,9 +150,10 @@ def _in_bed(chrom: str, pos1: int, bed: dict) -> bool:
     if not d:
         return False
     import bisect
+
     starts, ends = d
     p = pos1 - 1
-    i = bisect.bisect_right(starts, p) - 1   # rightmost interval whose start <= p
+    i = bisect.bisect_right(starts, p) - 1  # rightmost interval whose start <= p
     return 0 <= i < len(starts) and p < ends[i]
 
 
@@ -156,6 +166,7 @@ def _read_meta() -> tuple[str, set, dict]:
     on a covered contig — sound because within the panel the store is complete; off-panel
     it stays unprimed (honest 'unknown')."""
     import json
+
     p = Path(config.GNOMAD_PARQUET)
     meta = (p / "_meta.json") if p.is_dir() else p.with_name(p.name + ".meta.json")
     mode, contigs, bed = "partial", set(), {}
@@ -172,10 +183,12 @@ def _read_meta() -> tuple[str, set, dict]:
                 bp = d.get("bed_path")
                 if bp:
                     bpp = Path(bp)
-                    if not bpp.is_absolute():       # relative -> resolve against the store dir
+                    if (
+                        not bpp.is_absolute()
+                    ):  # relative -> resolve against the store dir
                         bpp = (p if p.is_dir() else p.parent) / bp
                     bed = _load_bed(str(bpp)) if bpp.exists() else {}
-                if not bed:            # BED unavailable -> cannot verify coverage -> stay safe
+                if not bed:  # BED unavailable -> cannot verify coverage -> stay safe
                     mode = "partial"
     except Exception:
         pass
@@ -190,15 +203,19 @@ def prime(variants) -> int:
     import csv
     import os
     import tempfile
+
     duckdb = _get_duckdb()
     con = duckdb.connect()
     tmp = None
     try:
         src = _source_expr()
-        mode, covered, bed = _read_meta()   # partial (default) -> NEVER assert absence
+        mode, covered, bed = _read_meta()  # partial (default) -> NEVER assert absence
         # Schema-aware: a lakehouse parquet may lack faf95/grpmax_pop; a from-scratch
         # build (build_gnomad_parquet.py) carries them. Select NULL for missing columns.
-        schema = {r[0].lower() for r in con.execute(f"DESCRIBE SELECT * FROM {src}").fetchall()}
+        schema = {
+            r[0].lower()
+            for r in con.execute(f"DESCRIBE SELECT * FROM {src}").fetchall()
+        }
         col = lambda name: f"g.{name}" if name in schema else "NULL"
         # PASS-awareness is applied AFTER the join, not as a join gate: a non-PASS gnomAD record
         # (AS_VQSR / InbreedingCoeff / AC0) is not an authoritative frequency (ClinGen/Whiffin
@@ -215,17 +232,21 @@ def prime(variants) -> int:
         with os.fdopen(fd, "w", newline="") as fh:
             w = csv.writer(fh, delimiter="\t")
             for v in variants:
-                w.writerow([_norm_chrom(v.chrom), v.pos, v.ref.upper(), v.alt.upper(), v.key])
+                w.writerow(
+                    [_norm_chrom(v.chrom), v.pos, v.ref.upper(), v.alt.upper(), v.key]
+                )
         con.execute(
             "CREATE TABLE q AS SELECT column0 AS chrom, CAST(column1 AS INTEGER) AS pos, "
             "column2 AS ref, column3 AS alt, column4 AS key "
-            "FROM read_csv(?, header=false, delim='\t', all_varchar=true)", [tmp])
+            "FROM read_csv(?, header=false, delim='\t', all_varchar=true)",
+            [tmp],
+        )
         rows = con.execute(f"""
             SELECT q.chrom, q.pos AS q_pos, q.key, g.pos AS g_pos,
-                   {('g.filter' if has_filter else 'NULL')} AS g_filter,
-                   {col('af')}, {col('af_grpmax')},
-                   {col('ac')}, {col('an')}, {col('nhomalt')},
-                   TRY_CAST({col('faf95')} AS DOUBLE), {col('grpmax_pop')}
+                   {("g.filter" if has_filter else "NULL")} AS g_filter,
+                   {col("af")}, {col("af_grpmax")},
+                   {col("ac")}, {col("an")}, {col("nhomalt")},
+                   TRY_CAST({col("faf95")} AS DOUBLE), {col("grpmax_pop")}
             FROM q LEFT JOIN {src} g
               ON {_CHROM_SQL} = q.chrom AND g.pos = q.pos
              AND upper(g.ref) = q.ref AND upper(g.alt) = q.alt
@@ -244,8 +265,16 @@ def prime(variants) -> int:
     # coverage is established. AN cannot carry this meaning — a locus with no record has no AN to
     # report, so an=0 here means "no row", NOT "no alleles surveyed". Consumers that must tell a
     # vouched absence from missing data (report.assemble.is_hom_absent_artifact) read this flag.
-    absent = {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None,
-              "vouched_absent": True}
+    absent = {
+        "af": 0.0,
+        "ac": 0,
+        "an": 0,
+        "hom": 0,
+        "faf95": 0.0,
+        "pop": None,
+        "vouched_absent": True,
+    }
+
     # Present but not PASS. The variant EXISTS in gnomAD (so not absent -> no PM2), and its AF is
     # not filtering-AF-authoritative, so `af` stays None and PM2 still reads 'unavailable'.
     #
@@ -260,19 +289,48 @@ def prime(variants) -> int:
     # and only ever to establish that an allele is COMMON — a direction in which a filtered
     # record can add evidence but never invent pathogenicity.
     def _filtered(af, af_grpmax, ac, an, nhomalt, g_filter):
-        return {"af": None, "ac": None, "an": None, "hom": None, "faf95": None, "pop": None,
-                "af_filtered": af_grpmax if af_grpmax is not None else af,
-                "ac_filtered": ac, "an_filtered": an, "hom_filtered": nhomalt,
-                "gnomad_filter": str(g_filter) if g_filter is not None else None}
+        return {
+            "af": None,
+            "ac": None,
+            "an": None,
+            "hom": None,
+            "faf95": None,
+            "pop": None,
+            "af_filtered": af_grpmax if af_grpmax is not None else af,
+            "ac_filtered": ac,
+            "an_filtered": an,
+            "hom_filtered": nhomalt,
+            "gnomad_filter": str(g_filter) if g_filter is not None else None,
+        }
+
     n = matched = 0
     with _lock:
-        for chrom, q_pos, key, g_pos, g_filter, af, af_grpmax, ac, an, nhomalt, faf95, pop in rows:
-            if g_pos is not None:          # a gnomAD row matched at this locus
+        for (
+            chrom,
+            q_pos,
+            key,
+            g_pos,
+            g_filter,
+            af,
+            af_grpmax,
+            ac,
+            an,
+            nhomalt,
+            faf95,
+            pop,
+        ) in rows:
+            if g_pos is not None:  # a gnomAD row matched at this locus
                 is_pass = (g_filter is None) or (str(g_filter).upper() == "PASS")
-                if is_pass:                # definitive frequency
-                    _primed[key] = {"af": af_grpmax if af_grpmax is not None else af,
-                                    "ac": ac, "an": an, "hom": nhomalt, "faf95": faf95, "pop": pop}
-                else:                      # present but filtered -> not absent, AF untrusted
+                if is_pass:  # definitive frequency
+                    _primed[key] = {
+                        "af": af_grpmax if af_grpmax is not None else af,
+                        "ac": ac,
+                        "an": an,
+                        "hom": nhomalt,
+                        "faf95": faf95,
+                        "pop": pop,
+                    }
+                else:  # present but filtered -> not absent, AF untrusted
                     _primed[key] = _filtered(af, af_grpmax, ac, an, nhomalt, g_filter)
                 n += 1
                 matched += 1

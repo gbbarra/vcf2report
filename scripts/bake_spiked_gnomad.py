@@ -10,6 +10,7 @@ but only where it matters. Honest: the frequency is the real live gnomAD value.
 
     VCF2REPORT_ALLOW_NETWORK=1 python scripts/bake_spiked_gnomad.py in.vcf
 """
+
 from __future__ import annotations
 
 import sys
@@ -20,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 def main() -> int:
     from vcf2report import config
+
     if config.offline():
         raise SystemExit("network egress required: set VCF2REPORT_ALLOW_NETWORK=1")
     from vcf2report.annotate import gnomad_remote
@@ -54,7 +56,9 @@ def main() -> int:
         f[7] = f"gnomad_AF={af};gnomad_AC={ac};gnomad_AN={an};" + f[7]
         out.append("\t".join(f))
         n += 1
-        print(f"  {chrom}:{pos} {ref}>{alt[:12]} -> live gnomAD AF={af}", file=sys.stderr)
+        print(
+            f"  {chrom}:{pos} {ref}>{alt[:12]} -> live gnomAD AF={af}", file=sys.stderr
+        )
     path.write_text("\n".join(out) + "\n")
     print(f"baked live gnomAD into {n} spiked variants of {path}", file=sys.stderr)
     return 0

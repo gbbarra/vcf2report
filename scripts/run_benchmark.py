@@ -33,6 +33,7 @@ them regardless of the residue/constraint criteria — masking whether PS1/PM5/P
 variant on their own. Nulling the plant's ClinVar record turns it into the novel-variant scenario
 those criteria are actually FOR, so the reported P/LP recovery measures their real contribution.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -51,8 +52,13 @@ def _load_answer_key(bench: Path) -> dict[str, str]:
 
 #: Most-severe first. When a case classifies several variants in the planted gene and more than
 #: one lands in the reported bucket, the scored variant is the one the report leads with.
-_TIER_RANK = ("Pathogenic", "Likely Pathogenic", "Uncertain Significance (VUS)",
-              "Likely Benign", "Benign")
+_TIER_RANK = (
+    "Pathogenic",
+    "Likely Pathogenic",
+    "Uncertain Significance (VUS)",
+    "Likely Benign",
+    "Benign",
+)
 
 
 def _severity(c) -> int:
@@ -89,8 +95,12 @@ def _at_locus(report, locus):
     want = (chrom.removeprefix("chr"), pos, ref.upper(), alt.upper())
     for c in report.classifications:
         v = c.variant
-        if (v.chrom.removeprefix("chr"), v.pos, (v.ref or "").upper(),
-                (v.alt or "").upper()) == want:
+        if (
+            v.chrom.removeprefix("chr"),
+            v.pos,
+            (v.ref or "").upper(),
+            (v.alt or "").upper(),
+        ) == want:
             return c
     return None
 
@@ -110,6 +120,7 @@ def _bucket_of(gene: str, report):
     """
     from vcf2report.report.assemble import carrier_findings, split_findings
     from vcf2report.report.vus_triage import probable_pathogenic_vus
+
     primary, secondary, other = split_findings(report.classifications)
     carriers = carrier_findings(report.classifications)
     vus = [e["classification"] for e in probable_pathogenic_vus(report.classifications)]
@@ -119,8 +130,12 @@ def _bucket_of(gene: str, report):
     # headline, lost to letter case rather than to anything the engine did.
     want = gene.upper()
     same = lambda c: (c.variant.gene or "").upper() == want
-    for name, members in (("primary", primary), ("secondary", secondary),
-                          ("carrier", carriers), ("probable_vus", vus)):
+    for name, members in (
+        ("primary", primary),
+        ("secondary", secondary),
+        ("carrier", carriers),
+        ("probable_vus", vus),
+    ):
         here = [c for c in members if same(c)]
         if here:
             best = min(here, key=_severity)
@@ -140,8 +155,14 @@ def withhold_own_clinvar_tier(classification):
     ClinVar has NOT catalogued. Measures the real-world value of those criteria."""
     from dataclasses import replace
     from vcf2report.acmg.engine import classify
-    ann = replace(classification.annotation, clinvar_significance=None, clinvar_review_status=None,
-                  clinvar_accession=None, clinvar_condition=None)
+
+    ann = replace(
+        classification.annotation,
+        clinvar_significance=None,
+        clinvar_review_status=None,
+        clinvar_accession=None,
+        clinvar_condition=None,
+    )
     return classify(classification.variant, ann).tier
 
 
@@ -163,6 +184,7 @@ def _score_one(args: tuple) -> dict:
     sid, vcf, hpo_path, gene, withhold, locus = args
     from vcf2report.cli import read_hpo_file
     from vcf2report.pipeline import run_pipeline
+
     try:
         hpo_terms = read_hpo_file(hpo_path) if Path(hpo_path).exists() else []
         report = run_pipeline(vcf, hpo_terms=hpo_terms, sample_id=sid)
@@ -173,16 +195,31 @@ def _score_one(args: tuple) -> dict:
         # to guess whether `tier` describes the plant.
         hit = plant if plant is not None else gene_hit
         withheld = withhold_own_clinvar_tier(hit) if (withhold and hit) else ""
-        return {"syn_id": sid, "gene": gene, "outcome": bucket,
-                "tier": (hit.tier if hit else "") or "",
-                "consequence": (hit.variant.consequence if hit else "") or "",
-                "tier_source": "planted-locus" if plant is not None else
-                               ("gene-fallback" if gene_hit else ""),
-                "withheld_tier": withheld, "candidates": report.qc.candidates, "error": ""}
+        return {
+            "syn_id": sid,
+            "gene": gene,
+            "outcome": bucket,
+            "tier": (hit.tier if hit else "") or "",
+            "consequence": (hit.variant.consequence if hit else "") or "",
+            "tier_source": "planted-locus"
+            if plant is not None
+            else ("gene-fallback" if gene_hit else ""),
+            "withheld_tier": withheld,
+            "candidates": report.qc.candidates,
+            "error": "",
+        }
     except Exception as e:  # never let one case abort the sweep
-        return {"syn_id": sid, "gene": gene, "outcome": "ERROR", "tier": "",
-                "consequence": "", "tier_source": "", "withheld_tier": "", "candidates": 0,
-                "error": f"{type(e).__name__}: {e}"}
+        return {
+            "syn_id": sid,
+            "gene": gene,
+            "outcome": "ERROR",
+            "tier": "",
+            "consequence": "",
+            "tier_source": "",
+            "withheld_tier": "",
+            "candidates": 0,
+            "error": f"{type(e).__name__}: {e}",
+        }
 
 
 def _is_missense(consequence: str | None) -> bool:
@@ -216,33 +253,56 @@ def _compare(results: list[dict], prev_path: str) -> None:
     mis_after = _primary(mis)
 
     print(f"\n=== compare vs {prev_path} ({len(common)} common cases) ===")
-    print(f"PRIMARY recovery:  before {n_before}  →  after {n_after}  ({n_after - n_before:+d})")
-    print(f"  of which missense: before {mis_before}  →  after {mis_after}  "
-          f"({mis_after - mis_before:+d})  [{len(mis)} missense cases]")
+    print(
+        f"PRIMARY recovery:  before {n_before}  →  after {n_after}  ({n_after - n_before:+d})"
+    )
+    print(
+        f"  of which missense: before {mis_before}  →  after {mis_after}  "
+        f"({mis_after - mis_before:+d})  [{len(mis)} missense cases]"
+    )
     if not changed:
         print("no case changed outcome or tier.")
         return
     print(f"\n{len(changed)} case(s) changed (★ = missense):")
     for r, p in sorted(changed, key=lambda x: x[0]["syn_id"]):
         star = "★" if _is_missense(r.get("consequence")) else " "
-        po = f"{p.get('outcome')}·{p.get('tier','') or '—'}"
+        po = f"{p.get('outcome')}·{p.get('tier', '') or '—'}"
         no = f"{r['outcome']}·{r['tier'] or '—'}"
         print(f"  {star} {r['syn_id']}  {r['gene']:10} {po:24} → {no}")
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Score vcf2report on the hpo-spiked-exomes benchmark.")
-    ap.add_argument("--annotated", required=True, help="dir of SYN-NNN.annotated.vcf.gz")
-    ap.add_argument("--bench", required=True, help="hpo-spiked-exomes repo root (manifest/ + sidecars/)")
-    ap.add_argument("--out", default="benchmark_results.tsv", help="per-case TSV output")
+    ap = argparse.ArgumentParser(
+        description="Score vcf2report on the hpo-spiked-exomes benchmark."
+    )
+    ap.add_argument(
+        "--annotated", required=True, help="dir of SYN-NNN.annotated.vcf.gz"
+    )
+    ap.add_argument(
+        "--bench",
+        required=True,
+        help="hpo-spiked-exomes repo root (manifest/ + sidecars/)",
+    )
+    ap.add_argument(
+        "--out", default="benchmark_results.tsv", help="per-case TSV output"
+    )
     ap.add_argument("--jobs", type=int, default=1, help="parallel worker processes")
-    ap.add_argument("--limit", type=int, default=0, help="score only the first N cases (debug)")
-    ap.add_argument("--compare", default="", metavar="PREV.tsv",
-                    help="diff this run against a previous --out TSV (before/after; flags missense moves)")
-    ap.add_argument("--withhold-clinvar", action="store_true",
-                    help="also re-classify each planted variant with its OWN ClinVar assertion "
-                         "nulled — measures P/LP recovery from PS1/PM5/PP2/BP1 alone (novel-variant "
-                         "scenario the benchmark's known-ClinVar plants otherwise mask)")
+    ap.add_argument(
+        "--limit", type=int, default=0, help="score only the first N cases (debug)"
+    )
+    ap.add_argument(
+        "--compare",
+        default="",
+        metavar="PREV.tsv",
+        help="diff this run against a previous --out TSV (before/after; flags missense moves)",
+    )
+    ap.add_argument(
+        "--withhold-clinvar",
+        action="store_true",
+        help="also re-classify each planted variant with its OWN ClinVar assertion "
+        "nulled — measures P/LP recovery from PS1/PM5/PP2/BP1 alone (novel-variant "
+        "scenario the benchmark's known-ClinVar plants otherwise mask)",
+    )
     args = ap.parse_args(argv)
 
     bench = Path(args.bench)
@@ -258,15 +318,22 @@ def main(argv=None) -> int:
             missing += 1
             continue
         hpo = bench / "sidecars" / f"{sid}.hpo.txt"
-        tasks.append((sid, str(vcf), str(hpo), gene, args.withhold_clinvar, loci.get(sid)))
+        tasks.append(
+            (sid, str(vcf), str(hpo), gene, args.withhold_clinvar, loci.get(sid))
+        )
     if args.limit:
         tasks = tasks[: args.limit]
     if not tasks:
-        print(f"No annotated VCFs found under {ann} matching the answer key.", file=sys.stderr)
+        print(
+            f"No annotated VCFs found under {ann} matching the answer key.",
+            file=sys.stderr,
+        )
         return 1
     if missing:
-        print(f"note: {missing} answer-key cases have no annotated VCF under {ann} — skipped.",
-              file=sys.stderr)
+        print(
+            f"note: {missing} answer-key cases have no annotated VCF under {ann} — skipped.",
+            file=sys.stderr,
+        )
 
     results: list[dict] = []
     if args.jobs > 1:
@@ -274,7 +341,9 @@ def main(argv=None) -> int:
             futs = [ex.submit(_score_one, t) for t in tasks]
             for i, f in enumerate(as_completed(futs), 1):
                 results.append(f.result())
-                print(f"\r  scored {i}/{len(tasks)}", end="", file=sys.stderr, flush=True)
+                print(
+                    f"\r  scored {i}/{len(tasks)}", end="", file=sys.stderr, flush=True
+                )
     else:
         for i, t in enumerate(tasks, 1):
             results.append(_score_one(t))
@@ -283,25 +352,48 @@ def main(argv=None) -> int:
 
     results.sort(key=lambda r: r["syn_id"])
     with open(args.out, "w", newline="") as fh:
-        w = csv.DictWriter(fh, delimiter="\t",
-                           fieldnames=["syn_id", "gene", "outcome", "tier", "consequence",
-                                       "tier_source", "withheld_tier", "candidates", "error"])
+        w = csv.DictWriter(
+            fh,
+            delimiter="\t",
+            fieldnames=[
+                "syn_id",
+                "gene",
+                "outcome",
+                "tier",
+                "consequence",
+                "tier_source",
+                "withheld_tier",
+                "candidates",
+                "error",
+            ],
+        )
         w.writeheader()
         w.writerows(results)
 
     n = len(results)
     from collections import Counter
+
     by = Counter(r["outcome"] for r in results)
     primary = by.get("primary", 0)
     mis = [r for r in results if _is_missense(r.get("consequence"))]
     mis_primary = sum(1 for r in mis if r["outcome"] == "primary")
     print(f"\n=== hpo-spiked-exomes benchmark — vcf2report ===")
-    print(f"PRIMARY (diagnostic) recovery: {primary}/{n}  ({100*primary/n:.1f}%)")
+    print(f"PRIMARY (diagnostic) recovery: {primary}/{n}  ({100 * primary / n:.1f}%)")
     if mis:
-        print(f"  missense planted variants: {mis_primary}/{len(mis)} primary "
-              f"({100*mis_primary/len(mis):.1f}%)  — the subset PP2/BP1/PS1/PM5 move")
+        print(
+            f"  missense planted variants: {mis_primary}/{len(mis)} primary "
+            f"({100 * mis_primary / len(mis):.1f}%)  — the subset PP2/BP1/PS1/PM5 move"
+        )
     print("breakdown by where the planted gene landed:")
-    for k in ("primary", "secondary", "carrier", "probable_vus", "other", "absent", "ERROR"):
+    for k in (
+        "primary",
+        "secondary",
+        "carrier",
+        "probable_vus",
+        "other",
+        "absent",
+        "ERROR",
+    ):
         if by.get(k):
             print(f"  {k:13}: {by[k]}")
     misses = [r for r in results if r["outcome"] not in ("primary",)]
@@ -309,24 +401,34 @@ def main(argv=None) -> int:
         print("\nnon-primary cases (gene → bucket · tier):")
         for r in sorted(misses, key=lambda r: (r["outcome"], r["syn_id"])):
             extra = f" · {r['error']}" if r["error"] else ""
-            print(f"  {r['syn_id']}  {r['gene']:10} → {r['outcome']}"
-                  f"{(' · ' + r['tier']) if r['tier'] else ''}{extra}")
+            print(
+                f"  {r['syn_id']}  {r['gene']:10} → {r['outcome']}"
+                f"{(' · ' + r['tier']) if r['tier'] else ''}{extra}"
+            )
     if args.withhold_clinvar:
+
         def _is_plp(t):
             return (t or "").startswith(("Pathogenic", "Likely Pathogenic"))
+
         wh = [r for r in results if r.get("withheld_tier")]
         recovered = [r for r in wh if _is_plp(r["withheld_tier"])]
         mis_wh = [r for r in wh if _is_missense(r.get("consequence"))]
         mis_rec = [r for r in mis_wh if _is_plp(r["withheld_tier"])]
         print(f"\n=== withhold-ClinVar (novel-variant scenario) ===")
-        print("re-classified each plant with its own ClinVar assertion removed; P/LP now rests on "
-              "PS1/PM5/PP2/BP1 + PP3/PM2:")
+        print(
+            "re-classified each plant with its own ClinVar assertion removed; P/LP now rests on "
+            "PS1/PM5/PP2/BP1 + PP3/PM2:"
+        )
         if wh:
-            print(f"  planted variants reaching P/LP without ClinVar: {len(recovered)}/{len(wh)} "
-                  f"({100*len(recovered)/len(wh):.1f}%)")
+            print(
+                f"  planted variants reaching P/LP without ClinVar: {len(recovered)}/{len(wh)} "
+                f"({100 * len(recovered) / len(wh):.1f}%)"
+            )
         if mis_wh:
-            print(f"    of which missense: {len(mis_rec)}/{len(mis_wh)} "
-                  f"({100*len(mis_rec)/len(mis_wh):.1f}%)")
+            print(
+                f"    of which missense: {len(mis_rec)}/{len(mis_wh)} "
+                f"({100 * len(mis_rec) / len(mis_wh):.1f}%)"
+            )
     if args.compare:
         _compare(results, args.compare)
     print(f"\nper-case TSV: {args.out}")

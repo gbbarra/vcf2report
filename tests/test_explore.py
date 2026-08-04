@@ -4,51 +4,113 @@ Locks the persisted schema (so a downstream conversation can rely on it) and the
 answer the conversational questions the module exists for: "show gene X", "why did Y get PM2",
 "which findings rest on ClinVar", "summarise / open this case".
 """
+
 import pytest
 
-from vcf2report.models import Annotation, Classification, CriterionResult, QCSummary, Variant
+from vcf2report.models import (
+    Annotation,
+    Classification,
+    CriterionResult,
+    QCSummary,
+    Variant,
+)
 from vcf2report.report.assemble import build_report
-from vcf2report.report.explore import (BUCKETS, build_explore, criterion_basis, explain,
-                                       findings_citing_clinvar, findings_for_gene, load_explore,
-                                       missense_evidence, missing_evidence, overview,
-                                       variants_in_bucket, write_explore)
+from vcf2report.report.explore import (
+    BUCKETS,
+    build_explore,
+    criterion_basis,
+    explain,
+    findings_citing_clinvar,
+    findings_for_gene,
+    load_explore,
+    missense_evidence,
+    missing_evidence,
+    overview,
+    variants_in_bucket,
+    write_explore,
+)
 
 _VUS = "Uncertain Significance (VUS)"
 
 
 def _crit(code, *, met=True, strength="supporting", citation=None, evidence=None):
-    return CriterionResult(code=code, name=f"{code} criterion", default_strength=strength,
-                           applies=True, met=met, applied_strength=strength,
-                           citation=citation or [], evidence=evidence or {})
+    return CriterionResult(
+        code=code,
+        name=f"{code} criterion",
+        default_strength=strength,
+        applies=True,
+        met=met,
+        applied_strength=strength,
+        citation=citation or [],
+        evidence=evidence or {},
+    )
 
 
-def _c(gene, *, tier, hpo, zyg="het", gnomad=1e-6, clinvar=None, review=None, criteria=None):
+def _c(
+    gene, *, tier, hpo, zyg="het", gnomad=1e-6, clinvar=None, review=None, criteria=None
+):
     return Classification(
-        variant=Variant(chrom="1", pos=100, ref="G", alt="A", gene=gene,
-                        consequence="missense_variant", hgvs_p="p.Gly97Arg", zygosity=zyg),
-        annotation=Annotation(hpo_match_score=hpo, gnomad_af=gnomad,
-                              clinvar_significance=clinvar, clinvar_review_status=review),
-        criteria=criteria or [], tier=tier, rule_path=f"{tier} path")
+        variant=Variant(
+            chrom="1",
+            pos=100,
+            ref="G",
+            alt="A",
+            gene=gene,
+            consequence="missense_variant",
+            hgvs_p="p.Gly97Arg",
+            zygosity=zyg,
+        ),
+        annotation=Annotation(
+            hpo_match_score=hpo,
+            gnomad_af=gnomad,
+            clinvar_significance=clinvar,
+            clinvar_review_status=review,
+        ),
+        criteria=criteria or [],
+        tier=tier,
+        rule_path=f"{tier} path",
+    )
 
 
 def _report():
     # SCN1A: phenotype-matched Pathogenic, with PP5 citing a ClinVar VCV accession + a met PM2.
-    scn1a = _c("SCN1A", tier="Pathogenic", hpo=1.0, zyg="hom",
-               criteria=[_crit("PM2", citation=["gnomAD v4 (local)"], evidence={"popmax_af": 0.0}),
-                         _crit("PP5", citation=["VCV000012345"]),
-                         _crit("BS1", met=False)])
+    scn1a = _c(
+        "SCN1A",
+        tier="Pathogenic",
+        hpo=1.0,
+        zyg="hom",
+        criteria=[
+            _crit("PM2", citation=["gnomAD v4 (local)"], evidence={"popmax_af": 0.0}),
+            _crit("PP5", citation=["VCV000012345"]),
+            _crit("BS1", met=False),
+        ],
+    )
     # FLAG: engine holds it at VUS, but ClinVar calls it Pathogenic with expert-panel (3-star)
     # review — the do-not-dismiss safety net. Unrelated phenotype so it routes to `other`.
-    flag = _c("FLAG", tier=_VUS, hpo=0.0, clinvar="Pathogenic",
-              review="reviewed by expert panel", criteria=[_crit("PM2")])
-    return build_report("CASE-1", ["HP:0001250"], QCSummary(candidates=2), [scn1a, flag])
+    flag = _c(
+        "FLAG",
+        tier=_VUS,
+        hpo=0.0,
+        clinvar="Pathogenic",
+        review="reviewed by expert panel",
+        criteria=[_crit("PM2")],
+    )
+    return build_report(
+        "CASE-1", ["HP:0001250"], QCSummary(candidates=2), [scn1a, flag]
+    )
 
 
 # --- write side: the persisted schema -------------------------------------------------
 def test_build_explore_has_the_documented_shape():
     d = build_explore(_report())
-    for k in ("sample_id", "build", "classifications", "conclusion", "buckets",
-              "clinvar_do_not_dismiss"):
+    for k in (
+        "sample_id",
+        "build",
+        "classifications",
+        "conclusion",
+        "buckets",
+        "clinvar_do_not_dismiss",
+    ):
         assert k in d
     assert set(d["buckets"]) == set(BUCKETS)
     assert d["buckets"]["primary"] == ["SCN1A"]
@@ -63,7 +125,7 @@ def test_clinvar_do_not_dismiss_is_structured_not_a_repr_string():
     dnd = d["clinvar_do_not_dismiss"]
     assert len(dnd) == 1 and isinstance(dnd[0], dict)
     assert dnd[0]["gene"] == "FLAG"
-    assert dnd[0]["clinvar_stars"] == 3           # "reviewed by expert panel"
+    assert dnd[0]["clinvar_stars"] == 3  # "reviewed by expert panel"
     assert dnd[0]["engine_tier"] == _VUS
 
 
@@ -91,7 +153,7 @@ def test_variants_in_bucket_and_unknown_bucket_raises():
 
 def test_criterion_basis_answers_why_gene_got_a_code():
     d = build_explore(_report())
-    basis = criterion_basis(d, "SCN1A", "pm2")   # case-insensitive
+    basis = criterion_basis(d, "SCN1A", "pm2")  # case-insensitive
     assert len(basis) == 1
     assert basis[0]["code"] == "PM2" and basis[0]["met"] is True
     assert basis[0]["citation"] == ["gnomAD v4 (local)"]
@@ -128,20 +190,30 @@ def test_overview_counts_buckets_and_carries_the_conclusion():
 def _missense_report():
     # HOT: a novel missense elevated by residue + constraint evidence (PM5 + PP2), no ClinVar
     # record of its own. COLD: a missense where neither fired (the metric/index said no).
-    hot = _c("HOT", tier="Likely Pathogenic", hpo=1.0,
-             criteria=[_crit("PM5", strength="moderate", citation=["VCV000067890"]),
-                       _crit("PP2"),
-                       _crit("PS1", met=False, strength="strong"),
-                       _crit("BP1", met=False)])
-    cold = _c("COLD", tier=_VUS, hpo=0.9,
-              criteria=[_crit("PP2", met=False), _crit("PM5", met=False), _crit("PM2")])
+    hot = _c(
+        "HOT",
+        tier="Likely Pathogenic",
+        hpo=1.0,
+        criteria=[
+            _crit("PM5", strength="moderate", citation=["VCV000067890"]),
+            _crit("PP2"),
+            _crit("PS1", met=False, strength="strong"),
+            _crit("BP1", met=False),
+        ],
+    )
+    cold = _c(
+        "COLD",
+        tier=_VUS,
+        hpo=0.9,
+        criteria=[_crit("PP2", met=False), _crit("PM5", met=False), _crit("PM2")],
+    )
     return build_report("CASE-2", ["HP:0001250"], QCSummary(candidates=2), [hot, cold])
 
 
 def test_missense_evidence_lists_only_fired_criteria_by_default():
     d = build_explore(_missense_report())
     ev = missense_evidence(d)
-    assert [f["gene"] for f in ev] == ["HOT"]          # COLD has none met -> omitted
+    assert [f["gene"] for f in ev] == ["HOT"]  # COLD has none met -> omitted
     codes = {cr["code"] for cr in ev[0]["criteria"]}
     assert codes == {"PM5", "PP2"}
     assert ev[0]["tier"] == "Likely Pathogenic"
@@ -152,7 +224,7 @@ def test_missense_evidence_all_criteria_shows_the_not_met_audit_view():
     d = build_explore(_missense_report())
     ev = missense_evidence(d, met_only=False)
     genes = {f["gene"] for f in ev}
-    assert genes == {"HOT", "COLD"}                     # COLD now visible, with its not-met trail
+    assert genes == {"HOT", "COLD"}  # COLD now visible, with its not-met trail
     cold = next(f for f in ev if f["gene"] == "COLD")
     assert {cr["code"] for cr in cold["criteria"]} == {"PP2", "PM5"}
     assert all(cr["met"] is False for cr in cold["criteria"])
@@ -168,22 +240,47 @@ def test_ps1_pm5_count_as_clinvar_citing_criteria():
 
 
 # --- "what would move this off VUS?" ---------------------------------------
-def _na_crit(code, strength, reasoning="Requires parental (trio) data — not available from a "
-                                       "single proband VCF"):
-    return CriterionResult(code=code, name=f"{code} criterion", default_strength=strength,
-                           applies=False, met=False, reasoning=reasoning)
+def _na_crit(
+    code,
+    strength,
+    reasoning="Requires parental (trio) data — not available from a single proband VCF",
+):
+    return CriterionResult(
+        code=code,
+        name=f"{code} criterion",
+        default_strength=strength,
+        applies=False,
+        met=False,
+        reasoning=reasoning,
+    )
 
 
 def _gap_report():
     # A VUS resting on one Moderate + two Supporting: one more Moderate reaches Likely Pathogenic
     # (Richards LP-5). PM6 is carried as N/A so it can be named as the concrete way to get there.
-    vus = _c("GAPG", tier=_VUS, hpo=0.9,
-             criteria=[_crit("PM2", strength="moderate"), _crit("PP3"), _crit("PP4"),
-                       _na_crit("PM6", "moderate"), _na_crit("PS2", "strong")])
+    vus = _c(
+        "GAPG",
+        tier=_VUS,
+        hpo=0.9,
+        criteria=[
+            _crit("PM2", strength="moderate"),
+            _crit("PP3"),
+            _crit("PP4"),
+            _na_crit("PM6", "moderate"),
+            _na_crit("PS2", "strong"),
+        ],
+    )
     # A Pathogenic call that no single supporting/strong line can move.
-    path = _c("SOLID", tier="Pathogenic", hpo=1.0,
-              criteria=[_crit("PVS1", strength="very_strong"), _crit("PM2", strength="moderate"),
-                        _crit("PP5")])
+    path = _c(
+        "SOLID",
+        tier="Pathogenic",
+        hpo=1.0,
+        criteria=[
+            _crit("PVS1", strength="very_strong"),
+            _crit("PM2", strength="moderate"),
+            _crit("PP5"),
+        ],
+    )
     return build_report("CASE-3", ["HP:0001250"], QCSummary(candidates=2), [vus, path])
 
 
@@ -200,7 +297,11 @@ def test_missing_evidence_names_the_weakest_addition_that_would_change_the_tier(
 def test_missing_evidence_names_the_concrete_next_step():
     # The answer must be actionable — "order a trio" — not just an abstract strength.
     d = build_explore(_gap_report())
-    up = [s for s in missing_evidence(d, "GAPG")[0]["would_change_with"] if s["direction"] == "up"]
+    up = [
+        s
+        for s in missing_evidence(d, "GAPG")[0]["would_change_with"]
+        if s["direction"] == "up"
+    ]
     codes = {c["code"] for c in up[0]["candidates"]}
     assert "PM6" in codes
     needs = next(c["needs"] for c in up[0]["candidates"] if c["code"] == "PM6")
@@ -218,19 +319,52 @@ def test_pending_criteria_are_read_off_the_trail_not_a_hardcoded_list():
     from vcf2report.acmg.engine import evaluate_criteria
     from vcf2report.models import Variant as V
 
-    var = V(chrom="1", pos=100, ref="G", alt="A", gene="REALG",
-            consequence="missense_variant", hgvs_p="p.Gly97Arg", zygosity="het")
-    real = Classification(variant=var, annotation=Annotation(),
-                          criteria=evaluate_criteria(var, Annotation()),
-                          tier=_VUS, rule_path="VUS path")
+    var = V(
+        chrom="1",
+        pos=100,
+        ref="G",
+        alt="A",
+        gene="REALG",
+        consequence="missense_variant",
+        hgvs_p="p.Gly97Arg",
+        zygosity="het",
+    )
+    real = Classification(
+        variant=var,
+        annotation=Annotation(),
+        criteria=evaluate_criteria(var, Annotation()),
+        tier=_VUS,
+        rule_path="VUS path",
+    )
     d = build_explore(build_report("CASE-R", [], QCSummary(candidates=1), [real]))
     pending = {p["code"] for p in missing_evidence(d)[0]["pending_criteria"]}
 
     # exactly the single-proband-undecidable + judgement criteria, from the engine itself
-    assert pending == {"PS2", "PM3", "PM6", "PP1", "BP2", "BS4",     # N/A
-                       "PS3", "PS4", "BS3", "BP3", "BP5"}            # model-adjudicated
+    assert pending == {
+        "PS2",
+        "PM3",
+        "PM6",
+        "PP1",
+        "BP2",
+        "BS4",  # N/A
+        "PS3",
+        "PS4",
+        "BS3",
+        "BP3",
+        "BP5",
+    }  # model-adjudicated
     # engine-decided criteria that merely did not fire are NOT offered as next steps
-    assert not pending & {"PM1", "PS1", "PM5", "PP2", "BP1", "PVS1", "PM2", "PP3", "PP5"}
+    assert not pending & {
+        "PM1",
+        "PS1",
+        "PM5",
+        "PP2",
+        "BP1",
+        "PVS1",
+        "PM2",
+        "PP3",
+        "PP5",
+    }
 
 
 def test_missing_evidence_routes_the_benign_hypothetical_to_the_benign_side():
@@ -247,8 +381,11 @@ def test_missing_evidence_skips_the_nonexistent_benign_moderate_bucket():
     # Richards Table 5 has no benign Moderate; escalating one would be a silent no-op step.
     d = build_explore(_gap_report())
     for r in missing_evidence(d):
-        assert not [s for s in r["would_change_with"]
-                    if s["side"] == "benign" and s["strength"] == "moderate"]
+        assert not [
+            s
+            for s in r["would_change_with"]
+            if s["side"] == "benign" and s["strength"] == "moderate"
+        ]
 
 
 def test_missing_evidence_shows_a_robust_pathogenic_call_as_hard_to_move():

@@ -5,6 +5,7 @@ arbitrary bytes, and the combining rules always return a valid tier and behave
 monotonically (more pathogenic evidence never makes a call more benign, and
 vice-versa).
 """
+
 import os
 import tempfile
 
@@ -12,24 +13,45 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from vcf2report.acmg import rules
-from vcf2report.acmg.rules import (BENIGN, LIKELY_BENIGN, LIKELY_PATHOGENIC,
-                                   PATHOGENIC, VUS)
+from vcf2report.acmg.rules import (
+    BENIGN,
+    LIKELY_BENIGN,
+    LIKELY_PATHOGENIC,
+    PATHOGENIC,
+    VUS,
+)
 from vcf2report.models import CriterionResult
 from vcf2report.vcf.parse import parse_vcf
 
 _HEADER = "##fileformat=VCFv4.2\n##reference=GRCh38\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS\n"
 _RANK = {PATHOGENIC: 0, LIKELY_PATHOGENIC: 1, VUS: 2, LIKELY_BENIGN: 3, BENIGN: 4}
 
-_PATHO = [("PVS1", "very_strong"), ("PS1", "strong"), ("PS3", "strong"),
-          ("PM1", "moderate"), ("PM2", "moderate"), ("PM4", "moderate"),
-          ("PP2", "supporting"), ("PP3", "supporting"), ("PP4", "supporting"), ("PP5", "supporting")]
-_BENIGN = [("BA1", "stand_alone"), ("BS1", "strong"), ("BS2", "strong"),
-           ("BP4", "supporting"), ("BP7", "supporting")]
+_PATHO = [
+    ("PVS1", "very_strong"),
+    ("PS1", "strong"),
+    ("PS3", "strong"),
+    ("PM1", "moderate"),
+    ("PM2", "moderate"),
+    ("PM4", "moderate"),
+    ("PP2", "supporting"),
+    ("PP3", "supporting"),
+    ("PP4", "supporting"),
+    ("PP5", "supporting"),
+]
+_BENIGN = [
+    ("BA1", "stand_alone"),
+    ("BS1", "strong"),
+    ("BS2", "strong"),
+    ("BP4", "supporting"),
+    ("BP7", "supporting"),
+]
 _ALL = _PATHO + _BENIGN
 
 
 def _mk(code, strength):
-    return CriterionResult(code, code, strength, applies=True, met=True, applied_strength=strength)
+    return CriterionResult(
+        code, code, strength, applies=True, met=True, applied_strength=strength
+    )
 
 
 def _write(text: str) -> str:
@@ -48,7 +70,7 @@ def test_parser_never_crashes_on_arbitrary_text(text):
         variants, build, header = parse_vcf(path)
         assert isinstance(variants, list)
         assert build in (None, "GRCh38", "GRCh37")
-        for v in variants:                       # any emitted variant is well-formed
+        for v in variants:  # any emitted variant is well-formed
             assert v.pos > 0 and v.ref and v.alt
     finally:
         os.unlink(path)
@@ -57,7 +79,7 @@ def test_parser_never_crashes_on_arbitrary_text(text):
 @settings(max_examples=150, deadline=None)
 @given(
     chrom=st.sampled_from(["1", "2", "7", "X", "chr17"]),
-    pos=st.integers(min_value=1, max_value=10 ** 8),
+    pos=st.integers(min_value=1, max_value=10**8),
     ref=st.sampled_from(["A", "C", "G", "T"]),
     alt=st.sampled_from(["A", "C", "G", "T"]),
 )
@@ -83,22 +105,26 @@ def test_combine_always_returns_valid_tier(codes):
 
 
 @settings(max_examples=400, deadline=None)
-@given(st.lists(st.sampled_from(_PATHO), unique_by=lambda x: x[0], max_size=8),
-       st.sampled_from(_PATHO))
+@given(
+    st.lists(st.sampled_from(_PATHO), unique_by=lambda x: x[0], max_size=8),
+    st.sampled_from(_PATHO),
+)
 def test_more_pathogenic_evidence_never_more_benign(base, extra):
     codes = {c for c, _ in base}
     r0 = _RANK[rules.combine([_mk(c, s) for c, s in base])[0]]
     if extra[0] not in codes:
         r1 = _RANK[rules.combine([_mk(c, s) for c, s in base] + [_mk(*extra)])[0]]
-        assert r1 <= r0        # rank 0 = Pathogenic; adding pathogenic can't raise it
+        assert r1 <= r0  # rank 0 = Pathogenic; adding pathogenic can't raise it
 
 
 @settings(max_examples=400, deadline=None)
-@given(st.lists(st.sampled_from(_BENIGN), unique_by=lambda x: x[0], max_size=4),
-       st.sampled_from(_BENIGN))
+@given(
+    st.lists(st.sampled_from(_BENIGN), unique_by=lambda x: x[0], max_size=4),
+    st.sampled_from(_BENIGN),
+)
 def test_more_benign_evidence_never_more_pathogenic(base, extra):
     codes = {c for c, _ in base}
     r0 = _RANK[rules.combine([_mk(c, s) for c, s in base])[0]]
     if extra[0] not in codes:
         r1 = _RANK[rules.combine([_mk(c, s) for c, s in base] + [_mk(*extra)])[0]]
-        assert r1 >= r0        # rank 4 = Benign; adding benign can't lower it
+        assert r1 >= r0  # rank 4 = Benign; adding benign can't lower it

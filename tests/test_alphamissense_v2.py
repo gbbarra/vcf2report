@@ -6,6 +6,7 @@ fallback, and — critically — that a *miscalibrated* high AlphaMissense score
 rare benign variant is turned into a detectable gross discordance rather than
 silently shipped.
 """
+
 import pytest
 
 from vcf2report import config
@@ -17,8 +18,11 @@ from vcf2report.models import Annotation, Variant
 
 
 def _ann(**kw) -> Annotation:
-    base = dict(gene_lof_intolerant=False, local_cohort_af=0.0,
-                source={"alphamissense": "test", "insilico": "test"})
+    base = dict(
+        gene_lof_intolerant=False,
+        local_cohort_af=0.0,
+        source={"alphamissense": "test", "insilico": "test"},
+    )
     base.update(kw)
     return Annotation(**base)
 
@@ -31,14 +35,14 @@ def test_am_pp3_strength_bands():
     assert config.am_pp3_strength(config.AM_PP3_STRONG) == "strong"
     assert config.am_pp3_strength(0.95) == "moderate"
     assert config.am_pp3_strength(0.60) == "supporting"
-    assert config.am_pp3_strength(0.45) is None       # ambiguous band
+    assert config.am_pp3_strength(0.45) is None  # ambiguous band
     assert config.am_pp3_strength(None) is None
 
 
 def test_am_bp4_strength_bands():
     assert config.am_bp4_strength(0.10) == "supporting"
     assert config.am_bp4_strength(config.AM_BP4_SUPPORTING) == "supporting"
-    assert config.am_bp4_strength(0.50) is None       # not benign enough
+    assert config.am_bp4_strength(0.50) is None  # not benign enough
     assert config.am_bp4_strength(None) is None
 
 
@@ -56,14 +60,14 @@ def test_pp3_uses_alphamissense_strength():
     r2 = criteria.pp3(_v(), _ann(am_pathogenicity=0.93))
     assert r2.met and r2.applied_strength == "moderate"
     r3 = criteria.pp3(_v(), _ann(am_pathogenicity=0.20))
-    assert not r3.met            # benign-leaning score -> PP3 does not fire
+    assert not r3.met  # benign-leaning score -> PP3 does not fire
 
 
 def test_bp4_uses_alphamissense():
     r = criteria.bp4(_v(), _ann(am_pathogenicity=0.05))
     assert r.met and r.applied_strength == "supporting"
     r2 = criteria.bp4(_v(), _ann(am_pathogenicity=0.95))
-    assert not r2.met            # pathogenic score -> BP4 does not fire
+    assert not r2.met  # pathogenic score -> BP4 does not fire
 
 
 def test_pp3_falls_back_to_revel_when_no_alphamissense():
@@ -114,6 +118,7 @@ def test_rare_missense_moderate_am_stays_vus():
 # ---------------------------------------------------------------------------
 def test_high_am_on_rare_variant_pm2_strength(monkeypatch):
     from vcf2report.concordance import collapse_engine_tier, PATH
+
     a = _ann(gnomad_af=0.0, gnomad_faf95=0.0, am_pathogenicity=0.9995)
     # Default (PM2 Supporting): rare + a single in-silico predictor no longer reaches LP, so this is
     # NOT a potential gross discordance — the engine holds it at VUS.
@@ -141,7 +146,12 @@ def test_alphamissense_best_takes_max_matching_transcript():
 
 def test_alphamissense_best_none_when_no_match():
     v = Variant(chrom="17", pos=7670000, ref="C", alt="T")
-    assert alphamissense._best(["chr17\t7670000\tG\tA\th\tu\tt\tp\t0.9\tlikely_pathogenic"], v) is None
+    assert (
+        alphamissense._best(
+            ["chr17\t7670000\tG\tA\th\tu\tt\tp\t0.9\tlikely_pathogenic"], v
+        )
+        is None
+    )
 
 
 def test_alphamissense_lookup_no_local_file(tmp_path, monkeypatch):

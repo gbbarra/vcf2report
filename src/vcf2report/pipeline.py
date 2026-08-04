@@ -4,6 +4,7 @@ This is the single orchestration entry point shared by the headless CLI and the
 MCP ``run_report`` tool. Each stage is thin and delegates to the module that
 owns it (parse / qc / annotate / filter / acmg / report).
 """
+
 from __future__ import annotations
 
 import time
@@ -29,8 +30,9 @@ from .vcf.qc import apply_qc
 QC_RESCUE_MAX = 500
 
 
-def _qc_loss_warnings(qc: QCSummary, variants: list, kept: list,
-                      dropped: list[tuple]) -> None:
+def _qc_loss_warnings(
+    qc: QCSummary, variants: list, kept: list, dropped: list[tuple]
+) -> None:
     """Warn when the QC gate, or the annotation upstream of it, silently ate the callset.
 
     QC is the one stage that can remove EVERYTHING and still produce a clean-looking
@@ -52,7 +54,9 @@ def _qc_loss_warnings(qc: QCSummary, variants: list, kept: list,
     non_carrier = reasons.get("non-carrier", 0)
 
     if not kept:
-        detail = ", ".join(f"{k}: {n}" for k, n in sorted(reasons.items(), key=lambda x: -x[1]))
+        detail = ", ".join(
+            f"{k}: {n}" for k, n in sorted(reasons.items(), key=lambda x: -x[1])
+        )
         qc.warnings.append(
             f"ALL {len(variants)} variants were removed by per-variant QC ({detail}) — the "
             "report below has nothing to analyse and its 'no finding' statements carry NO "
@@ -74,8 +78,9 @@ def _qc_loss_warnings(qc: QCSummary, variants: list, kept: list,
         )
 
 
-def _qc_rescue(qc: QCSummary, dropped: list[tuple], hpo_terms: list[str],
-               build_trusted: bool) -> None:
+def _qc_rescue(
+    qc: QCSummary, dropped: list[tuple], hpo_terms: list[str], build_trusted: bool
+) -> None:
     """Name QC-dropped variants that ClinVar classifies P/LP with criteria-backed review.
 
     The report's do-not-dismiss net (``assemble.clinvar_pathogenic_flags``) only sees
@@ -94,7 +99,9 @@ def _qc_rescue(qc: QCSummary, dropped: list[tuple], hpo_terms: list[str],
     from .vcf.filter import is_impactful
     from .vcf.qc import is_metric_drop
 
-    pool = [(v, r) for v, r in dropped if is_metric_drop(r) and is_impactful(v.consequence)]
+    pool = [
+        (v, r) for v, r in dropped if is_metric_drop(r) and is_impactful(v.consequence)
+    ]
     if not pool:
         return
     capped = len(pool) > QC_RESCUE_MAX
@@ -102,8 +109,13 @@ def _qc_rescue(qc: QCSummary, dropped: list[tuple], hpo_terms: list[str],
         # Resolve ClinVar through the SAME path the classified variants use (VCF INFO
         # first, then the local/live client). Calling the DB client directly would miss
         # every pre-annotated exome — the recommended production input.
-        a = annotate_variant(v, [], build_trusted=build_trusted,
-                             with_alphamissense=False, with_clinvar_residue=False)
+        a = annotate_variant(
+            v,
+            [],
+            build_trusted=build_trusted,
+            with_alphamissense=False,
+            with_clinvar_residue=False,
+        )
         sig = (a.clinvar_significance or "").lower().replace("_", " ")
         stars = clinvar_stars(a.clinvar_review_status)
         if not (sig.startswith("pathogenic") or sig.startswith("likely pathogenic")):
@@ -160,6 +172,7 @@ def run_pipeline(
     # Multi-sample guard: we analyse ONE proband. Warn loudly if a multi-sample
     # VCF was passed without naming the proband (we default to the first column).
     from .vcf.parse import _sample_names
+
     names = _sample_names(header)
     if len(names) > 1 and sample is None:
         qc.warnings.append(
@@ -197,6 +210,7 @@ def run_pipeline(
     # up front — annotate_variant's per-variant gnomad.lookup then reads that cache
     # instead of ~11k tabix/remote round-trips. No-op when the parquet isn't configured.
     from .annotate import gnomad_parquet
+
     primed = gnomad_parquet.prime(kept)
     # Safety net: if the operator pointed us at a parquet store but 0 of a real
     # callset resolved, the store is unavailable (drive unmounted) or empty. Left
@@ -210,12 +224,15 @@ def run_pipeline(
     _pq = gnomad_parquet.stats()
     if config.GNOMAD_PARQUET and len(kept) >= 50 and _pq.get("matched", primed) == 0:
         from .annotate.gnomad_parquet import _get_duckdb
+
         store_present = Path(config.GNOMAD_PARQUET).exists()
         if store_present and _get_duckdb() is None:
             cause = "the 'duckdb' package is not installed — run `pip install duckdb`"
         elif not store_present:
-            cause = ("the store is unavailable (e.g. the drive is unmounted) or empty — "
-                     "mount it and re-run")
+            cause = (
+                "the store is unavailable (e.g. the drive is unmounted) or empty — "
+                "mount it and re-run"
+            )
         else:
             cause = "the store matched no variants (a schema or coordinate mismatch)"
         qc.warnings.append(
@@ -223,10 +240,13 @@ def run_pipeline(
             f"resolved from it — {cause}. Population frequencies were NOT applied: the "
             "rarity filter cannot exclude common variants and BA1/BS1 cannot down-weight "
             "them, so the report likely OVER-calls."
-            + (f" WORSE: {_pq['vouched_absent']} variants were nevertheless recorded as "
-               "'absent from gnomAD' because the store declares full coverage — those are "
-               "fabricated observations, not survey results."
-               if _pq.get("vouched_absent") else "")
+            + (
+                f" WORSE: {_pq['vouched_absent']} variants were nevertheless recorded as "
+                "'absent from gnomAD' because the store declares full coverage — those are "
+                "fabricated observations, not survey results."
+                if _pq.get("vouched_absent")
+                else ""
+            )
         )
 
     # An un-normalised REF/ALT is a different string for the same variant, so the store cannot
@@ -249,18 +269,31 @@ def run_pipeline(
     from .annotate import clinvar_parquet
     from .vcf.filter import is_impactful as _impactful
     from .vcf.qc import is_metric_drop as _metric_drop
+
     # The QC-drop rescue queries ClinVar for variants that never reach annotation, so they
     # must ride along in the same primed join rather than falling back to per-variant lookups.
-    _rescue_pool = [v for v, r in dropped if _metric_drop(r) and _impactful(v.consequence)]
+    _rescue_pool = [
+        v for v, r in dropped if _metric_drop(r) and _impactful(v.consequence)
+    ]
     clinvar_parquet.prime(kept + _rescue_pool[:QC_RESCUE_MAX])
     _qc_rescue(qc, dropped, hpo_terms, build_trusted)
     _mark("clinvar_prime_s")
     # AlphaMissense is deferred: it only feeds PP3/BP4 at classification, never the
     # filter, so we skip the (per-variant, ~1 GB tabix) lookup across the whole
     # post-QC set and query just the surviving candidates below.
-    annotated = [(v, annotate_variant(v, hpo_terms, build_trusted=build_trusted,
-                                      with_alphamissense=False, with_clinvar_residue=False))
-                 for v in kept]
+    annotated = [
+        (
+            v,
+            annotate_variant(
+                v,
+                hpo_terms,
+                build_trusted=build_trusted,
+                with_alphamissense=False,
+                with_clinvar_residue=False,
+            ),
+        )
+        for v in kept
+    ]
     _mark("annotate_s")
     candidates, funnel = filter_variants(annotated, max_af=max_af)
     qc.after_rarity = funnel.after_rarity
@@ -272,6 +305,7 @@ def run_pipeline(
 
     if build_trusted:
         from .annotate import alphamissense
+
         alphamissense.prime([v for v, a in candidates])
         for v, a in candidates:
             add_alphamissense(v, a)
@@ -290,8 +324,9 @@ def run_pipeline(
     # Derived from the VCF that was actually parsed and the stores that were actually present —
     # not from a caller-supplied flag — so a demo run cannot reach the renderers unstamped no
     # matter which surface (CLI, headless script, MCP) drove it.
-    report = build_report(sample_id, hpo_terms, qc, classifications,
-                          provenance=demo.provenance(vcf_path))
+    report = build_report(
+        sample_id, hpo_terms, qc, classifications, provenance=demo.provenance(vcf_path)
+    )
     # Sequencing-quality estimate over ALL called variants (pre-filter callset).
     report.seq_quality = seqqc.estimate(variants)
     total = round(sum(timings.values()), 4)

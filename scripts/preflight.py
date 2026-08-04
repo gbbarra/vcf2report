@@ -6,6 +6,7 @@ enables, and the network-egress flag.
 
     python3 scripts/preflight.py
 """
+
 import json
 import sys
 from pathlib import Path

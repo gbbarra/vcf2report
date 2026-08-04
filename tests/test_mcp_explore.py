@@ -9,6 +9,7 @@ way to ask why a criterion fired.
 These tests are skipped when the MCP SDK is absent (it is an optional extra, and CI installs
 the light dependency set), so they never make the suite depend on it.
 """
+
 import pytest
 
 pytest.importorskip("mcp", reason="MCP SDK is an optional extra")
@@ -19,14 +20,19 @@ from vcf2report import mcp_server as M  # noqa: E402
 @pytest.fixture(scope="module")
 def run(tmp_path_factory):
     out = tmp_path_factory.mktemp("mcp")
-    return M.run_report("data/example/SYN-051.PIGA.annotated.vcf.gz",
-                        hpo_terms=["HP:0001250"], sample_id="T-PIGA", out_dir=str(out))
+    return M.run_report(
+        "data/example/SYN-051.PIGA.annotated.vcf.gz",
+        hpo_terms=["HP:0001250"],
+        sample_id="T-PIGA",
+        out_dir=str(out),
+    )
 
 
 def test_run_report_writes_and_returns_the_queryable_json(run):
     # The Desktop path produced a laudo with no companion JSON, so nothing downstream could
     # read the run back. The path must also be RETURNED, or the client cannot chain to it.
     from pathlib import Path
+
     assert "results_json" in run, "run_report must tell the client where the data is"
     assert Path(run["results_json"]).is_file()
 
@@ -45,11 +51,13 @@ def test_explore_gene_gives_the_digest(run):
 
 
 def test_explore_gene_with_a_criterion_gives_the_audit_trail(run):
-    r = M.explore_gene(run["results_json"], "PIGA", "pm2")   # case-insensitive
+    r = M.explore_gene(run["results_json"], "PIGA", "pm2")  # case-insensitive
     assert r["criterion"] == "PM2"
     basis = r["basis"][0]
     assert basis["code"] == "PM2" and basis["met"] is True
-    assert basis["reasoning"], "an audit answer with no reasoning is not an audit answer"
+    assert basis["reasoning"], (
+        "an audit answer with no reasoning is not an audit answer"
+    )
 
 
 def test_explore_missing_evidence_names_an_actionable_next_step(run):
@@ -57,7 +65,9 @@ def test_explore_missing_evidence_names_an_actionable_next_step(run):
     up = [s for s in cases[0]["would_change_with"] if s["direction"] == "up"]
     assert up, "a VUS should report what would raise it"
     needs = " ".join(c["needs"] for c in up[0]["candidates"])
-    assert "parental" in needs, "the answer must name a concrete next step, not a bare strength"
+    assert "parental" in needs, (
+        "the answer must name a concrete next step, not a bare strength"
+    )
 
 
 def test_explore_evidence_sources_views(run):
@@ -66,7 +76,9 @@ def test_explore_evidence_sources_views(run):
     assert M.explore_evidence_sources(rj, "missense")["view"] == "missense"
     # the audit view must surface MORE than the met-only view
     met_only = len(M.explore_evidence_sources(rj, "missense")["findings"])
-    audit = len(M.explore_evidence_sources(rj, "missense", include_not_met=True)["findings"])
+    audit = len(
+        M.explore_evidence_sources(rj, "missense", include_not_met=True)["findings"]
+    )
     assert audit >= met_only
 
 
@@ -86,12 +98,17 @@ def test_setup_doc_lists_every_registered_mcp_tool():
     assert registered, "no @mcp.tool() functions found — has the decorator changed?"
 
     doc = pathlib.Path("docs/SETUP.md").read_text()
-    section = doc.split("## Which tools the MCP server exposes", 1)[1].split("\n## ", 1)[0]
+    section = doc.split("## Which tools the MCP server exposes", 1)[1].split(
+        "\n## ", 1
+    )[0]
     listed = set(re.findall(r"`(\w+)`", section))
 
-    assert not registered - listed, f"registered but undocumented: {sorted(registered - listed)}"
-    assert not (listed - registered) - {"tests/test_mcp_explore.py"}, \
+    assert not registered - listed, (
+        f"registered but undocumented: {sorted(registered - listed)}"
+    )
+    assert not (listed - registered) - {"tests/test_mcp_explore.py"}, (
         f"documented but not registered: {sorted(listed - registered)}"
+    )
 
 
 def test_the_server_class_import_survives_both_sdk_generations():
@@ -101,9 +118,11 @@ def test_the_server_class_import_survives_both_sdk_generations():
     decorator API is identical across both, so the import accepts either."""
     import mcp.server
 
-    available = [n for n in ("FastMCP", "MCPServer")
-                 if hasattr(mcp.server, n)
-                 or (n == "FastMCP" and _has_fastmcp_module())]
+    available = [
+        n
+        for n in ("FastMCP", "MCPServer")
+        if hasattr(mcp.server, n) or (n == "FastMCP" and _has_fastmcp_module())
+    ]
     assert available, "neither SDK generation's server class is importable"
     assert M.mcp is not None and hasattr(M.mcp, "tool")
 
@@ -111,6 +130,7 @@ def test_the_server_class_import_survives_both_sdk_generations():
 def _has_fastmcp_module():
     try:
         import mcp.server.fastmcp  # noqa: F401
+
         return True
     except ImportError:
         return False

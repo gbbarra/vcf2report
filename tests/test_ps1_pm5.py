@@ -8,6 +8,7 @@
 The two are mutually exclusive by construction. Both read the residue index built by
 ``scripts/fetch_clinvar_residue.py`` (or the committed frozen slice).
 """
+
 import pytest
 
 import gzip
@@ -21,8 +22,15 @@ _pm5 = all_criteria()["PM5"]
 
 
 def _v(hgvs_p="p.Arg123Cys", gene="TESTG"):
-    return Variant(chrom="1", pos=100, ref="C", alt="T", gene=gene,
-                   consequence="missense_variant", hgvs_p=hgvs_p)
+    return Variant(
+        chrom="1",
+        pos=100,
+        ref="C",
+        alt="T",
+        gene=gene,
+        consequence="missense_variant",
+        hgvs_p=hgvs_p,
+    )
 
 
 # --- criterion logic (Annotation-driven) ------------------------------------
@@ -32,8 +40,13 @@ def _ann(**kw):
 
 
 def test_ps1_met_on_same_aa_different_variant():
-    m = {"alt_aa": "Cys", "ref_aa": "Arg", "stars": 2, "genomic_key": "1-101-G-A",
-         "accession": "VCV000012345"}
+    m = {
+        "alt_aa": "Cys",
+        "ref_aa": "Arg",
+        "stars": 2,
+        "genomic_key": "1-101-G-A",
+        "accession": "VCV000012345",
+    }
     cr = _ps1(_v(), _ann(clinvar_ps1=m))
     assert cr.applies and cr.met
     assert cr.applied_strength == "strong"
@@ -57,8 +70,14 @@ def test_ps1_unavailable_index_is_honest():
 def test_pm5_met_on_different_aa_same_residue():
     # One other pathogenic change, well-reviewed (>=2*) -> PM5 at its default Moderate.
     # (The graded Strong/Supporting variants are covered in tests/test_pm1_hotspot.py.)
-    m = {"alt_aa": "His", "ref_aa": "Arg", "stars": 2, "n_other": 1,
-         "genomic_key": "1-101-G-A", "accession": "VCV000067890"}
+    m = {
+        "alt_aa": "His",
+        "ref_aa": "Arg",
+        "stars": 2,
+        "n_other": 1,
+        "genomic_key": "1-101-G-A",
+        "accession": "VCV000067890",
+    }
     cr = _pm5(_v(), _ann(clinvar_pm5=m, clinvar_ps1=None))
     assert cr.applies and cr.met
     assert cr.applied_strength == "moderate"
@@ -83,20 +102,42 @@ def test_ps1_pm5_not_applicable_for_non_missense():
 def test_ps1_suppressed_when_own_clinvar_is_pathogenic():
     # A variant ClinVar already calls Pathogenic is covered by PP5; PS1 (which would also fire
     # from a same-AA different-locus entry) is withheld so the ClinVar evidence isn't double-counted.
-    m = {"alt_aa": "Cys", "ref_aa": "Arg", "stars": 2, "genomic_key": "1-101-G-A",
-         "accession": "VCV000012345"}
-    cr = _ps1(_v(), _ann(clinvar_ps1=m, clinvar_significance="Pathogenic",
-                         clinvar_review_status="criteria provided, single submitter"))
+    m = {
+        "alt_aa": "Cys",
+        "ref_aa": "Arg",
+        "stars": 2,
+        "genomic_key": "1-101-G-A",
+        "accession": "VCV000012345",
+    }
+    cr = _ps1(
+        _v(),
+        _ann(
+            clinvar_ps1=m,
+            clinvar_significance="Pathogenic",
+            clinvar_review_status="criteria provided, single submitter",
+        ),
+    )
     assert not cr.met
     assert "PP5" in cr.reasoning and "double-count" in cr.reasoning
 
 
 def test_pm5_suppressed_when_own_clinvar_is_pathogenic():
-    m = {"alt_aa": "His", "ref_aa": "Arg", "stars": 1, "genomic_key": "1-101-G-A",
-         "accession": "VCV000067890"}
-    cr = _pm5(_v(), _ann(clinvar_pm5=m, clinvar_ps1=None,
-                         clinvar_significance="Likely pathogenic",
-                         clinvar_review_status="criteria provided, single submitter"))
+    m = {
+        "alt_aa": "His",
+        "ref_aa": "Arg",
+        "stars": 1,
+        "genomic_key": "1-101-G-A",
+        "accession": "VCV000067890",
+    }
+    cr = _pm5(
+        _v(),
+        _ann(
+            clinvar_pm5=m,
+            clinvar_ps1=None,
+            clinvar_significance="Likely pathogenic",
+            clinvar_review_status="criteria provided, single submitter",
+        ),
+    )
     assert not cr.met
     assert "PP5" in cr.reasoning
 
@@ -105,19 +146,32 @@ def test_ps1_not_suppressed_by_an_unreviewed_clinvar_record():
     # The guard's justification is "captured by PP5" — so it must test the condition PP5 actually
     # tests, stars included. A 0-star "Pathogenic" does NOT fire PP5, so withholding PS1 on it
     # would strip a legitimate residue cross-match while citing a PP5 that never fired.
-    m = {"alt_aa": "Cys", "ref_aa": "Arg", "stars": 2, "genomic_key": "1-101-G-A",
-         "accession": "VCV000012345"}
-    a = _ann(clinvar_ps1=m, clinvar_significance="Pathogenic",
-             clinvar_review_status="no assertion criteria provided")
-    assert not all_criteria()["PP5"](_v(), a).met      # 0-star: PP5 does not fire...
-    assert _ps1(_v(), a).met                           # ...so PS1 must not stand down
+    m = {
+        "alt_aa": "Cys",
+        "ref_aa": "Arg",
+        "stars": 2,
+        "genomic_key": "1-101-G-A",
+        "accession": "VCV000012345",
+    }
+    a = _ann(
+        clinvar_ps1=m,
+        clinvar_significance="Pathogenic",
+        clinvar_review_status="no assertion criteria provided",
+    )
+    assert not all_criteria()["PP5"](_v(), a).met  # 0-star: PP5 does not fire...
+    assert _ps1(_v(), a).met  # ...so PS1 must not stand down
 
 
 def test_ps1_still_fires_when_own_clinvar_is_vus():
     # A variant ClinVar calls VUS (not P/LP) still earns PS1 from a same-AA pathogenic elsewhere —
     # PP5 does not fire for a VUS, so there is nothing to double-count.
-    m = {"alt_aa": "Cys", "ref_aa": "Arg", "stars": 2, "genomic_key": "1-101-G-A",
-         "accession": "VCV000012345"}
+    m = {
+        "alt_aa": "Cys",
+        "ref_aa": "Arg",
+        "stars": 2,
+        "genomic_key": "1-101-G-A",
+        "accession": "VCV000012345",
+    }
     cr = _ps1(_v(), _ann(clinvar_ps1=m, clinvar_significance="Uncertain significance"))
     assert cr.met
 
@@ -126,7 +180,9 @@ def test_ps1_still_fires_when_own_clinvar_is_vus():
 def _write_index(path, rows):
     with gzip.open(path, "wt") as w:
         w.write("# ClinVar residue index for PS1/PM5\n")
-        w.write("# Columns: gene\taa_pos\tref_aa\talt_aa\tstars\tgenomic_key\taccession\n")
+        w.write(
+            "# Columns: gene\taa_pos\tref_aa\talt_aa\tstars\tgenomic_key\taccession\n"
+        )
         for r in rows:
             w.write("\t".join(map(str, r)) + "\n")
 
@@ -140,6 +196,7 @@ def _reset_index(monkeypatch, frozen=None):
     tmp data. Going through monkeypatch means teardown restores the previous cache too.
     """
     from vcf2report import config
+
     monkeypatch.setattr(config, "CLINVAR_RESIDUE_FROZEN", frozen)
     monkeypatch.setattr(config, "CLINVAR_RESIDUE_LOCAL", None)
     monkeypatch.setattr(clinvar_residue, "_index", None)
@@ -148,11 +205,14 @@ def _reset_index(monkeypatch, frozen=None):
 
 def test_lookup_ps1_and_pm5_from_table(tmp_path, monkeypatch):
     fp = tmp_path / "residue.tsv.gz"
-    _write_index(fp, [
-        # BRCA1 Arg1699: two distinct pathogenic AA changes at the same residue.
-        ("BRCA1", 1699, "Arg", "Trp", 3, "17-43057051-G-A", "VCV000000001"),
-        ("BRCA1", 1699, "Arg", "Gln", 2, "17-43057052-C-T", "VCV000000002"),
-    ])
+    _write_index(
+        fp,
+        [
+            # BRCA1 Arg1699: two distinct pathogenic AA changes at the same residue.
+            ("BRCA1", 1699, "Arg", "Trp", 3, "17-43057051-G-A", "VCV000000001"),
+            ("BRCA1", 1699, "Arg", "Gln", 2, "17-43057052-C-T", "VCV000000002"),
+        ],
+    )
     _reset_index(monkeypatch, frozen=fp)
 
     # Query = same AA change (Arg1699Trp) via a DIFFERENT nucleotide -> PS1.
@@ -167,7 +227,9 @@ def test_lookup_ps1_and_pm5_from_table(tmp_path, monkeypatch):
 
 def test_lookup_query_own_record_is_not_ps1(tmp_path, monkeypatch):
     fp = tmp_path / "residue.tsv.gz"
-    _write_index(fp, [("SCN1A", 123, "Arg", "Cys", 2, "2-165991000-G-A", "VCV000000009")])
+    _write_index(
+        fp, [("SCN1A", 123, "Arg", "Cys", 2, "2-165991000-G-A", "VCV000000009")]
+    )
     _reset_index(monkeypatch, frozen=fp)
     # Same genomic key as the stored record -> the variant's OWN assertion (PP5), never PS1.
     r = clinvar_residue.lookup("SCN1A", "p.Arg123Cys", "2-165991000-G-A")
@@ -182,9 +244,9 @@ def test_lookup_unavailable_when_no_table(monkeypatch):
 
 def test_parse_hgvs_p_rejects_non_missense():
     assert clinvar_residue.parse_hgvs_p("p.Arg123Cys") == ("Arg", 123, "Cys")
-    assert clinvar_residue.parse_hgvs_p("p.Arg123Ter") is None   # nonsense
-    assert clinvar_residue.parse_hgvs_p("p.Leu479fs") is None     # frameshift
-    assert clinvar_residue.parse_hgvs_p("p.Ser330Ser") is None    # synonymous
+    assert clinvar_residue.parse_hgvs_p("p.Arg123Ter") is None  # nonsense
+    assert clinvar_residue.parse_hgvs_p("p.Leu479fs") is None  # frameshift
+    assert clinvar_residue.parse_hgvs_p("p.Ser330Ser") is None  # synonymous
     assert clinvar_residue.parse_hgvs_p(None) is None
 
 
@@ -201,10 +263,19 @@ def test_annotate_variant_populates_residue_evidence_by_default():
     from vcf2report.annotate import annotate_variant
     from vcf2report.models import Variant as V
 
-    v = V(chrom="5", pos=112838671, ref="A", alt="T", gene="APC",
-          consequence="missense_variant", hgvs_p="p.Asn1026Asp")
+    v = V(
+        chrom="5",
+        pos=112838671,
+        ref="A",
+        alt="T",
+        gene="APC",
+        consequence="missense_variant",
+        hgvs_p="p.Asn1026Asp",
+    )
     ann = annotate_variant(v, [])
-    assert ann.clinvar_residue_available is True, "residue index not consulted by default"
+    assert ann.clinvar_residue_available is True, (
+        "residue index not consulted by default"
+    )
     assert ann.clinvar_hotspot is not None, "hotspot not computed by default"
 
     # ...and the deferred form leaves them unset, for the pipeline to fill on the candidates.
@@ -224,33 +295,46 @@ def test_ps1_requires_the_reference_amino_acid_to_agree(monkeypatch):
     monkeypatch.setattr(clinvar_residue, "_index", idx)
     monkeypatch.setattr(clinvar_residue, "_baselines", {"GENEX": 0.0})
 
-    assert clinvar_residue.lookup("GENEX", "p.Gly265Glu", "5-999-A-G")["ps1"]   # ref agrees
+    assert clinvar_residue.lookup("GENEX", "p.Gly265Glu", "5-999-A-G")[
+        "ps1"
+    ]  # ref agrees
     for wrong in ("p.Ala265Glu", "p.Trp265Glu", "p.Pro265Glu"):
         r = clinvar_residue.lookup("GENEX", wrong, "5-999-A-G")
         assert r["ps1"] is None and r["pm5"] is None, f"{wrong} matched a Gly265 row"
 
 
-@pytest.mark.parametrize("hgvs_p", [
-    "p.Arg97GlyfsTer26",        # VEP / ClinVar long frameshift form
-    "p.Ser330AsnfsTer5",
-    "p.Gly12ValfsTer3",
-])
+@pytest.mark.parametrize(
+    "hgvs_p",
+    [
+        "p.Arg97GlyfsTer26",  # VEP / ClinVar long frameshift form
+        "p.Ser330AsnfsTer5",
+        "p.Gly12ValfsTer3",
+    ],
+)
 def test_vep_frameshift_notation_is_not_read_as_a_missense(hgvs_p):
     """`_P_RE.search` matched the leading `p.Arg97Gly` of a frameshift. That fired PS1/PM5 on
     frameshifts AND poisoned the index: scripts/fetch_clinvar_residue.py runs the same parser
     over ClinVar's Name column, so indels were recorded as missense rows."""
     from vcf2report.annotate.clinvar_residue import parse_hgvs_p
+
     assert parse_hgvs_p(hgvs_p) is None
 
 
-@pytest.mark.parametrize("hgvs_p,expected", [
-    ("p.Gly265Glu", ("Gly", 265, "Glu")),
-    ("ENSP00000350283.3:p.Gln356Arg", ("Gln", 356, "Arg")),   # VEP writes a protein prefix
-    ("p.(Gly265Glu)", ("Gly", 265, "Glu")),                   # HGVS "predicted" parentheses
-])
+@pytest.mark.parametrize(
+    "hgvs_p,expected",
+    [
+        ("p.Gly265Glu", ("Gly", 265, "Glu")),
+        (
+            "ENSP00000350283.3:p.Gln356Arg",
+            ("Gln", 356, "Arg"),
+        ),  # VEP writes a protein prefix
+        ("p.(Gly265Glu)", ("Gly", 265, "Glu")),  # HGVS "predicted" parentheses
+    ],
+)
 def test_real_missense_forms_still_parse(hgvs_p, expected):
     """Anchoring the regex must not lose the forms real annotators emit."""
     from vcf2report.annotate.clinvar_residue import parse_hgvs_p
+
     assert parse_hgvs_p(hgvs_p) == expected
 
 
@@ -270,6 +354,10 @@ def test_the_committed_residue_index_holds_no_indels():
             continue
         for tok in line.rstrip("\n").split("\t"):
             parts = tok.split("-")
-            if len(parts) == 4 and parts[1].isdigit() and len(parts[2]) != len(parts[3]):
+            if (
+                len(parts) == 4
+                and parts[1].isdigit()
+                and len(parts[2]) != len(parts[3])
+            ):
                 bad.append(tok)
     assert not bad, f"non-substitution genomic keys in the residue index: {bad}"

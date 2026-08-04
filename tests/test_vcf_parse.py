@@ -1,4 +1,5 @@
 """VCF parsing + QC tests against the bundled sample."""
+
 from vcf2report import config
 from vcf2report.vcf.parse import parse_vcf, detect_build
 from vcf2report.vcf.qc import apply_qc
@@ -19,13 +20,14 @@ def test_qc_drops_low_depth_and_lowqual():
     variants, _, _ = parse_vcf(config.SAMPLE_VCF)
     kept, dropped = apply_qc(variants)
     dropped_genes = {v.gene for v, _ in dropped}
-    assert "CFTR" in dropped_genes   # DP=6 < 10
-    assert "HBB" in dropped_genes    # FILTER=LowQual
+    assert "CFTR" in dropped_genes  # DP=6 < 10
+    assert "HBB" in dropped_genes  # FILTER=LowQual
     assert len(kept) == 9
 
 
 def test_variant_key_strips_chr_prefix():
     from vcf2report.models import Variant
+
     v = Variant(chrom="chr2", pos=100, ref="A", alt="T")
     assert v.key == "2-100-A-T"
 

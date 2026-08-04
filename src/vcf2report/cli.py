@@ -3,6 +3,7 @@
 Runs the full VCF -> report pipeline without Claude, for fast iteration and CI.
 This is the same pipeline the MCP server exposes to Claude Desktop.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,6 +33,7 @@ def read_hpo_file(path: str | Path) -> list[str]:
         return terms
     # Not a file -> parse HP: ids straight out of the argument (e.g. "HP:1,HP:2").
     import re
+
     return [t.upper() for t in re.findall(r"HP:\d+", str(path), flags=re.IGNORECASE)]
 
 
@@ -40,22 +42,40 @@ def main(argv: list[str] | None = None) -> int:
         prog="vcf2report",
         description="Turn an exome VCF into an auditable ACMG variant report.",
     )
-    parser.add_argument("vcf", nargs="?", default=str(config.SAMPLE_VCF),
-                        help="Path to the input VCF (defaults to the bundled sample).")
-    parser.add_argument("--hpo", default=None,
-                        help="Patient HPO terms: a file (one HP:id per line) OR an inline "
-                             "list like HP:0001250,HP:0001263 (defaults to the sample).")
-    parser.add_argument("--sample-id", default=None, help="Override the sample identifier.")
+    parser.add_argument(
+        "vcf",
+        nargs="?",
+        default=str(config.SAMPLE_VCF),
+        help="Path to the input VCF (defaults to the bundled sample).",
+    )
+    parser.add_argument(
+        "--hpo",
+        default=None,
+        help="Patient HPO terms: a file (one HP:id per line) OR an inline "
+        "list like HP:0001250,HP:0001263 (defaults to the sample).",
+    )
+    parser.add_argument(
+        "--sample-id", default=None, help="Override the sample identifier."
+    )
     parser.add_argument("--out", default=None, help="Output directory for the report.")
-    parser.add_argument("--stdout", action="store_true",
-                        help="Print the Markdown report to stdout instead of writing a file.")
-    parser.add_argument("--timing", action="store_true",
-                        help="Print per-stage timings (parse/QC/annotate/filter/classify).")
-    parser.add_argument("--demo", action="store_true",
-                        help="Demonstration run on one of this repository's committed example "
-                             "VCFs (data/example/), so the flow can be shown without the full "
-                             "Parquet stores. Refused for any other path — it is not a store "
-                             "override. The laudo is stamped DEMONSTRATION RUN.")
+    parser.add_argument(
+        "--stdout",
+        action="store_true",
+        help="Print the Markdown report to stdout instead of writing a file.",
+    )
+    parser.add_argument(
+        "--timing",
+        action="store_true",
+        help="Print per-stage timings (parse/QC/annotate/filter/classify).",
+    )
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Demonstration run on one of this repository's committed example "
+        "VCFs (data/example/), so the flow can be shown without the full "
+        "Parquet stores. Refused for any other path — it is not a store "
+        "override. The laudo is stamped DEMONSTRATION RUN.",
+    )
     args = parser.parse_args(argv)
 
     if args.demo:
@@ -89,8 +109,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     out_dir = Path(args.out) if args.out else config.OUTPUT_DIR
-    fp = write_report(report, out_dir)     # writes the companion _results.json too
+    fp = write_report(report, out_dir)  # writes the companion _results.json too
     from .report.render import results_json_for
+
     jp = results_json_for(fp)
     print(f"Report written to {fp}")
     print(f"  explorable data: {jp}")

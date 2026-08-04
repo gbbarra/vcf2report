@@ -13,6 +13,7 @@ Open file handles are cached per chromosome (opening a remote VCF downloads the
 header + tabix index, which is too costly to repeat per variant), so annotating a
 whole exome reuses ~24 handles.
 """
+
 from __future__ import annotations
 
 import threading
@@ -21,8 +22,10 @@ from typing import Optional
 from ..models import Variant
 
 RELEASE = "4.1"
-_BASE = ("https://storage.googleapis.com/gcp-public-data--gnomad/release/"
-         f"{RELEASE}/vcf/{{kind}}/gnomad.{{kind}}.v{RELEASE}.sites.{{chrom}}.vcf.bgz")
+_BASE = (
+    "https://storage.googleapis.com/gcp-public-data--gnomad/release/"
+    f"{RELEASE}/vcf/{{kind}}/gnomad.{{kind}}.v{RELEASE}.sites.{{chrom}}.vcf.bgz"
+)
 
 _handles: dict[tuple[str, str], object] = {}
 _failed: set[tuple[str, str]] = set()
@@ -37,6 +40,7 @@ def _get_pysam():
         _pysam_tried = True
         try:
             import pysam  # noqa
+
             _pysam = pysam
         except Exception:
             _pysam = None
@@ -86,6 +90,7 @@ def _best_from_record(rec) -> Optional[dict]:
     in an excluded bottleneck group) so a real, non-absent variant is never
     reported as AF 0.
     """
+
     def a0(key):
         # rec.info.get() returns None for a key that IS declared in the header and simply has
         # no value on this record — but RAISES ValueError("Invalid header") for a key the
@@ -119,14 +124,26 @@ def _best_from_record(rec) -> Optional[dict]:
     if pop is not None and pop.lower() not in _POPMAX_EXCLUDE:
         af = a0("AF_grpmax")
         if af is not None:
-            return {"af": float(af), "ac": a0("AC_grpmax"), "an": a0("AN_grpmax"),
-                    "hom": a0("nhomalt_grpmax"), "faf95": faf95(), "pop": pop}
+            return {
+                "af": float(af),
+                "ac": a0("AC_grpmax"),
+                "an": a0("AN_grpmax"),
+                "hom": a0("nhomalt_grpmax"),
+                "faf95": faf95(),
+                "pop": pop,
+            }
     # fall back to global
     af = a0("AF")
     if af is None:
         return None
-    return {"af": float(af), "ac": a0("AC"), "an": a0("AN"),
-            "hom": a0("nhomalt"), "faf95": faf95(), "pop": None}
+    return {
+        "af": float(af),
+        "ac": a0("AC"),
+        "an": a0("AN"),
+        "hom": a0("nhomalt"),
+        "faf95": faf95(),
+        "pop": None,
+    }
 
 
 def query(variant: Variant) -> Optional[dict]:
@@ -175,8 +192,8 @@ def query(variant: Variant) -> Optional[dict]:
             continue
         opened += 1
     if best is not None:
-        return best            # a match from either callset is authoritative
+        return best  # a match from either callset is authoritative
     if opened == 2:
         # both callsets opened and neither carries the allele -> genuine absence.
         return {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}
-    return None                # <2 callsets queryable -> can't assert absence, fall back
+    return None  # <2 callsets queryable -> can't assert absence, fall back

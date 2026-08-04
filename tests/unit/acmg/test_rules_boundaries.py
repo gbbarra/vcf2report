@@ -8,6 +8,7 @@ Verificação feita antes de escrever: as duas mutações abaixo foram aplicadas
 real e a suíte inteira passou (736 passed), o que prova que a lacuna é real e não
 artefato da seleção reduzida usada pelo mutmut.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -19,8 +20,12 @@ from vcf2report.models import CriterionResult
 def _met(code: str, default_strength: str, applied_strength: str | None = None):
     """Um critério ATENDIDO, do jeito que o motor o entrega ao combinador."""
     return CriterionResult(
-        code=code, name=f"{code} (fixture)", default_strength=default_strength,
-        applies=True, met=True, applied_strength=applied_strength,
+        code=code,
+        name=f"{code} (fixture)",
+        default_strength=default_strength,
+        applies=True,
+        met=True,
+        applied_strength=applied_strength,
     )
 
 
@@ -31,19 +36,27 @@ def _supporting(n: int) -> list[CriterionResult]:
 
 # --------------------------------------------------------- PATH-3: 1 Strong + Moderate/Supporting
 
-@pytest.mark.parametrize("n_supporting, esperado", [
-    (3, rules.LIKELY_PATHOGENIC),   # abaixo do limite
-    (4, rules.PATHOGENIC),          # NO limite — é este ponto que o mutante move
-    (5, rules.PATHOGENIC),          # acima
-])
-def test_path3_com_um_moderado_dispara_a_partir_de_quatro_supporting(n_supporting, esperado):
+
+@pytest.mark.parametrize(
+    "n_supporting, esperado",
+    [
+        (3, rules.LIKELY_PATHOGENIC),  # abaixo do limite
+        (4, rules.PATHOGENIC),  # NO limite — é este ponto que o mutante move
+        (5, rules.PATHOGENIC),  # acima
+    ],
+)
+def test_path3_com_um_moderado_dispara_a_partir_de_quatro_supporting(
+    n_supporting, esperado
+):
     """Mata `pp >= 4` -> `pp > 4` em PATH-3.
 
     Richards Tabela 5, PATH-3: 1 Strong + 1 Moderate + **≥4** Supporting é Patogênica.
     Com `pp > 4` o caso de exatamente 4 cai para Likely Pathogenic — uma variante rebaixada
     de Patogênica num limite que a diretriz define. Nenhum teste da suíte fixava pp == 4.
     """
-    criteria = [_met("PS1", "strong"), _met("PM1", "moderate")] + _supporting(n_supporting)
+    criteria = [_met("PS1", "strong"), _met("PM1", "moderate")] + _supporting(
+        n_supporting
+    )
 
     tier, rule_path = rules.combine(criteria)
 
@@ -67,6 +80,7 @@ def test_path3_exige_o_moderado_e_nao_so_os_supporting():
 
 
 # --------------------------------------------- precedência da força APLICADA sobre a padrão
+
 
 def test_a_forca_aplicada_prevalece_sobre_a_padrao_no_veto_por_evidencia_decisiva():
     """Mata `cr.applied_strength or cr.default_strength` -> `and` em _discarded_decisive.
@@ -109,6 +123,7 @@ def test_um_pvs1_nao_rebaixado_do_lado_perdedor_forca_o_conflito():
 
 
 # ----------------------------------------------- o rótulo deve nomear a classe que disparou
+
 
 def test_o_rotulo_de_lp1_nomeia_moderate_quando_o_moderado_e_que_disparou():
     """Mata `pm >= 1` -> `pm > 1` na ESCOLHA DO RÓTULO de LP-1.

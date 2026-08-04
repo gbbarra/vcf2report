@@ -4,6 +4,7 @@ Applies the documented thresholds (DP, GQ, allele balance, FILTER) and returns
 the variants that pass plus the reasons any were dropped, so the report can
 show an honest QC funnel.
 """
+
 from __future__ import annotations
 
 from ..config import QC_AB_MAX, QC_AB_MIN, QC_MIN_DP, QC_MIN_GQ
@@ -47,7 +48,9 @@ def is_metric_drop(reason: str) -> bool:
     return reason.startswith(("DP=", "GQ=", "AB=", "FILTER="))
 
 
-def apply_qc(variants: list[Variant]) -> tuple[list[Variant], list[tuple[Variant, str]]]:
+def apply_qc(
+    variants: list[Variant],
+) -> tuple[list[Variant], list[tuple[Variant, str]]]:
     kept: list[Variant] = []
     dropped: list[tuple[Variant, str]] = []
     for v in variants:

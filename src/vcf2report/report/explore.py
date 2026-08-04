@@ -11,6 +11,7 @@ straight off that file — no engine, no network, no re-run — so a follow-up c
 cheap lookup, not a re-analysis. Every helper takes the loaded ``data`` dict and returns plain
 JSON-able structures.
 """
+
 from __future__ import annotations
 
 import json
@@ -18,8 +19,13 @@ from pathlib import Path
 from typing import Any
 
 from ..acmg import criteria
-from .assemble import (carrier_findings, clinvar_pathogenic_flags, clinvar_stars,
-                       split_findings, summarize)
+from .assemble import (
+    carrier_findings,
+    clinvar_pathogenic_flags,
+    clinvar_stars,
+    split_findings,
+    summarize,
+)
 from .vus_triage import probable_pathogenic_vus
 
 # The routed buckets, in report order. Also the valid names for ``variants_in_bucket``.
@@ -63,7 +69,9 @@ def build_explore(report) -> dict[str, Any]:
     carriers = carrier_findings(report.classifications)
     vus = probable_pathogenic_vus(report.classifications)
 
-    data = report.to_dict()  # sample, build, hpo, qc funnel, seq_quality, every classification (+criteria)
+    data = (
+        report.to_dict()
+    )  # sample, build, hpo, qc funnel, seq_quality, every classification (+criteria)
     data["conclusion"] = summarize(report)
     data["buckets"] = {
         "primary": [c.variant.gene for c in primary],
@@ -75,7 +83,9 @@ def build_explore(report) -> dict[str, Any]:
     # Serialise as compact dicts — NOT raw Classification objects. Left as objects they would fall to
     # json.dump's ``default=str`` and land as a dataclass repr string: unqueryable, and silently so
     # (the demo case has an empty list, hiding it). This keeps the safety list machine-readable.
-    data["clinvar_do_not_dismiss"] = [_flag_ref(c) for c in clinvar_pathogenic_flags(report.classifications)]
+    data["clinvar_do_not_dismiss"] = [
+        _flag_ref(c) for c in clinvar_pathogenic_flags(report.classifications)
+    ]
     return data
 
 
@@ -117,8 +127,11 @@ def overview(data: dict[str, Any]) -> dict[str, Any]:
 def findings_for_gene(data: dict[str, Any], gene: str) -> list[dict[str, Any]]:
     """Every classified variant in ``gene`` (case-insensitive) — "show me gene X"."""
     g = (gene or "").upper()
-    return [c for c in data.get("classifications", [])
-            if (c.get("variant", {}).get("gene") or "").upper() == g]
+    return [
+        c
+        for c in data.get("classifications", [])
+        if (c.get("variant", {}).get("gene") or "").upper() == g
+    ]
 
 
 def variants_in_bucket(data: dict[str, Any], bucket: str) -> list[dict[str, Any]]:
@@ -129,8 +142,11 @@ def variants_in_bucket(data: dict[str, Any], bucket: str) -> list[dict[str, Any]
     if bucket not in buckets:
         raise ValueError(f"unknown bucket {bucket!r}; valid: {', '.join(BUCKETS)}")
     genes = set(buckets.get(bucket, []))
-    return [c for c in data.get("classifications", [])
-            if c.get("variant", {}).get("gene") in genes]
+    return [
+        c
+        for c in data.get("classifications", [])
+        if c.get("variant", {}).get("gene") in genes
+    ]
 
 
 def criterion_basis(data: dict[str, Any], gene: str, code: str) -> list[dict[str, Any]]:
@@ -145,21 +161,24 @@ def criterion_basis(data: dict[str, Any], gene: str, code: str) -> list[dict[str
         for cr in c.get("criteria", []):
             if (cr.get("code") or "").upper() != code_u:
                 continue
-            out.append({
-                "gene": v.get("gene"),
-                "variant": v.get("key"),
-                "hgvs": v.get("hgvs_p") or v.get("hgvs_c"),
-                "tier": c.get("tier"),
-                "code": cr.get("code"),
-                "name": cr.get("name"),
-                "applies": cr.get("applies"),
-                "met": cr.get("met"),
-                "strength": cr.get("applied_strength") or cr.get("default_strength"),
-                "evidence": cr.get("evidence"),
-                "reasoning": cr.get("reasoning"),
-                "citation": cr.get("citation"),
-                "adjudicated_by": cr.get("adjudicated_by"),
-            })
+            out.append(
+                {
+                    "gene": v.get("gene"),
+                    "variant": v.get("key"),
+                    "hgvs": v.get("hgvs_p") or v.get("hgvs_c"),
+                    "tier": c.get("tier"),
+                    "code": cr.get("code"),
+                    "name": cr.get("name"),
+                    "applies": cr.get("applies"),
+                    "met": cr.get("met"),
+                    "strength": cr.get("applied_strength")
+                    or cr.get("default_strength"),
+                    "evidence": cr.get("evidence"),
+                    "reasoning": cr.get("reasoning"),
+                    "citation": cr.get("citation"),
+                    "adjudicated_by": cr.get("adjudicated_by"),
+                }
+            )
     return out
 
 
@@ -171,7 +190,7 @@ def _cites_clinvar(cr: dict[str, Any]) -> bool:
     alone would miss PP5."""
     if (cr.get("code") or "").upper() in _CLINVAR_CODES:
         return True
-    for s in (cr.get("citation") or []):
+    for s in cr.get("citation") or []:
         s = (s or "").lower()
         if "clinvar" in s or s.startswith("vcv"):
             return True
@@ -185,23 +204,37 @@ def findings_citing_clinvar(data: dict[str, Any]) -> list[dict[str, Any]]:
     circularity/anti-circularity themselves."""
     out: list[dict[str, Any]] = []
     for c in data.get("classifications", []):
-        cites = [cr for cr in c.get("criteria", []) if cr.get("met") and _cites_clinvar(cr)]
+        cites = [
+            cr for cr in c.get("criteria", []) if cr.get("met") and _cites_clinvar(cr)
+        ]
         if not cites:
             continue
         v = c.get("variant", {})
-        out.append({
-            "gene": v.get("gene"),
-            "variant": v.get("key"),
-            "tier": c.get("tier"),
-            "clinvar_significance": c.get("annotation", {}).get("clinvar_significance"),
-            "criteria": [{"code": cr.get("code"), "met": cr.get("met"),
-                          "reasoning": cr.get("reasoning"), "citation": cr.get("citation")}
-                         for cr in cites],
-        })
+        out.append(
+            {
+                "gene": v.get("gene"),
+                "variant": v.get("key"),
+                "tier": c.get("tier"),
+                "clinvar_significance": c.get("annotation", {}).get(
+                    "clinvar_significance"
+                ),
+                "criteria": [
+                    {
+                        "code": cr.get("code"),
+                        "met": cr.get("met"),
+                        "reasoning": cr.get("reasoning"),
+                        "citation": cr.get("citation"),
+                    }
+                    for cr in cites
+                ],
+            }
+        )
     return out
 
 
-def missense_evidence(data: dict[str, Any], met_only: bool = True) -> list[dict[str, Any]]:
+def missense_evidence(
+    data: dict[str, Any], met_only: bool = True
+) -> list[dict[str, Any]]:
     """Which findings carry gene/residue-level missense evidence — PP2/BP1 (gnomAD missense
     constraint) and PS1/PM5 (ClinVar residue index).
 
@@ -211,24 +244,36 @@ def missense_evidence(data: dict[str, Any], met_only: bool = True) -> list[dict[
     NOT fire (the index/metric may simply be unavailable), which is the honest audit view."""
     out: list[dict[str, Any]] = []
     for c in data.get("classifications", []):
-        hits = [cr for cr in c.get("criteria", [])
-                if (cr.get("code") or "").upper() in MISSENSE_CODES
-                and (cr.get("met") if met_only else True)]
+        hits = [
+            cr
+            for cr in c.get("criteria", [])
+            if (cr.get("code") or "").upper() in MISSENSE_CODES
+            and (cr.get("met") if met_only else True)
+        ]
         if not hits:
             continue
         v, a = c.get("variant", {}), c.get("annotation", {})
-        out.append({
-            "gene": v.get("gene"),
-            "variant": v.get("key"),
-            "hgvs_p": v.get("hgvs_p"),
-            "consequence": v.get("consequence"),
-            "tier": c.get("tier"),
-            "gene_mis_z": a.get("gene_mis_z"),
-            "criteria": [{"code": cr.get("code"), "met": cr.get("met"),
-                          "strength": cr.get("applied_strength") or cr.get("default_strength"),
-                          "reasoning": cr.get("reasoning"), "citation": cr.get("citation")}
-                         for cr in hits],
-        })
+        out.append(
+            {
+                "gene": v.get("gene"),
+                "variant": v.get("key"),
+                "hgvs_p": v.get("hgvs_p"),
+                "consequence": v.get("consequence"),
+                "tier": c.get("tier"),
+                "gene_mis_z": a.get("gene_mis_z"),
+                "criteria": [
+                    {
+                        "code": cr.get("code"),
+                        "met": cr.get("met"),
+                        "strength": cr.get("applied_strength")
+                        or cr.get("default_strength"),
+                        "reasoning": cr.get("reasoning"),
+                        "citation": cr.get("citation"),
+                    }
+                    for cr in hits
+                ],
+            }
+        )
     return out
 
 
@@ -242,19 +287,29 @@ _BENIGN_LADDER = ("supporting", "strong", "stand_alone")
 def _as_criteria(c: dict[str, Any]):
     """Rebuild met CriterionResult objects from the persisted trail, for re-combining."""
     from ..models import CriterionResult
+
     out = []
     for cr in c.get("criteria", []):
         if not cr.get("met"):
             continue
         strength = cr.get("applied_strength") or cr.get("default_strength")
-        out.append(CriterionResult(code=cr.get("code"), name=cr.get("code"),
-                                   default_strength=strength, applies=True, met=True,
-                                   applied_strength=strength))
+        out.append(
+            CriterionResult(
+                code=cr.get("code"),
+                name=cr.get("code"),
+                default_strength=strength,
+                applies=True,
+                met=True,
+                applied_strength=strength,
+            )
+        )
     return out
 
 
-def missing_evidence(data: dict[str, Any], gene: str | None = None) -> list[dict[str, Any]]:
-    """"What would it take to move this variant off VUS?" — the question a conservative engine
+def missing_evidence(
+    data: dict[str, Any], gene: str | None = None
+) -> list[dict[str, Any]]:
+    """ "What would it take to move this variant off VUS?" — the question a conservative engine
     invites, answered deterministically instead of guessed.
 
     For each classified variant, re-runs the ACMG combining rules with ONE hypothetical extra line
@@ -277,12 +332,18 @@ def missing_evidence(data: dict[str, Any], gene: str | None = None) -> list[dict
         # segregation) or awaits judgement (needs literature / whole-case review). Each carries its
         # own `reasoning`, written where the decision was made — so a new criterion shows up here
         # automatically, and none of this goes stale when a criterion's rationale changes.
-        pending = [{"code": cr.get("code"), "strength": cr.get("default_strength"),
-                    "needs": cr.get("reasoning"), "applies": cr.get("applies"),
-                    "side": rules.side_of(cr.get("code") or "")}
-                   for cr in c.get("criteria", [])
-                   if not cr.get("met")
-                   and (cr.get("applies") is False or cr.get("adjudicated_by") == "model")]
+        pending = [
+            {
+                "code": cr.get("code"),
+                "strength": cr.get("default_strength"),
+                "needs": cr.get("reasoning"),
+                "applies": cr.get("applies"),
+                "side": rules.side_of(cr.get("code") or ""),
+            }
+            for cr in c.get("criteria", [])
+            if not cr.get("met")
+            and (cr.get("applies") is False or cr.get("adjudicated_by") == "model")
+        ]
 
         # The hypothetical must carry a code the combiner routes to the intended side: rules.combine
         # decides pathogenic-vs-benign by CODE membership, not by any flag. Both sides therefore use
@@ -290,34 +351,55 @@ def missing_evidence(data: dict[str, Any], gene: str | None = None) -> list[dict
         # borrow a real code — BA1, picked alphabetically — and walk it up a ladder BA1 cannot
         # occupy, so the printed rule path cited BA1 at Supporting/Strong and named rules the engine
         # would never produce for it.
-        sides = [("pathogenic", rules.HYPOTHETICAL_PATHOGENIC, _PATHOGENIC_LADDER),
-                 ("benign", rules.HYPOTHETICAL_BENIGN, _BENIGN_LADDER)]
+        sides = [
+            ("pathogenic", rules.HYPOTHETICAL_PATHOGENIC, _PATHOGENIC_LADDER),
+            ("benign", rules.HYPOTHETICAL_BENIGN, _BENIGN_LADDER),
+        ]
         steps = []
         for side, code, ladder in sides:
             for strength in ladder:
-                hyp = CriterionResult(code=code, name=code, default_strength=strength,
-                                      applies=True, met=True, applied_strength=strength)
+                hyp = CriterionResult(
+                    code=code,
+                    name=code,
+                    default_strength=strength,
+                    applies=True,
+                    met=True,
+                    applied_strength=strength,
+                )
                 tier, path = rules.combine(met + [hyp])
                 if tier == current:
                     continue
                 moved = rules.tier_rank(tier) - rules.tier_rank(current)
-                steps.append({"add": f"one {strength.replace('_', ' ')} {side} criterion",
-                              "strength": strength, "side": side,
-                              "would_become": tier, "direction": "up" if moved > 0 else "down",
-                              "rule": path,
-                              "candidates": [p for p in pending
-                                             if p["strength"] == strength and p["side"] == side]})
-                break     # weakest addition on this side that changes anything — stop escalating
+                steps.append(
+                    {
+                        "add": f"one {strength.replace('_', ' ')} {side} criterion",
+                        "strength": strength,
+                        "side": side,
+                        "would_become": tier,
+                        "direction": "up" if moved > 0 else "down",
+                        "rule": path,
+                        "candidates": [
+                            p
+                            for p in pending
+                            if p["strength"] == strength and p["side"] == side
+                        ],
+                    }
+                )
+                break  # weakest addition on this side that changes anything — stop escalating
 
         v = c.get("variant", {})
-        out.append({
-            "gene": v.get("gene"), "variant": v.get("key"),
-            "hgvs_p": v.get("hgvs_p"), "tier": current,
-            "rule_path": c.get("rule_path"),
-            "met_codes": sorted(met_codes),
-            "would_change_with": steps,
-            "pending_criteria": pending,
-        })
+        out.append(
+            {
+                "gene": v.get("gene"),
+                "variant": v.get("key"),
+                "hgvs_p": v.get("hgvs_p"),
+                "tier": current,
+                "rule_path": c.get("rule_path"),
+                "met_codes": sorted(met_codes),
+                "would_change_with": steps,
+                "pending_criteria": pending,
+            }
+        )
     return out
 
 
@@ -331,20 +413,22 @@ def explain(data: dict[str, Any], gene: str) -> dict[str, Any]:
     variants: list[dict[str, Any]] = []
     for c in findings_for_gene(data, gene):
         v, a = c.get("variant", {}), c.get("annotation", {})
-        variants.append({
-            "variant": v.get("key"),
-            "hgvs_c": v.get("hgvs_c"),
-            "hgvs_p": v.get("hgvs_p"),
-            "consequence": v.get("consequence"),
-            "zygosity": v.get("zygosity"),
-            "tier": c.get("tier"),
-            "rule_path": c.get("rule_path"),
-            "met_codes": c.get("met_codes", []),
-            "clinvar_significance": a.get("clinvar_significance"),
-            "gnomad_af": a.get("gnomad_af"),
-            "am_pathogenicity": a.get("am_pathogenicity"),
-            "hpo_match_score": a.get("hpo_match_score"),
-        })
+        variants.append(
+            {
+                "variant": v.get("key"),
+                "hgvs_c": v.get("hgvs_c"),
+                "hgvs_p": v.get("hgvs_p"),
+                "consequence": v.get("consequence"),
+                "zygosity": v.get("zygosity"),
+                "tier": c.get("tier"),
+                "rule_path": c.get("rule_path"),
+                "met_codes": c.get("met_codes", []),
+                "clinvar_significance": a.get("clinvar_significance"),
+                "gnomad_af": a.get("gnomad_af"),
+                "am_pathogenicity": a.get("am_pathogenicity"),
+                "hpo_match_score": a.get("hpo_match_score"),
+            }
+        )
     return {"gene": gene, "buckets": in_buckets, "variants": variants}
 
 
@@ -353,20 +437,39 @@ def explain(data: dict[str, Any], gene: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 def _cli(argv: list[str] | None = None) -> int:  # pragma: no cover - thin arg plumbing
     import argparse
+
     p = argparse.ArgumentParser(
         prog="vcf2report-explore",
-        description="Query a persisted *_results.json without re-running the pipeline.")
-    p.add_argument("results_json", help="Path to a <case>_results.json written by the pipeline.")
+        description="Query a persisted *_results.json without re-running the pipeline.",
+    )
+    p.add_argument(
+        "results_json", help="Path to a <case>_results.json written by the pipeline."
+    )
     p.add_argument("--gene", help="Show the classified variant(s) in this gene.")
-    p.add_argument("--criterion", help="With --gene: why the gene got this ACMG code (e.g. PM2).")
-    p.add_argument("--bucket", choices=BUCKETS, help="Show the variants routed into this bucket.")
-    p.add_argument("--clinvar", action="store_true", help="Show findings that rest on ClinVar.")
-    p.add_argument("--missense", action="store_true",
-                   help="Show findings carrying gene/residue missense evidence (PP2/BP1/PS1/PM5).")
-    p.add_argument("--all-criteria", action="store_true",
-                   help="With --missense: also show the criteria that did NOT fire, and why.")
-    p.add_argument("--missing", action="store_true",
-                   help="What evidence would change each tier (optionally narrowed by --gene).")
+    p.add_argument(
+        "--criterion", help="With --gene: why the gene got this ACMG code (e.g. PM2)."
+    )
+    p.add_argument(
+        "--bucket", choices=BUCKETS, help="Show the variants routed into this bucket."
+    )
+    p.add_argument(
+        "--clinvar", action="store_true", help="Show findings that rest on ClinVar."
+    )
+    p.add_argument(
+        "--missense",
+        action="store_true",
+        help="Show findings carrying gene/residue missense evidence (PP2/BP1/PS1/PM5).",
+    )
+    p.add_argument(
+        "--all-criteria",
+        action="store_true",
+        help="With --missense: also show the criteria that did NOT fire, and why.",
+    )
+    p.add_argument(
+        "--missing",
+        action="store_true",
+        help="What evidence would change each tier (optionally narrowed by --gene).",
+    )
     args = p.parse_args(argv)
 
     data = load_explore(args.results_json)
