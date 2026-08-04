@@ -419,8 +419,8 @@ it with:
   stores are present — the tell-free VCFs carry no baked gnomAD/ClinVar INFO, so the engine must look
   them up. Published reference: **178/200**.
 
-**Measured — 179/200 (89.5%)**, full cohort, 0 errors. Breakdown: primary 179 · carrier 1 ·
-probable-VUS 5 · other 8 · absent 7.
+**Measured — 180/200 (90.0%)**, full cohort, 0 errors. Breakdown: primary 180 · carrier 1 ·
+probable-VUS 5 · other 8 · absent 6.
 
 ### Two numbers, because "recovery" means two different things
 
@@ -430,13 +430,18 @@ they are far apart, so both are reported:
 
 | | gene surfaced as primary | **…and called P/LP** |
 |---|---:|---:|
-| **all 200** | **179 (89.5%)** | **109 (54.5%)** |
-| LoF (frameshift / stop-gain / splice-site), n=102 | 99 (97.1%) | **92 (90.2%)** |
-| missense, n=72 | 63 (87.5%) | **17 (23.6%)** |
+| **all 200** | **180 (90.0%)** | **103 (51.5%)** |
+| LoF (frameshift / stop-gain / splice-site), n=99 | 96 (97.0%) | **86 (86.9%)** |
+| missense, n=74 | 65 (87.8%) | **17 (23.0%)** |
 
 The gap is the design, not a defect: missense are *prioritized* to the top by phenotype and then
 honestly **held at VUS** for want of corroboration (the restraint README illustrates with SYN-051 /
-SYN-093). Quoting 89.5% alone invites a lab to read it as classification accuracy, which it is not.
+SYN-093). Quoting 90.0% alone invites a lab to read it as classification accuracy, which it is not.
+
+The per-consequence denominators moved (102/72 → 99/74) when the scorer began identifying the
+planted variant by **coordinate** instead of by gene name, so `consequence` now describes the
+allele the benchmark actually planted. On the 40 cases that plant two alleles (compound het) it
+previously described whichever classification happened to be found first.
 
 ### The ceiling is not 200
 
@@ -447,12 +452,21 @@ scorer counts *not* recovering it as a miss — but surfacing a benign variant a
 would be a false positive. SYN-034 / SYN-146 (`Uncertain_significance`) and SYN-128 (`Conflicting`,
 called Likely Benign here) are the same shape. Read the headline as bounded by the key's own quality.
 
-The 21 non-primary, by cause: 2 non-coding RNA outside protein scope (RNU5B-1 / RNU4-2); 3
-splice-region / low-impact whose real consequence is not coding (ADA / BBS1 / BNIP1); 2 indels the
-annotator calls inframe or benign (ZIC2 / C10ORF71); **2 correctly P/LP but outside the phenotype
-match (ANTXR2 / BRPF1)**; 10 held at VUS; 1 recessive carrier (SPINT2). The two phenotype cases are
-the failure #31 fixed at the *report* level — the conclusion now says so out loud instead of opening
+The 20 non-primary, by cause: 2 non-coding RNA outside protein scope (RNU5B-1 / RNU4-2); 3
+splice-region / low-impact whose real consequence is not coding (ADA / BBS1 / BNIP1); 1 indel the
+annotator calls inframe or benign (ZIC2); **2 correctly P/LP but outside the phenotype match
+(ANTXR2 / BRPF1)**; 10 held at VUS; 1 recessive carrier (SPINT2). The two phenotype cases are the
+failure #31 fixed at the *report* level — the conclusion now says so out loud instead of opening
 with a negative — though they remain misses by this metric, correctly.
+
+**`absent` meant two different things and now says which.** With the planted variant identified by
+coordinate, a row can carry `outcome=absent` *and* a tier — a contradiction that is only possible
+when the variant was classified under a different gene symbol. Of the 7 formerly-absent cases, 5 are
+variants never classified at all; 1 (SYN-042) is a real annotation limitation, the key planting in
+*RNU4-2* while the annotator attributes the locus to the adjacent paralogue *RNU4-1*; and 1
+(SYN-182) was a **scorer artefact** — `C10ORF71` in the key versus HGNC's `C10orf71` from the
+annotator, an exact string comparison, and a recovered frameshift sitting in the primary bucket
+scored as a miss. That is the +1 from 179 to 180: a point lost to letter case, not to the engine.
 
 **This session's 11 merged PRs (#21–#31) are neutral here.** Scored `main` (`0ebee07`) and the
 pre-#24 tree (`7dcc39d`) against the same cohort and the same stores: **179/200 both, and 0 of 200
@@ -461,6 +475,13 @@ in this environment — the cohort has a single release (`data-v1`, 2026-07-22, 
 the stores are the ones tabulated below, so the difference sits in run state that was not captured
 (most plausibly the ClinVar annotation cache that #24 was written to fix, which is nearly empty here).
 Recorded as unexplained rather than attributed.
+
+⚠️ **This number was measured with PS1, PM1 and PM5 unable to fire**, because the genome-wide
+ClinVar residue index they read (`scripts/fetch_clinvar_residue.py`) was never built in the
+measuring environment — NCBI is unreachable from it. The report itself now says so out loud, in the
+run-constant block at the head of every rationale section, but the headline did not. Three of the
+28 criteria being off is a condition of the number, not a footnote: treat 180/200 as the score of
+*this configuration*, and re-measure where the index exists before comparing against it.
 
 **Store provenance for this number** (each store's `_manifest.json`):
 
@@ -516,8 +537,12 @@ patient presents — which this cohort never exercises. So "+0" here is evidence
 not evidence of *no value*, and it should not be read as the latter.
 
 > **Measured, and the PP5 half of that argument is wrong.** Running `--withhold-clinvar` over the
-> full 200: nulling each plant's own ClinVar assertion changed the tier in **0 of 193** scored cases
-> — the identical 112 variants reach P/LP with and without it, and the identical 17 of 72 missense.
+> full 200: nulling each plant's own ClinVar assertion leaves the tier unchanged in **193 of 195**
+> scored cases, and **P/LP recovery identical either way** — the same variants clear the bar, and
+> the same 17 of 74 missense. The two that move (SYN-172 *CHD7*, SYN-197 *SPINT2*) go Pathogenic →
+> Likely Pathogenic: PP5 was the supporting line completing a Pathogenic rule path, and even there
+> it never decided P/LP versus not.
+>
 > This is not a broken instrument: on SYN-004 (*NIPBL*) the withholding does drop the criterion,
 > `[PM2, PP4, PP5, PVS1]` → `[PM2, PP4, PVS1]`, and the tier holds at Pathogenic because
 > `PVS1+PM2+PP4` already carried it. Querying the mounted store directly, **168 planted rows have a
@@ -527,8 +552,9 @@ not evidence of *no value*, and it should not be read as the latter.
 > PVS1/PM2/PP3/PP4 on its own. The claim about the **≥2-star safety flag** is untouched — that is a
 > report-level surfacing rule, not an ACMG criterion, and `withhold_own_clinvar_tier` does not
 > exercise it. What this does retire is the idea that PP5 masks the missense criteria: it does not,
-> and **missense P/LP recovery is 17/72 (23.6%) either way**. The ceiling there is the missense
-> apparatus itself, not ClinVar's shadow over it.
+> and **missense P/LP recovery is 17/74 (23.0%) either way**. The ceiling there is the missense
+> apparatus itself, not ClinVar's shadow over it — measured, note, with PS1/PM1/PM5 unable to fire
+> for want of the residue index, so it is a ceiling on *this* configuration.
 
 To measure the value directly, `run_benchmark.py --withhold-clinvar` re-classifies each planted
 variant with its **own** ClinVar assertion nulled (`dataclasses.replace`): PP5/BP6 drop out, PS1/PM5
