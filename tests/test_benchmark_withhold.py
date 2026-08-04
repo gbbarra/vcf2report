@@ -7,6 +7,7 @@ scenario those criteria exist for. This locks the re-classification logic: with 
 variant at an established pathogenic residue is recovered to P/LP by PS1 (which the own-record guard
 had suppressed while the ClinVar assertion was present).
 """
+
 import importlib.util
 from pathlib import Path
 
@@ -22,15 +23,33 @@ _spec.loader.exec_module(rb)
 def _kcnq2_arg213trp():
     # A missense at an established pathogenic residue in a missense-constrained gene, rare in
     # gnomAD, and itself catalogued by ClinVar as Pathogenic — the typical benchmark plant.
-    v = Variant(chrom="20", pos=63446204, ref="G", alt="A", gene="KCNQ2",
-                consequence="missense_variant", hgvs_p="p.Arg213Trp")
-    ps1 = {"alt_aa": "Trp", "ref_aa": "Arg", "stars": 2,
-           "genomic_key": "20-63444712-G-A", "accession": "VCV000021795"}
-    a = Annotation(gnomad_af=0.0, gnomad_faf95=0.0,
-                   clinvar_significance="Pathogenic",
-                   clinvar_review_status="criteria provided, single submitter",
-                   clinvar_accession="VCV1", clinvar_ps1=ps1, clinvar_residue_available=True,
-                   gene_mis_z=5.2, gene_missense_constrained=True)  # PP2
+    v = Variant(
+        chrom="20",
+        pos=63446204,
+        ref="G",
+        alt="A",
+        gene="KCNQ2",
+        consequence="missense_variant",
+        hgvs_p="p.Arg213Trp",
+    )
+    ps1 = {
+        "alt_aa": "Trp",
+        "ref_aa": "Arg",
+        "stars": 2,
+        "genomic_key": "20-63444712-G-A",
+        "accession": "VCV000021795",
+    }
+    a = Annotation(
+        gnomad_af=0.0,
+        gnomad_faf95=0.0,
+        clinvar_significance="Pathogenic",
+        clinvar_review_status="criteria provided, single submitter",
+        clinvar_accession="VCV1",
+        clinvar_ps1=ps1,
+        clinvar_residue_available=True,
+        gene_mis_z=5.2,
+        gene_missense_constrained=True,
+    )  # PP2
     return classify(v, a)
 
 
@@ -46,9 +65,15 @@ def test_withhold_flips_pp5_to_ps1():
     # The mechanism, tier-independent: nulling the own ClinVar assertion turns PP5 off and lets
     # PS1 fire from the residue index (no longer suppressed as a double-count).
     from dataclasses import replace
+
     c = _kcnq2_arg213trp()
-    ann = replace(c.annotation, clinvar_significance=None, clinvar_review_status=None,
-                  clinvar_accession=None, clinvar_condition=None)
+    ann = replace(
+        c.annotation,
+        clinvar_significance=None,
+        clinvar_review_status=None,
+        clinvar_accession=None,
+        clinvar_condition=None,
+    )
     codes = {x.code: x for x in classify(c.variant, ann).criteria}
     assert codes["PP5"].met is False
     assert codes["PS1"].met is True
@@ -71,6 +96,7 @@ def test_withhold_does_not_mutate_original():
 
 # --------------------------------- the scorer must describe ONE variant, not two spliced together
 
+
 class _FakeReport:
     def __init__(self, classifications):
         self.classifications = classifications
@@ -78,12 +104,24 @@ class _FakeReport:
 
 def _c(gene, tier, zyg="het", hpo=1.0, sig=None):
     from vcf2report.models import Classification
+
     return Classification(
-        variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene=gene, zygosity=zyg,
-                        consequence="missense_variant"),
-        annotation=Annotation(hpo_match_score=hpo, hpo_best_match=hpo,
-                              clinvar_significance=sig),
-        criteria=[], tier=tier, rule_path="")
+        variant=Variant(
+            chrom="1",
+            pos=1,
+            ref="A",
+            alt="T",
+            gene=gene,
+            zygosity=zyg,
+            consequence="missense_variant",
+        ),
+        annotation=Annotation(
+            hpo_match_score=hpo, hpo_best_match=hpo, clinvar_significance=sig
+        ),
+        criteria=[],
+        tier=tier,
+        rule_path="",
+    )
 
 
 def test_the_reported_tier_belongs_to_the_variant_in_the_reported_bucket():
@@ -98,10 +136,16 @@ def test_the_reported_tier_belongs_to_the_variant_in_the_reported_bucket():
     path = _c("TM2D3", "Pathogenic")
     bucket, tier, hit = rb._bucket_of("TM2D3", _FakeReport([path, vus]))
     assert hit is not None
-    assert (bucket, tier) in {("primary", vus.tier), ("carrier", path.tier),
-                              ("other", path.tier), ("probable_vus", vus.tier),
-                              ("secondary", path.tier)}, (bucket, tier)
-    assert tier == hit.tier, "the reported tier is not the tier of the reported classification"
+    assert (bucket, tier) in {
+        ("primary", vus.tier),
+        ("carrier", path.tier),
+        ("other", path.tier),
+        ("probable_vus", vus.tier),
+        ("secondary", path.tier),
+    }, (bucket, tier)
+    assert tier == hit.tier, (
+        "the reported tier is not the tier of the reported classification"
+    )
 
 
 def test_within_one_bucket_the_most_severe_variant_is_scored():
@@ -121,10 +165,15 @@ def test_a_single_classification_is_unchanged():
     """The common case (170 of 200) must behave exactly as before."""
     only = _c("SCN1A", "Pathogenic")
     bucket, tier, hit = rb._bucket_of("SCN1A", _FakeReport([only]))
-    assert hit is only and tier == "Pathogenic" and bucket in {"primary", "secondary", "other"}
+    assert (
+        hit is only
+        and tier == "Pathogenic"
+        and bucket in {"primary", "secondary", "other"}
+    )
 
 
 # ------------------------------------- the planted VARIANT is identified by coordinate, not gene
+
 
 def _write_manifest(tmp_path, rows):
     m = tmp_path / "manifest"
@@ -140,10 +189,13 @@ def test_the_primary_planted_allele_is_the_one_scored(tmp_path):
     """40 of the 200 cases plant TWO alleles (compound het — the manifest's `allele` column is
     primary/second). "The classification for this gene" then has no single answer; both are
     real plants. The coordinate does."""
-    bench = _write_manifest(tmp_path, [
-        ("SYN-001", "chr15", "101645162", "C", "T", "TM2D3", "het", "second"),
-        ("SYN-001", "chr15", "101652355", "C", "A", "TM2D3", "het", "primary"),
-    ])
+    bench = _write_manifest(
+        tmp_path,
+        [
+            ("SYN-001", "chr15", "101645162", "C", "T", "TM2D3", "het", "second"),
+            ("SYN-001", "chr15", "101652355", "C", "A", "TM2D3", "het", "primary"),
+        ],
+    )
     assert rb._load_planted_loci(bench) == {"SYN-001": ("chr15", 101652355, "C", "A")}
 
 
@@ -155,7 +207,12 @@ def test_the_locus_match_ignores_the_chr_prefix_and_allele_case():
     """The VCF, the manifest and the stores do not agree on `chr` prefixing, and VCF alleles are
     case-insensitive. A miss here would silently fall back to the gene-level pick."""
     c = _c("TM2D3", "Pathogenic")
-    c.variant.chrom, c.variant.pos, c.variant.ref, c.variant.alt = "15", 101652355, "c", "a"
+    c.variant.chrom, c.variant.pos, c.variant.ref, c.variant.alt = (
+        "15",
+        101652355,
+        "c",
+        "a",
+    )
     rep = _FakeReport([c])
     assert rb._at_locus(rep, ("chr15", 101652355, "C", "A")) is c
     assert rb._at_locus(rep, ("chr15", 101652356, "C", "A")) is None
@@ -190,5 +247,7 @@ def test_a_genuinely_different_gene_is_still_absent():
     """The relaxation must be case only. SYN-042 plants in RNU4-2 and the annotator calls the
     locus RNU4-1 — an adjacent paralogue, a real annotation limitation, and it must keep
     counting as a miss."""
-    bucket, tier, got = rb._bucket_of("RNU4-2", _FakeReport([_c("RNU4-1", "Pathogenic")]))
+    bucket, tier, got = rb._bucket_of(
+        "RNU4-2", _FakeReport([_c("RNU4-1", "Pathogenic")])
+    )
     assert (bucket, tier, got) == ("absent", None, None)

@@ -6,6 +6,7 @@ detect whether the VCF is annotated, sniff the build and sample, and map that pl
 the installed stores to the ACMG criteria that are actually computable — so the run
 is honest about what it can and cannot conclude.
 """
+
 from __future__ import annotations
 
 import gzip
@@ -102,8 +103,12 @@ def inspect_vcf(vcf_path: str) -> dict:
 _AVAILABLE, _LIMITED, _NA = "available", "limited", "na"
 
 
-def analysis_capabilities(vcf_path: str, hpo_given: bool = False,
-                          inspection: dict | None = None, rd: dict | None = None) -> dict:
+def analysis_capabilities(
+    vcf_path: str,
+    hpo_given: bool = False,
+    inspection: dict | None = None,
+    rd: dict | None = None,
+) -> dict:
     """Map the VCF + installed stores to each ACMG criterion's status (Stage 5).
 
     Each entry is {status: available|limited|na, reason}. ``available`` = the data
@@ -113,42 +118,71 @@ def analysis_capabilities(vcf_path: str, hpo_given: bool = False,
     insp = inspection or inspect_vcf(vcf_path)
     rd = rd or readiness()
     ann = insp.get("annotated")
-    build_ok = insp.get("build") == config.GENOME_BUILD if hasattr(config, "GENOME_BUILD") else True
+    build_ok = (
+        insp.get("build") == config.GENOME_BUILD
+        if hasattr(config, "GENOME_BUILD")
+        else True
+    )
     st = rd.get("stores", {})
     has_gnomad = st.get("gnomad_parquet", {}).get("present")
     has_am = st.get("alphamissense", {}).get("present")
     has_clinvar = st.get("clinvar_tabix", {}).get("present") or rd.get(
-        "bundled_local_data", {}).get("clinvar_slice")
+        "bundled_local_data", {}
+    ).get("clinvar_slice")
     has_hpo = st.get("hpo", {}).get("present")
 
     def crit(status, reason):
         return {"status": status, "reason": reason}
 
     caps = {}
-    ann_reason = ("consequence annotation present" if ann
-                  else "VCF not annotated (no VEP/SnpEff/consequence) — annotate first (Stage 4)")
+    ann_reason = (
+        "consequence annotation present"
+        if ann
+        else "VCF not annotated (no VEP/SnpEff/consequence) — annotate first (Stage 4)"
+    )
     caps["PVS1 (LoF)"] = crit(_AVAILABLE if ann else _LIMITED, ann_reason)
-    caps["PM4 (in-frame / stop-loss)"] = crit(_AVAILABLE if ann else _LIMITED, ann_reason)
+    caps["PM4 (in-frame / stop-loss)"] = crit(
+        _AVAILABLE if ann else _LIMITED, ann_reason
+    )
     caps["PP3 / BP4 (missense)"] = crit(
         _AVAILABLE if (ann and has_am) else _LIMITED,
-        "AlphaMissense present" if has_am else "AlphaMissense store absent → missense defers to VUS")
+        "AlphaMissense present"
+        if has_am
+        else "AlphaMissense store absent → missense defers to VUS",
+    )
     caps["PM2 / BA1 / BS1 (frequency)"] = crit(
         _AVAILABLE if has_gnomad else _LIMITED,
-        "local gnomAD store detected" if has_gnomad
-        else "gnomAD store absent → frequency criteria disabled, absence not assertable (over-call risk)")
+        "local gnomAD store detected"
+        if has_gnomad
+        else "gnomAD store absent → frequency criteria disabled, absence not assertable (over-call risk)",
+    )
     caps["PS1 / PM5 / PP5 / BP6 (ClinVar)"] = crit(
         _AVAILABLE if has_clinvar else _LIMITED,
-        "ClinVar store present" if has_clinvar else "no local ClinVar → live NCBI only (network-gated)")
+        "ClinVar store present"
+        if has_clinvar
+        else "no local ClinVar → live NCBI only (network-gated)",
+    )
     caps["PP4 (phenotype)"] = crit(
         _AVAILABLE if (has_hpo and hpo_given) else (_LIMITED if has_hpo else _NA),
-        "HPO terms supplied" if (has_hpo and hpo_given)
-        else "no phenotype given — genotype-only run" if has_hpo
-        else "HPO store absent")
+        "HPO terms supplied"
+        if (has_hpo and hpo_given)
+        else "no phenotype given — genotype-only run"
+        if has_hpo
+        else "HPO store absent",
+    )
     caps["PS2 / PM3 / PM6 / PP1 / BS4 (segregation)"] = crit(
-        _NA, "single-proband input — de novo / in-trans / segregation need trio or family data")
+        _NA,
+        "single-proband input — de novo / in-trans / segregation need trio or family data",
+    )
     if not build_ok:
         caps["_build_warning"] = crit(
-            _LIMITED, f"build is {insp.get('build')}, not {getattr(config, 'GENOME_BUILD', 'GRCh38')} "
-                      "— coordinate lookups skipped until lifted over")
-    return {"annotated": ann, "annotation_source": insp.get("annotation_source"),
-            "build": insp.get("build"), "criteria": caps}
+            _LIMITED,
+            f"build is {insp.get('build')}, not {getattr(config, 'GENOME_BUILD', 'GRCh38')} "
+            "— coordinate lookups skipped until lifted over",
+        )
+    return {
+        "annotated": ann,
+        "annotation_source": insp.get("annotation_source"),
+        "build": insp.get("build"),
+        "criteria": caps,
+    }

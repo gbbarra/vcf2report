@@ -19,6 +19,7 @@ The ontology graph (``hpo_graph.tsv.gz``, Lin/IC similarity) is a superset of th
 space and does not need rebuilding when this table is refreshed; verify with
 ``scripts/build_hpo_graph.py`` if a future release adds brand-new term ids.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,10 +30,14 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 OUT = REPO / "data" / "hpo" / "genes_to_phenotype.tsv.gz"
-RELEASE_URL = ("https://github.com/obophenotype/human-phenotype-ontology/"
-               "releases/latest/download/genes_to_phenotype.txt")
-_HEADER = ("# HPO gene-to-phenotype (from the HPO genes_to_phenotype.txt release). "
-           "Columns: gene\thpo_id\thpo_name\n")
+RELEASE_URL = (
+    "https://github.com/obophenotype/human-phenotype-ontology/"
+    "releases/latest/download/genes_to_phenotype.txt"
+)
+_HEADER = (
+    "# HPO gene-to-phenotype (from the HPO genes_to_phenotype.txt release). "
+    "Columns: gene\thpo_id\thpo_name\n"
+)
 
 
 def _write(pairs, genes: int) -> int:
@@ -63,7 +68,7 @@ def from_release() -> int:
         gene, tid, name = f[1], f[2], f[3]
         genes.add(gene)
         key = (gene, tid)
-        if key in seen:               # same gene-term repeats across diseases (disease_id col)
+        if key in seen:  # same gene-term repeats across diseases (disease_id col)
             continue
         seen.add(key)
         pairs.append((gene, tid, name))
@@ -75,7 +80,9 @@ def from_pyhpo() -> int:
     try:
         from pyhpo import Ontology
     except ImportError:
-        print("pip install pyhpo (or run with network for the release)", file=sys.stderr)
+        print(
+            "pip install pyhpo (or run with network for the release)", file=sys.stderr
+        )
         return 1
     Ontology()
     pairs = []
@@ -88,15 +95,19 @@ def from_pyhpo() -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pyhpo", action="store_true", help="use the offline pyhpo snapshot")
+    ap.add_argument(
+        "--pyhpo", action="store_true", help="use the offline pyhpo snapshot"
+    )
     args = ap.parse_args()
     if args.pyhpo:
         return 0 if from_pyhpo() else 1
     try:
         from_release()
         return 0
-    except Exception as exc:              # network blocked / release moved → offline fallback
-        print(f"release download failed ({exc}); falling back to pyhpo", file=sys.stderr)
+    except Exception as exc:  # network blocked / release moved → offline fallback
+        print(
+            f"release download failed ({exc}); falling back to pyhpo", file=sys.stderr
+        )
         return 0 if from_pyhpo() else 1
 
 

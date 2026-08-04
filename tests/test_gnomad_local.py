@@ -1,4 +1,5 @@
 """Local gnomAD reduced-tabix client + its integration into gnomad.lookup."""
+
 import json
 
 import pytest
@@ -11,9 +12,9 @@ pysam = pytest.importorskip("pysam")
 
 _ROWS = [
     "#chrom\tpos\tref\talt\taf\tac\tan\thom\tfaf95\tpop",
-    "1\t100\tA\tT\t0.30\t300\t1000\t20\t0.28\tnfe",     # common
-    "1\t100\tA\tG\t0.001\t1\t1000\t0\t0.0005\tafr",     # same site, other allele
-    "1\t200\tC\tG\t0.0\t0\t1000\t0\t0.0\t",             # covered, absent allele (empty pop)
+    "1\t100\tA\tT\t0.30\t300\t1000\t20\t0.28\tnfe",  # common
+    "1\t100\tA\tG\t0.001\t1\t1000\t0\t0.0005\tafr",  # same site, other allele
+    "1\t200\tC\tG\t0.0\t0\t1000\t0\t0.0\t",  # covered, absent allele (empty pop)
 ]
 
 
@@ -22,7 +23,9 @@ def _make_table(tmp_path, mode, contigs=("1",)):
     tsv.write_text("\n".join(_ROWS) + "\n")
     out = tmp_path / "g.tsv.gz"
     pysam.tabix_compress(str(tsv), str(out), force=True)
-    pysam.tabix_index(str(out), seq_col=0, start_col=1, end_col=1, meta_char="#", force=True)
+    pysam.tabix_index(
+        str(out), seq_col=0, start_col=1, end_col=1, meta_char="#", force=True
+    )
     meta = {"mode": mode}
     if mode == "full":
         meta["contigs"] = list(contigs)
@@ -37,6 +40,7 @@ def local_table(tmp_path, monkeypatch):
         monkeypatch.setattr(config, "GNOMAD_LOCAL_TABIX", out)
         gnomad_local._reset_for_tests()
         return out
+
     yield _setup
     gnomad_local._reset_for_tests()
 
@@ -110,6 +114,7 @@ def test_no_table_returns_none(tmp_path, monkeypatch):
 
 def test_lookup_prefers_local(local_table, monkeypatch):
     from vcf2report.annotate import cache
+
     local_table("partial")
     monkeypatch.setattr(cache, "get", lambda *a, **k: None)
     monkeypatch.setattr(cache, "put", lambda *a, **k: None)
@@ -120,6 +125,7 @@ def test_lookup_prefers_local(local_table, monkeypatch):
 def test_lookup_partial_miss_falls_through_offline(local_table, monkeypatch):
     # Local partial miss -> None -> offline with no cache/bundled -> 'unavailable' (af None).
     from vcf2report.annotate import cache
+
     local_table("partial")
     monkeypatch.setattr(cache, "get", lambda *a, **k: None)
     monkeypatch.setattr(config, "offline", lambda: True)

@@ -4,6 +4,7 @@ Plain dataclasses (no pydantic) so the engine stays dependency-free and runs
 headless anywhere. Every model is JSON-serialisable via ``to_dict`` so the MCP
 tools can hand compact structures back to Claude.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field, asdict
@@ -25,21 +26,25 @@ class Variant:
     hgvs_c: Optional[str] = None
     hgvs_p: Optional[str] = None
     consequence: Optional[str] = None  # e.g. missense_variant, stop_gained
-    exon: Optional[str] = None         # SnpEff rank / VEP EXON as "N/M" (for PVS1 NMD tree)
-    transcript: Optional[str] = None   # SnpEff feature_id / VEP Feature — reported with HGVS
-    zygosity: Optional[str] = None     # het | hom | hemi
+    exon: Optional[str] = None  # SnpEff rank / VEP EXON as "N/M" (for PVS1 NMD tree)
+    transcript: Optional[str] = (
+        None  # SnpEff feature_id / VEP Feature — reported with HGVS
+    )
+    zygosity: Optional[str] = None  # het | hom | hemi
     # Half-call ("./1"): the sample certainly carries this ALT but the second allele was
     # not called, so `zygosity` above is the conservative "het" and NOT an observation.
     # Rendered as "het (partial call)" so a het/hom question is confirmed, not assumed.
     partial_call: bool = False
-    depth: Optional[int] = None        # DP
-    gq: Optional[int] = None           # genotype quality
+    depth: Optional[int] = None  # DP
+    gq: Optional[int] = None  # genotype quality
     allele_balance: Optional[float] = None
     filter_status: Optional[str] = None  # VCF FILTER column
-    variant_id: Optional[str] = None   # VCF ID column (dbSNP rsID if present, else None)
-    n_alts: int = 1                    # ALT alleles at this site (>1 => multiallelic)
+    variant_id: Optional[str] = None  # VCF ID column (dbSNP rsID if present, else None)
+    n_alts: int = 1  # ALT alleles at this site (>1 => multiallelic)
     info: dict[str, str] = field(default_factory=dict)  # raw INFO (annotator fields)
-    alt_index: int = 0  # 0-based index of this ALT in the original record (for Number=A INFO)
+    alt_index: int = (
+        0  # 0-based index of this ALT in the original record (for Number=A INFO)
+    )
 
     @property
     def key(self) -> str:
@@ -56,8 +61,11 @@ class Variant:
         # excluded — a stop-loss is a C-terminal extension, not a null; it earns PM4
         # (protein length change), never PVS1 (which would double-count with PM4).
         lof = {
-            "stop_gained", "frameshift_variant", "splice_donor_variant",
-            "splice_acceptor_variant", "start_lost",
+            "stop_gained",
+            "frameshift_variant",
+            "splice_donor_variant",
+            "splice_acceptor_variant",
+            "start_lost",
         }
         return (self.consequence or "") in lof
 
@@ -72,7 +80,9 @@ class Variant:
 class Annotation:
     """Everything gathered about a variant from external / local sources."""
 
-    clinvar_significance: Optional[str] = None  # Pathogenic, Benign, VUS, Conflicting...
+    clinvar_significance: Optional[str] = (
+        None  # Pathogenic, Benign, VUS, Conflicting...
+    )
     clinvar_review_status: Optional[str] = None
     clinvar_accession: Optional[str] = None
     clinvar_condition: Optional[str] = None
@@ -88,12 +98,14 @@ class Annotation:
     # own residue is excluded, so this never overlaps the PS1/PM5 same-residue evidence.
     clinvar_hotspot: Optional[dict] = None
 
-    gnomad_af: Optional[float] = None       # popmax AF
+    gnomad_af: Optional[float] = None  # popmax AF
     gnomad_ac: Optional[int] = None
     gnomad_an: Optional[int] = None
     gnomad_homozygotes: Optional[int] = None
     gnomad_popmax_pop: Optional[str] = None
-    gnomad_faf95: Optional[float] = None    # filtering AF (95% CI lower bound, grpmax) — BS1/BA1
+    gnomad_faf95: Optional[float] = (
+        None  # filtering AF (95% CI lower bound, grpmax) — BS1/BA1
+    )
     # True only when a source SURVEYED this locus and observed zero alleles. AN cannot express
     # this: the Parquet store's vouched-absence sentinel has no record and therefore no AN, so
     # `gnomad_an == 0` covers both "surveyed, found nothing" and "never surveyed". Consumers that
@@ -108,7 +120,9 @@ class Annotation:
     # benign evidence, never manufacture pathogenicity.
     gnomad_af_filtered: Optional[float] = None
     gnomad_homozygotes_filtered: Optional[int] = None
-    gnomad_filter: Optional[str] = None     # the failing filter string, for the evidence trail
+    gnomad_filter: Optional[str] = (
+        None  # the failing filter string, for the evidence trail
+    )
 
     # Allele frequency from a cohort the OPERATOR supplies (see annotate/local_cohort.py).
     # None means not consulted / not in the table — never a checked zero.
@@ -116,20 +130,30 @@ class Annotation:
 
     # gene-level constraint (for PVS1/PP2/BP1 judgment)
     gene_lof_intolerant: Optional[bool] = None  # e.g. pLI>=0.9 / low LOEUF
-    gene_mis_z: Optional[float] = None            # gnomAD missense z-score (higher = more constrained)
-    gene_oe_mis_upper: Optional[float] = None     # gnomAD obs/exp missense upper CI (>=1 = tolerated)
+    gene_mis_z: Optional[float] = (
+        None  # gnomAD missense z-score (higher = more constrained)
+    )
+    gene_oe_mis_upper: Optional[float] = (
+        None  # gnomAD obs/exp missense upper CI (>=1 = tolerated)
+    )
     gene_missense_constrained: Optional[bool] = None  # mis_z >= 3.09 -> PP2
-    gene_missense_tolerant: Optional[bool] = None     # oe_mis_upper >= 1.0 -> BP1 (with LoF intolerance)
+    gene_missense_tolerant: Optional[bool] = (
+        None  # oe_mis_upper >= 1.0 -> BP1 (with LoF intolerance)
+    )
 
     # in-silico
     revel: Optional[float] = None
     cadd_phred: Optional[float] = None
     am_pathogenicity: Optional[float] = None  # AlphaMissense score (0..1)
-    am_class: Optional[str] = None            # likely_benign | ambiguous | likely_pathogenic
+    am_class: Optional[str] = None  # likely_benign | ambiguous | likely_pathogenic
 
     # phenotype
-    hpo_match_score: Optional[float] = None      # 0..1 best-match-avg patient<->gene (PP4 + primary routing)
-    hpo_best_match: Optional[float] = None        # 0..1 single strongest match (surfaced for display)
+    hpo_match_score: Optional[float] = (
+        None  # 0..1 best-match-avg patient<->gene (PP4 + primary routing)
+    )
+    hpo_best_match: Optional[float] = (
+        None  # 0..1 single strongest match (surfaced for display)
+    )
     hpo_matched_terms: list[str] = field(default_factory=list)
 
     source: dict[str, str] = field(default_factory=dict)  # field -> "db@date"
@@ -152,10 +176,10 @@ class CriterionResult:
     makes the classification auditable rather than a black box.
     """
 
-    code: str                 # PVS1, PM2, BA1, ...
+    code: str  # PVS1, PM2, BA1, ...
     name: str
-    default_strength: str     # very_strong | strong | moderate | supporting | stand_alone
-    applies: bool             # False => N/A (e.g. needs a trio we don't have)
+    default_strength: str  # very_strong | strong | moderate | supporting | stand_alone
+    applies: bool  # False => N/A (e.g. needs a trio we don't have)
     met: bool = False
     applied_strength: Optional[str] = None
     evidence: dict[str, Any] = field(default_factory=dict)
@@ -175,8 +199,8 @@ class Classification:
     variant: Variant
     annotation: Annotation
     criteria: list[CriterionResult]
-    tier: str                 # Pathogenic | Likely Pathogenic | VUS | Likely Benign | Benign
-    rule_path: str            # e.g. "PVS1 + PM2 + PP3 => Likely Pathogenic (LP-1)"
+    tier: str  # Pathogenic | Likely Pathogenic | VUS | Likely Benign | Benign
+    rule_path: str  # e.g. "PVS1 + PM2 + PP3 => Likely Pathogenic (LP-1)"
 
     @property
     def met_codes(self) -> list[str]:
@@ -232,17 +256,17 @@ class SeqQuality:
     """
 
     n_variants: int = 0
-    assay_guess: str = "unknown"          # whole-genome / exome / panel / demo, by count
+    assay_guess: str = "unknown"  # whole-genome / exome / panel / demo, by count
     n_with_dp: int = 0
-    dp_mean: Optional[float] = None       # mean read depth at variant sites
+    dp_mean: Optional[float] = None  # mean read depth at variant sites
     dp_median: Optional[float] = None
-    dp_pct_ge10: Optional[float] = None   # % of sites with DP >= 10
+    dp_pct_ge10: Optional[float] = None  # % of sites with DP >= 10
     dp_pct_ge20: Optional[float] = None
     n_with_gq: int = 0
     gq_median: Optional[float] = None
     gq_pct_ge20: Optional[float] = None
     n_snv: int = 0
-    titv: Optional[float] = None          # transition/transversion ratio (SNVs)
+    titv: Optional[float] = None  # transition/transversion ratio (SNVs)
     n_het: int = 0
     n_hom: int = 0
     het_hom_ratio: Optional[float] = None
@@ -252,7 +276,7 @@ class SeqQuality:
     n_multiallelic_sites: int = 0
     pct_multiallelic: Optional[float] = None
     n_with_rsid: int = 0
-    pct_novel: Optional[float] = None          # % without a dbSNP rsID (only if annotated)
+    pct_novel: Optional[float] = None  # % without a dbSNP rsID (only if annotated)
     n_het_ab: int = 0
     pct_het_ab_balanced: Optional[float] = None
     pct_pass: Optional[float] = None

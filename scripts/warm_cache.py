@@ -8,6 +8,7 @@ writes the result into data/cache/, so subsequent lookups are instant and offlin
 
     python scripts/warm_cache.py [VCF]
 """
+
 import sys
 from pathlib import Path
 
@@ -34,19 +35,36 @@ def main() -> int:
         # cost of not knowing.
         g = gnomad.lookup(v)
         if g.get("af") is not None:
-            cache.put("gnomad", v.key,
-                      {k: g[k] for k in ("af", "ac", "an", "hom", "pop") if k in g})
+            cache.put(
+                "gnomad",
+                v.key,
+                {k: g[k] for k in ("af", "ac", "an", "hom", "pop") if k in g},
+            )
         else:
             skipped += 1
         cv = clinvar.lookup(v)
         if cv.get("significance"):
-            cache.put("clinvar", v.key, {k: cv.get(k) for k in
-                      ("significance", "review_status", "accession", "condition", "date")})
+            cache.put(
+                "clinvar",
+                v.key,
+                {
+                    k: cv.get(k)
+                    for k in (
+                        "significance",
+                        "review_status",
+                        "accession",
+                        "condition",
+                        "date",
+                    )
+                },
+            )
         n += 1
     print(f"Warmed cache for {n} variants into {config.CACHE_DIR}")
     if skipped:
-        print(f"  {skipped} variant(s) had no gnomAD frequency and were left UNCACHED "
-              f"(an unknown must not be persisted as an answer).")
+        print(
+            f"  {skipped} variant(s) had no gnomAD frequency and were left UNCACHED "
+            f"(an unknown must not be persisted as an answer)."
+        )
     return 0
 
 

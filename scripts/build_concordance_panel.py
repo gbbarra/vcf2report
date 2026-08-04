@@ -21,6 +21,7 @@ are fetched. Re-run any time to top up the panel.
 Network egress here is to PUBLIC ClinVar / gnomAD records only (no patient data),
 so it is safe to run; the pipeline's patient-facing egress gate is separate.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -40,11 +41,39 @@ from vcf2report.models import Variant  # noqa: E402
 # carry well-classified common benign variation — a mix that exercises both
 # deterministic axes (LoF pathogenicity and common-benign frequency).
 DEFAULT_GENES = [
-    "SCN1A", "SCN2A", "KCNQ2", "STXBP1", "CACNA1A", "SLC2A1", "PAX6",
-    "RB1", "APC", "MUTYH", "TP53", "STK11", "PTEN", "VHL", "NF1",
-    "BRCA1", "BRCA2", "MLH1", "MSH2", "MSH6", "PMS2",
-    "FBN1", "LDLR", "MYH7", "MYBPC3", "KCNQ1", "KCNH2", "SCN5A",
-    "CFTR", "HFE", "GJB2", "ATP7B", "GAA",
+    "SCN1A",
+    "SCN2A",
+    "KCNQ2",
+    "STXBP1",
+    "CACNA1A",
+    "SLC2A1",
+    "PAX6",
+    "RB1",
+    "APC",
+    "MUTYH",
+    "TP53",
+    "STK11",
+    "PTEN",
+    "VHL",
+    "NF1",
+    "BRCA1",
+    "BRCA2",
+    "MLH1",
+    "MSH2",
+    "MSH6",
+    "PMS2",
+    "FBN1",
+    "LDLR",
+    "MYH7",
+    "MYBPC3",
+    "KCNQ1",
+    "KCNH2",
+    "SCN5A",
+    "CFTR",
+    "HFE",
+    "GJB2",
+    "ATP7B",
+    "GAA",
 ]
 
 # ClinVar molecular-consequence text -> our consequence vocabulary.
@@ -67,15 +96,23 @@ _CONSEQUENCE_MAP = {
 # so a co-listed milder term (e.g. "5 prime UTR variant") never masks the LoF
 # axis the panel reports on. Most severe first.
 _CONSEQUENCE_SEVERITY = [
-    "splice_donor_variant", "splice_acceptor_variant", "stop_gained",
-    "frameshift_variant", "start_lost", "stop_lost",
-    "inframe_insertion", "inframe_deletion", "missense_variant",
+    "splice_donor_variant",
+    "splice_acceptor_variant",
+    "stop_gained",
+    "frameshift_variant",
+    "start_lost",
+    "stop_lost",
+    "inframe_insertion",
+    "inframe_deletion",
+    "missense_variant",
     "synonymous_variant",
 ]
 
-_GT_HEADER = ("# Concordance-panel ground truth (real ClinVar, GRCh38). "
-              "Columns: key gene consequence hgvs_p clinvar_significance "
-              "review_status accession condition")
+_GT_HEADER = (
+    "# Concordance-panel ground truth (real ClinVar, GRCh38). "
+    "Columns: key gene consequence hgvs_p clinvar_significance "
+    "review_status accession condition"
+)
 
 
 def _online() -> bool:
@@ -89,18 +126,21 @@ def _interval() -> float:
 
 def _sig_term(group: str) -> str:
     if group == "pathogenic":
-        return ('("pathogenic"[Clinical significance] OR '
-                '"likely pathogenic"[Clinical significance])')
-    return ('("benign"[Clinical significance] OR '
-            '"likely benign"[Clinical significance])')
+        return (
+            '("pathogenic"[Clinical significance] OR '
+            '"likely pathogenic"[Clinical significance])'
+        )
+    return '("benign"[Clinical significance] OR "likely benign"[Clinical significance])'
 
 
 def _reviewed(review: str | None) -> bool:
     """>=1-star ClinVar assertion (same gate PP5 uses)."""
     r = (review or "").lower().replace("_", " ").strip()
-    return (r.startswith("criteria provided")
-            or "reviewed by expert" in r
-            or "practice guideline" in r)
+    return (
+        r.startswith("criteria provided")
+        or "reviewed by expert" in r
+        or "practice guideline" in r
+    )
 
 
 def _group_of(significance: str | None) -> str | None:
@@ -171,8 +211,8 @@ def _grch38_snv(variant_set: list) -> tuple[str, str, str] | None:
 def _esearch_ids(params: dict, term: str, retmax: int) -> list[str]:
     _http.throttle("ncbi", _interval())
     search = _http.get_json(
-        f"{config.NCBI_EUTILS}/esearch.fcgi",
-        {**params, "retmax": retmax, "term": term})
+        f"{config.NCBI_EUTILS}/esearch.fcgi", {**params, "retmax": retmax, "term": term}
+    )
     return (((search or {}).get("esearchresult") or {}).get("idlist")) or []
 
 
@@ -185,8 +225,13 @@ def _harvest_gene(gene: str, group: str, want: int, seen: set[str]) -> list[dict
     significance term returns nothing (Entrez field quirks), it retries with a plain
     keyword term and leans entirely on that post-filter.
     """
-    params = {"db": "clinvar", "retmode": "json", "tool": "vcf2report",
-              "email": config.NCBI_EMAIL, "api_key": config.NCBI_API_KEY}
+    params = {
+        "db": "clinvar",
+        "retmode": "json",
+        "tool": "vcf2report",
+        "email": config.NCBI_EMAIL,
+        "api_key": config.NCBI_API_KEY,
+    }
     retmax = max(want * 6, 30)
     ids = _esearch_ids(params, f"{gene}[gene] AND {_sig_term(group)}", retmax)
     if not ids:
@@ -196,7 +241,8 @@ def _harvest_gene(gene: str, group: str, want: int, seen: set[str]) -> list[dict
 
     _http.throttle("ncbi", _interval())
     summary = _http.get_json(
-        f"{config.NCBI_EUTILS}/esummary.fcgi", {**params, "id": ",".join(ids)})
+        f"{config.NCBI_EUTILS}/esummary.fcgi", {**params, "id": ",".join(ids)}
+    )
     result = (summary or {}).get("result") or {}
 
     rows: list[dict] = []
@@ -216,16 +262,18 @@ def _harvest_gene(gene: str, group: str, want: int, seen: set[str]) -> list[dict
         if key in seen:
             continue
         seen.add(key)
-        rows.append({
-            "key": key,
-            "gene": gene,
-            "consequence": _consequence_from(docsum),
-            "hgvs_p": _hgvs_p_from(docsum),
-            "clinvar_significance": extracted["significance"],
-            "review_status": extracted.get("review_status") or "",
-            "accession": extracted.get("accession") or "",
-            "condition": (extracted.get("condition") or "").replace("\t", " "),
-        })
+        rows.append(
+            {
+                "key": key,
+                "gene": gene,
+                "consequence": _consequence_from(docsum),
+                "hgvs_p": _hgvs_p_from(docsum),
+                "clinvar_significance": extracted["significance"],
+                "review_status": extracted.get("review_status") or "",
+                "accession": extracted.get("accession") or "",
+                "condition": (extracted.get("condition") or "").replace("\t", " "),
+            }
+        )
     return rows
 
 
@@ -240,6 +288,7 @@ def _call_bounded(seconds: int, fn, *args):
     no read timeout — a slow/stalled GCS read would otherwise hang the whole
     freeze. On the deadline we return None so the caller falls back cleanly.
     """
+
     def _handler(signum, frame):
         raise _FreezeTimeout()
 
@@ -284,8 +333,16 @@ def _load_existing_truth(fp: Path) -> tuple[list[dict], set[str]]:
     seen: set[str] = set()
     if not fp.exists():
         return rows, seen
-    cols = ["key", "gene", "consequence", "hgvs_p",
-            "clinvar_significance", "review_status", "accession", "condition"]
+    cols = [
+        "key",
+        "gene",
+        "consequence",
+        "hgvs_p",
+        "clinvar_significance",
+        "review_status",
+        "accession",
+        "condition",
+    ]
     for line in fp.read_text().splitlines():
         if not line.strip() or line.startswith("#"):
             continue
@@ -297,8 +354,16 @@ def _load_existing_truth(fp: Path) -> tuple[list[dict], set[str]]:
 
 
 def _write_truth(fp: Path, rows: list[dict]) -> None:
-    cols = ["key", "gene", "consequence", "hgvs_p",
-            "clinvar_significance", "review_status", "accession", "condition"]
+    cols = [
+        "key",
+        "gene",
+        "consequence",
+        "hgvs_p",
+        "clinvar_significance",
+        "review_status",
+        "accession",
+        "condition",
+    ]
     lines = [_GT_HEADER]
     for r in sorted(rows, key=lambda x: x["key"]):
         lines.append("\t".join(str(r.get(c, "")) for c in cols))
@@ -306,23 +371,44 @@ def _write_truth(fp: Path, rows: list[dict]) -> None:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Freeze the ClinVar-vs-engine concordance panel.")
-    ap.add_argument("--per-group", type=int, default=50,
-                    help="target pathogenic AND benign variants (each) across the panel")
-    ap.add_argument("--per-gene", type=int, default=4,
-                    help="max variants to take from one gene per significance group")
-    ap.add_argument("--genes", default="",
-                    help="comma-separated gene override (default: curated panel)")
-    ap.add_argument("--refresh", action="store_true",
-                    help="re-fetch gnomAD even for already-frozen variants (apply client fixes)")
+    ap = argparse.ArgumentParser(
+        description="Freeze the ClinVar-vs-engine concordance panel."
+    )
+    ap.add_argument(
+        "--per-group",
+        type=int,
+        default=50,
+        help="target pathogenic AND benign variants (each) across the panel",
+    )
+    ap.add_argument(
+        "--per-gene",
+        type=int,
+        default=4,
+        help="max variants to take from one gene per significance group",
+    )
+    ap.add_argument(
+        "--genes",
+        default="",
+        help="comma-separated gene override (default: curated panel)",
+    )
+    ap.add_argument(
+        "--refresh",
+        action="store_true",
+        help="re-fetch gnomAD even for already-frozen variants (apply client fixes)",
+    )
     args = ap.parse_args()
 
     if not _online():
-        print("ERROR: network is disabled. Re-run with "
-              "VCF2REPORT_ALLOW_NETWORK=1 (and OFFLINE unset).", file=sys.stderr)
+        print(
+            "ERROR: network is disabled. Re-run with "
+            "VCF2REPORT_ALLOW_NETWORK=1 (and OFFLINE unset).",
+            file=sys.stderr,
+        )
         return 2
 
-    genes = [g.strip().upper() for g in args.genes.split(",") if g.strip()] or DEFAULT_GENES
+    genes = [
+        g.strip().upper() for g in args.genes.split(",") if g.strip()
+    ] or DEFAULT_GENES
     out_dir = config.DATA_DIR / "concordance"
     out_dir.mkdir(parents=True, exist_ok=True)
     truth_fp = out_dir / "ground_truth.tsv"
@@ -339,9 +425,11 @@ def main() -> int:
             counts["benign"] += 1
 
     t0 = time.perf_counter()
-    print(f"Harvesting ClinVar across {len(genes)} genes "
-          f"(target {args.per_group}/group; have "
-          f"{counts['pathogenic']} path / {counts['benign']} benign)...")
+    print(
+        f"Harvesting ClinVar across {len(genes)} genes "
+        f"(target {args.per_group}/group; have "
+        f"{counts['pathogenic']} path / {counts['benign']} benign)..."
+    )
 
     for group in ("pathogenic", "benign"):
         for gene in genes:
@@ -357,15 +445,19 @@ def main() -> int:
                 truth_rows.append(row)
                 counts[group] += 1
             if rows:
-                print(f"  {gene} ({group}): +{len(rows)} "
-                      f"[{counts['pathogenic']}p/{counts['benign']}b]")
+                print(
+                    f"  {gene} ({group}): +{len(rows)} "
+                    f"[{counts['pathogenic']}p/{counts['benign']}b]"
+                )
 
     _write_truth(truth_fp, truth_rows)
 
     # Freeze gnomAD for every key not already frozen (or all, with --refresh).
     to_freeze = [r["key"] for r in truth_rows if args.refresh or r["key"] not in frozen]
-    print(f"Freezing gnomAD for {len(to_freeze)} new variants "
-          f"({len(frozen)} already cached)...")
+    print(
+        f"Freezing gnomAD for {len(to_freeze)} new variants "
+        f"({len(frozen)} already cached)..."
+    )
     for i, key in enumerate(to_freeze, 1):
         try:
             rec = _freeze_gnomad(key)
@@ -373,17 +465,21 @@ def main() -> int:
             print(f"  ! {key}: gnomAD lookup failed: {exc}", file=sys.stderr)
             rec = None
         if rec is not None:
-            frozen[key] = {k: rec.get(k) for k in
-                           ("af", "ac", "an", "hom", "pop", "faf95", "release")}
+            frozen[key] = {
+                k: rec.get(k)
+                for k in ("af", "ac", "an", "hom", "pop", "faf95", "release")
+            }
         if i % 10 == 0 or i == len(to_freeze):
             frozen_fp.write_text(json.dumps(frozen, indent=2, sort_keys=True) + "\n")
             print(f"  frozen {i}/{len(to_freeze)}")
 
     frozen_fp.write_text(json.dumps(frozen, indent=2, sort_keys=True) + "\n")
     dt = time.perf_counter() - t0
-    print(f"\nDone in {dt:.0f}s: {len(truth_rows)} truth variants "
-          f"({counts['pathogenic']} path / {counts['benign']} benign), "
-          f"{len(frozen)} gnomAD records frozen.")
+    print(
+        f"\nDone in {dt:.0f}s: {len(truth_rows)} truth variants "
+        f"({counts['pathogenic']} path / {counts['benign']} benign), "
+        f"{len(frozen)} gnomAD records frozen."
+    )
     print(f"  {truth_fp}")
     print(f"  {frozen_fp}")
     print("Now run:  python scripts/run_concordance.py   (offline)")

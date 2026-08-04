@@ -16,6 +16,7 @@ INFO before it was stripped.
     python3 scripts/realisticize_cohort.py IN.vcf.gz OUT.vcf [--sidecar OUT.planted.tsv] \
         [--syn-id SYN-101] [--manifest planted_variants.tsv]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,8 +27,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from spike_pathogenic import _CHROM_ORDER, load_exome  # noqa: E402
 from spike_variant import spiked_line_realistic  # noqa: E402
 
-_SIDE_COLS = ["syn_id", "chrom", "pos", "ref", "alt", "gene", "zygosity", "allele",
-              "consequence", "clnsig", "clnrevstat", "clnvid"]
+_SIDE_COLS = [
+    "syn_id",
+    "chrom",
+    "pos",
+    "ref",
+    "alt",
+    "gene",
+    "zygosity",
+    "allele",
+    "consequence",
+    "clnsig",
+    "clnrevstat",
+    "clnvid",
+]
 
 
 def _info(info: str) -> dict[str, str]:
@@ -66,24 +79,58 @@ def realisticize(in_vcf: str, out_vcf: str, syn_id: str):
         info = _info(f[7])
         gt = _gt(f[8], f[9])
         zyg = "hom" if gt == "1/1" else "het"
-        rec = {"chrom": f[0].replace("chr", ""), "pos": f[1], "ref": f[3], "alt": f[4],
-               "gene": info.get("GENE", "")}
+        rec = {
+            "chrom": f[0].replace("chr", ""),
+            "pos": f[1],
+            "ref": f[3],
+            "alt": f[4],
+            "gene": info.get("GENE", ""),
+        }
         r = spiked_line_realistic(rec, background, style, zyg, ncols)
         if r is None:
-            raise SystemExit(f"ERROR: no {zyg} template to borrow in {in_vcf} for {f[0]}:{f[1]}")
+            raise SystemExit(
+                f"ERROR: no {zyg} template to borrow in {in_vcf} for {f[0]}:{f[1]}"
+            )
         new_planted.append(r)
-        rows.append({"syn_id": syn_id, "chrom": f[0], "pos": f[1], "ref": f[3], "alt": f[4],
-                     "gene": info.get("GENE", ""), "zygosity": zyg,
-                     "allele": "second" if "SPIKED2" in info else "primary",
-                     "consequence": info.get("CSQ", ""), "clnsig": info.get("CLNSIG", ""),
-                     "clnrevstat": info.get("CLNREVSTAT", ""), "clnvid": info.get("CLNVID", "")})
+        rows.append(
+            {
+                "syn_id": syn_id,
+                "chrom": f[0],
+                "pos": f[1],
+                "ref": f[3],
+                "alt": f[4],
+                "gene": info.get("GENE", ""),
+                "zygosity": zyg,
+                "allele": "second" if "SPIKED2" in info else "primary",
+                "consequence": info.get("CSQ", ""),
+                "clnsig": info.get("CLNSIG", ""),
+                "clnrevstat": info.get("CLNREVSTAT", ""),
+                "clnvid": info.get("CLNVID", ""),
+            }
+        )
 
     all_rows = background + new_planted
-    all_rows.sort(key=lambda x: (_CHROM_ORDER.get(x[0].replace("chr", ""), 99), int(x[1])))
+    all_rows.sort(
+        key=lambda x: (_CHROM_ORDER.get(x[0].replace("chr", ""), 99), int(x[1]))
+    )
     # strip the now-unused spike INFO definitions + keep everything else; header comment kept honest
-    keep_meta = [m for m in meta if not any(t in m for t in (
-        "ID=SPIKED", "ID=SPIKED2", "ID=GENE,", "ID=CSQ,",
-        "ID=CLNSIG,", "ID=CLNREVSTAT,", "ID=CLNDN,", "ID=CLNVID,"))]
+    keep_meta = [
+        m
+        for m in meta
+        if not any(
+            t in m
+            for t in (
+                "ID=SPIKED",
+                "ID=SPIKED2",
+                "ID=GENE,",
+                "ID=CSQ,",
+                "ID=CLNSIG,",
+                "ID=CLNREVSTAT,",
+                "ID=CLNDN,",
+                "ID=CLNVID,",
+            )
+        )
+    ]
     with open(out_vcf, "w") as out:
         out.write("\n".join(keep_meta) + "\n")
         out.write(col_line + "\n")
@@ -113,7 +160,10 @@ def main():
                 m.write("\t".join(_SIDE_COLS) + "\n")
             for r in rows:
                 m.write("\t".join(str(r[c]) for c in _SIDE_COLS) + "\n")
-    print(f"  {a.syn_id}: {len(rows)} planted allele(s) realisticised -> {a.out_vcf}", file=sys.stderr)
+    print(
+        f"  {a.syn_id}: {len(rows)} planted allele(s) realisticised -> {a.out_vcf}",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":

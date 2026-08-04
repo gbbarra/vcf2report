@@ -8,6 +8,7 @@ matrix + metrics as Markdown.
 
     python scripts/run_concordance.py [--json] [--out data/out/concordance.md]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,22 +25,32 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Render the concordance panel (offline).")
     ap.add_argument("--json", action="store_true", help="emit JSON instead of Markdown")
     ap.add_argument("--out", default="", help="also write the Markdown to this path")
-    ap.add_argument("--include-clinvar", action="store_true",
-                    help="do NOT withhold ClinVar (measures full production behaviour, circular)")
+    ap.add_argument(
+        "--include-clinvar",
+        action="store_true",
+        help="do NOT withhold ClinVar (measures full production behaviour, circular)",
+    )
     args = ap.parse_args()
 
     if not concordance.GROUND_TRUTH.exists():
-        print("ERROR: panel not built yet. Run:\n"
-              "  VCF2REPORT_ALLOW_NETWORK=1 python scripts/build_concordance_panel.py",
-              file=sys.stderr)
+        print(
+            "ERROR: panel not built yet. Run:\n"
+            "  VCF2REPORT_ALLOW_NETWORK=1 python scripts/build_concordance_panel.py",
+            file=sys.stderr,
+        )
         return 2
 
     entries = concordance.load_panel()
     if not entries:
-        print("ERROR: ground_truth.tsv has no PATH/BEN-labelled variants.", file=sys.stderr)
+        print(
+            "ERROR: ground_truth.tsv has no PATH/BEN-labelled variants.",
+            file=sys.stderr,
+        )
         return 2
 
-    result = concordance.evaluate_panel(entries, withhold_clinvar=not args.include_clinvar)
+    result = concordance.evaluate_panel(
+        entries, withhold_clinvar=not args.include_clinvar
+    )
 
     if args.json:
         print(json.dumps(result.to_dict(), indent=2))

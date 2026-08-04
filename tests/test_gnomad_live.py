@@ -16,6 +16,7 @@ a skipped network test is the artefact this file exists to stop shipping.
 
 Locally they are opt-in (the env var), so a developer offline is not blocked.
 """
+
 from __future__ import annotations
 
 import os
@@ -27,15 +28,18 @@ from vcf2report.models import Variant
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("VCF2REPORT_LIVE_GNOMAD", "").strip() not in {"1", "true", "yes"},
-    reason="live gnomAD test — set VCF2REPORT_LIVE_GNOMAD=1 (CI's tabix job does)")
+    reason="live gnomAD test — set VCF2REPORT_LIVE_GNOMAD=1 (CI's tabix job does)",
+)
 
 pysam = pytest.importorskip("pysam", reason="the live path IS pysam")
 
 # BBS2 c.472-2A>G, the planted diagnosis in data/example/SYN-073. The committed fixture baked
 # gnomad_AF=8.99282e-07 / AN=1461862 / nhomalt=0 from the full store on another machine, so this
 # doubles as an independent check that the fixture is faithful.
-URL = ("https://storage.googleapis.com/gcp-public-data--gnomad/release/4.1/vcf/exomes/"
-       "gnomad.exomes.v4.1.sites.chr16.vcf.bgz")
+URL = (
+    "https://storage.googleapis.com/gcp-public-data--gnomad/release/4.1/vcf/exomes/"
+    "gnomad.exomes.v4.1.sites.chr16.vcf.bgz"
+)
 BBS2 = Variant(chrom="chr16", pos=56510923, ref="T", alt="C")
 BBS2_AF_GRPMAX = 8.9928198576672e-07
 
@@ -53,11 +57,12 @@ def _network_or_fail():
     try:
         vf = pysam.VariantFile(URL)
         next(iter(vf.fetch("chr16", BBS2.pos - 1, BBS2.pos)))
-    except Exception as e:                                      # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
         pytest.fail(
             f"gnomAD public bucket not readable BY PYSAM: {type(e).__name__}: {e}\n"
             "If this is 'Libcurl reported error 77', htslib cannot find a CA bundle — set "
-            "CURL_CA_BUNDLE / SSL_CERT_FILE (the tabix CI job does).")
+            "CURL_CA_BUNDLE / SSL_CERT_FILE (the tabix CI job does)."
+        )
 
 
 def test_live_query_returns_the_real_frequency():
@@ -66,7 +71,8 @@ def test_live_query_returns_the_real_frequency():
 
     got = gnomad_remote.query(BBS2)
     assert got is not None, (
-        "query() returned None for a variant gnomAD publishes — the failure mode that shipped")
+        "query() returned None for a variant gnomAD publishes — the failure mode that shipped"
+    )
     assert got["af"] == pytest.approx(BBS2_AF_GRPMAX, rel=1e-6)
     assert got["pop"] == "nfe"
     assert got["hom"] == 0
@@ -115,17 +121,22 @@ def test_the_offline_stand_in_matches_the_real_library():
     spec.loader.exec_module(mod)
     _FakeInfo = mod._FakeInfo
 
-    real = next(iter(pysam.VariantFile(URL).fetch("chr16", BBS2.pos - 1, BBS2.pos))).info
-    fake = _FakeInfo(declared={"AF_grpmax": (BBS2_AF_GRPMAX,), "fafmax_faf95_max": None},
-                     undeclared={"faf95_grpmax", "faf95_max"})
+    real = next(
+        iter(pysam.VariantFile(URL).fetch("chr16", BBS2.pos - 1, BBS2.pos))
+    ).info
+    fake = _FakeInfo(
+        declared={"AF_grpmax": (BBS2_AF_GRPMAX,), "fafmax_faf95_max": None},
+        undeclared={"faf95_grpmax", "faf95_max"},
+    )
 
     def behaviour(info, key):
         try:
             return ("value", info.get(key))
-        except Exception as e:                                  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             return ("raises", type(e).__name__)
 
     for key in ("AF_grpmax", "fafmax_faf95_max", "faf95_grpmax", "faf95_max"):
         assert behaviour(real, key) == behaviour(fake, key), (
             f"the offline stand-in no longer matches real pysam for {key!r} — "
-            "fix the stand-in, or the offline test is proving nothing")
+            "fix the stand-in, or the offline test is proving nothing"
+        )

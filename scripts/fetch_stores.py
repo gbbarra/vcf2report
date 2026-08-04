@@ -21,6 +21,7 @@ decompression is available as the pure-Python `zstandard` wheel. Measured on a c
 AlphaMissense is fetched from DeepMind under **CC BY 4.0** and built locally; this project does
 not redistribute it. gnomAD is ODbL-1.0 (attribution + share-alike); ClinVar is public domain.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -38,7 +39,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 RELEASES = "https://api.github.com/repos/gbbarra/vcf2report/releases/tags/{tag}"
-ALPHAMISSENSE_SRC = "https://storage.googleapis.com/dm_alphamissense/AlphaMissense_hg38.tsv.gz"
+ALPHAMISSENSE_SRC = (
+    "https://storage.googleapis.com/dm_alphamissense/AlphaMissense_hg38.tsv.gz"
+)
 
 STORES = {
     "gnomad": {
@@ -56,7 +59,7 @@ STORES = {
     "alphamissense": {
         "dest": ROOT / "data/alphamissense/am_parquet",
         "extract_to": ROOT / "data/alphamissense",
-        "tag": None,                       # built locally from the DeepMind source
+        "tag": None,  # built locally from the DeepMind source
         "licence": "AlphaMissense hg38 — CC BY 4.0, fetched from DeepMind, NOT redistributed",
     },
 }
@@ -85,15 +88,21 @@ def _unzstd_tar(blob_path: Path, into: Path) -> None:
     """Decompress+untar, preferring the zstd binary and falling back to the wheel."""
     into.mkdir(parents=True, exist_ok=True)
     if shutil.which("zstd"):
-        subprocess.run(f"zstd -dc {blob_path} | tar -x -C {into}", shell=True, check=True)
+        subprocess.run(
+            f"zstd -dc {blob_path} | tar -x -C {into}", shell=True, check=True
+        )
         return
     try:
         import zstandard
     except ImportError:
         raise SystemExit(
             "neither the `zstd` binary nor the `zstandard` package is available.\n"
-            "  pip install zstandard      (or: apt install zstd / brew install zstd)")
-    with open(blob_path, "rb") as fh, zstandard.ZstdDecompressor().stream_reader(fh) as sr:
+            "  pip install zstandard      (or: apt install zstd / brew install zstd)"
+        )
+    with (
+        open(blob_path, "rb") as fh,
+        zstandard.ZstdDecompressor().stream_reader(fh) as sr,
+    ):
         with tarfile.open(fileobj=sr, mode="r|") as tf:
             tf.extractall(into)
 
@@ -101,7 +110,9 @@ def _unzstd_tar(blob_path: Path, into: Path) -> None:
 def fetch_release_store(name: str, force: bool) -> bool:
     spec = STORES[name]
     if spec["dest"].exists() and not force:
-        print(f"  {name}: already present at {spec['dest'].relative_to(ROOT)} — skipping")
+        print(
+            f"  {name}: already present at {spec['dest'].relative_to(ROOT)} — skipping"
+        )
         return False
     if force and spec["dest"].exists():
         shutil.rmtree(spec["dest"])
@@ -130,25 +141,40 @@ def fetch_alphamissense(force: bool) -> bool:
         size = _get(ALPHAMISSENSE_SRC, src)
         print(f"    downloaded {size / 1e9:.2f} GB in {time.perf_counter() - t0:.0f}s")
     print("    building the Parquet store (this is the slow step)…")
-    subprocess.run([sys.executable, str(ROOT / "scripts/build_alphamissense_parquet.py"),
-                    str(src)], check=True)
+    subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/build_alphamissense_parquet.py"),
+            str(src),
+        ],
+        check=True,
+    )
     return True
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     # No argparse `choices` here: with nargs="*" it also validates the default, which turns
     # "run with no arguments" — the common case — into a usage error.
-    ap.add_argument("stores", nargs="*", metavar="STORE",
-                    help=f"which stores to provision: {', '.join(STORES)} (default: all)")
-    ap.add_argument("--force", action="store_true", help="re-fetch even if already present")
+    ap.add_argument(
+        "stores",
+        nargs="*",
+        metavar="STORE",
+        help=f"which stores to provision: {', '.join(STORES)} (default: all)",
+    )
+    ap.add_argument(
+        "--force", action="store_true", help="re-fetch even if already present"
+    )
     a = ap.parse_args()
     wanted = a.stores or list(STORES)
     if unknown := [s for s in wanted if s not in STORES]:
         raise SystemExit(f"unknown store(s) {unknown}; choose from {list(STORES)}")
 
-    print("\nProvisioning annotation stores. Nothing here needs `gh` or the zstd binary.\n")
+    print(
+        "\nProvisioning annotation stores. Nothing here needs `gh` or the zstd binary.\n"
+    )
     for name in wanted:
         if name == "alphamissense":
             fetch_alphamissense(a.force)
@@ -156,8 +182,9 @@ def main() -> int:
             fetch_release_store(name, a.force)
 
     print("\n== store gate ==")
-    return subprocess.run([sys.executable, str(ROOT / "scripts/check_stores.py"),
-                           "--gate"]).returncode
+    return subprocess.run(
+        [sys.executable, str(ROOT / "scripts/check_stores.py"), "--gate"]
+    ).returncode
 
 
 if __name__ == "__main__":

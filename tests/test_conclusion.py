@@ -1,4 +1,5 @@
 """The deterministic, QC-aware conclusion (interpretive summary) of the report."""
+
 from vcf2report.models import Annotation, Classification, QCSummary, SeqQuality, Variant
 from vcf2report.report.assemble import ReportModel, summarize
 
@@ -7,13 +8,20 @@ def _cls(gene, tier, hpo=0.0):
     return Classification(
         variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene=gene),
         annotation=Annotation(hpo_match_score=hpo, hpo_best_match=hpo),
-        criteria=[], tier=tier, rule_path="")
+        criteria=[],
+        tier=tier,
+        rule_path="",
+    )
 
 
 def _report(classifications, dp_median=44.0):
-    return ReportModel(sample_id="x", hpo_terms=[], qc=QCSummary(),
-                       classifications=classifications,
-                       seq_quality=SeqQuality(dp_median=dp_median))
+    return ReportModel(
+        sample_id="x",
+        hpo_terms=[],
+        qc=QCSummary(),
+        classifications=classifications,
+        seq_quality=SeqQuality(dp_median=dp_median),
+    )
 
 
 def test_diagnostic_finding_named():
@@ -22,7 +30,9 @@ def test_diagnostic_finding_named():
 
 
 def test_no_finding_reports_vus_count():
-    txt = " ".join(summarize(_report([_cls("G", "Uncertain Significance (VUS)", hpo=1.0)])))
+    txt = " ".join(
+        summarize(_report([_cls("G", "Uncertain Significance (VUS)", hpo=1.0)]))
+    )
     assert "No Pathogenic / Likely Pathogenic finding" in txt and "1 variant" in txt
 
 
@@ -31,18 +41,27 @@ def test_clinvar_pathogenic_surfaced_despite_vus():
     # presented as 'no finding' (clinical-safety; independent of the ACMG math).
     c = Classification(
         variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene="MECP2"),
-        annotation=Annotation(hpo_match_score=1.0, hpo_best_match=1.0,
-                              clinvar_significance="Pathogenic",
-                              clinvar_review_status="criteria_provided,_multiple_submitters,_no_conflicts"),
-        criteria=[], tier="Uncertain Significance (VUS)", rule_path="")
+        annotation=Annotation(
+            hpo_match_score=1.0,
+            hpo_best_match=1.0,
+            clinvar_significance="Pathogenic",
+            clinvar_review_status="criteria_provided,_multiple_submitters,_no_conflicts",
+        ),
+        criteria=[],
+        tier="Uncertain Significance (VUS)",
+        rule_path="",
+    )
     txt = " ".join(summarize(_report([c])))
-    assert "Classified Pathogenic/Likely Pathogenic in ClinVar" in txt and "MECP2" in txt
+    assert (
+        "Classified Pathogenic/Likely Pathogenic in ClinVar" in txt and "MECP2" in txt
+    )
 
 
 def test_clinvar_stars_space_and_underscore_forms():
     # The real production forms are space-delimited (from_vcf .replace + E-utilities);
     # both delimiters must score identically or the >=2-star safety flag silently dies.
     from vcf2report.report.assemble import clinvar_stars
+
     assert clinvar_stars("criteria_provided,_multiple_submitters,_no_conflicts") == 2
     assert clinvar_stars("criteria provided, multiple submitters, no conflicts") == 2
     assert clinvar_stars("reviewed by expert panel") == 3
@@ -56,22 +75,36 @@ def test_clinvar_pathogenic_surfaced_space_form_review_status():
     # review status arrives SPACE-delimited (the real VCF-INFO / live-ClinVar form).
     c = Classification(
         variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene="MECP2"),
-        annotation=Annotation(hpo_match_score=0.0, hpo_best_match=0.0,
-                              clinvar_significance="Pathogenic",
-                              clinvar_review_status="criteria provided, multiple submitters, no conflicts"),
-        criteria=[], tier="Uncertain Significance (VUS)", rule_path="")
+        annotation=Annotation(
+            hpo_match_score=0.0,
+            hpo_best_match=0.0,
+            clinvar_significance="Pathogenic",
+            clinvar_review_status="criteria provided, multiple submitters, no conflicts",
+        ),
+        criteria=[],
+        tier="Uncertain Significance (VUS)",
+        rule_path="",
+    )
     txt = " ".join(summarize(_report([c])))
-    assert "Classified Pathogenic/Likely Pathogenic in ClinVar" in txt and "MECP2" in txt
+    assert (
+        "Classified Pathogenic/Likely Pathogenic in ClinVar" in txt and "MECP2" in txt
+    )
 
 
 def test_single_submitter_clinvar_not_surfaced():
     # 1-star ClinVar P must NOT trip the >=2-star safety flag.
     c = Classification(
         variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene="G"),
-        annotation=Annotation(hpo_match_score=0.0, hpo_best_match=0.0,
-                              clinvar_significance="Pathogenic",
-                              clinvar_review_status="criteria_provided,_single_submitter"),
-        criteria=[], tier="Uncertain Significance (VUS)", rule_path="")
+        annotation=Annotation(
+            hpo_match_score=0.0,
+            hpo_best_match=0.0,
+            clinvar_significance="Pathogenic",
+            clinvar_review_status="criteria_provided,_single_submitter",
+        ),
+        criteria=[],
+        tier="Uncertain Significance (VUS)",
+        rule_path="",
+    )
     assert "Classified Pathogenic" not in " ".join(summarize(_report([c])))
 
 
@@ -84,35 +117,64 @@ def test_hom_gnomad_absent_carries_caveat_but_still_surfaces_the_diagnosis():
     # gnomad_an is REQUIRED for "absent": AF=0 with AN=0 is 0/0 (undefined), not a survey that
     # found nothing. This fixture originally omitted AN and so did not express its own premise.
     from vcf2report.report.assemble import split_findings
+
     dx = Classification(
-        variant=Variant(chrom="1", pos=1, ref="A", alt="AT", gene="GENEZ", zygosity="hom"),
-        annotation=Annotation(hpo_match_score=0.9, hpo_best_match=0.9,
-                              gnomad_af=0.0, gnomad_ac=0, gnomad_an=152000),
-        criteria=[], tier="Pathogenic", rule_path="")
+        variant=Variant(
+            chrom="1", pos=1, ref="A", alt="AT", gene="GENEZ", zygosity="hom"
+        ),
+        annotation=Annotation(
+            hpo_match_score=0.9,
+            hpo_best_match=0.9,
+            gnomad_af=0.0,
+            gnomad_ac=0,
+            gnomad_an=152000,
+        ),
+        criteria=[],
+        tier="Pathogenic",
+        rule_path="",
+    )
     primary, _sec, _other = split_findings([dx])
-    assert dx in primary                                  # the diagnosis is surfaced...
+    assert dx in primary  # the diagnosis is surfaced...
     txt = " ".join(summarize(_report([dx])))
-    assert "Verify the genotype" in txt and "GENEZ" in txt  # ...with the confirm-the-call caveat
+    assert (
+        "Verify the genotype" in txt and "GENEZ" in txt
+    )  # ...with the confirm-the-call caveat
 
 
 def test_gnomad_uncovered_is_not_reported_as_a_vouched_absence():
     # AF=0 alongside AN=0 is what annotators write where gnomAD has NO coverage. Calling that an
     # artifact turns missing data into evidence and demotes exactly the recessive candidates that
     # live in poorly-surveyed regions. It must instead read as "frequency unknown".
-    from vcf2report.report.assemble import (is_hom_absent_artifact, is_hom_gnomad_uncovered,
-                                            split_findings)
+    from vcf2report.report.assemble import (
+        is_hom_absent_artifact,
+        is_hom_gnomad_uncovered,
+        split_findings,
+    )
+
     c = Classification(
-        variant=Variant(chrom="1", pos=1, ref="C", alt="G", gene="GENEU", zygosity="hom"),
-        annotation=Annotation(hpo_match_score=0.9, hpo_best_match=0.9,
-                              gnomad_af=0.0, gnomad_ac=0, gnomad_an=0),
-        criteria=[], tier="Uncertain Significance (VUS)", rule_path="")
-    assert not is_hom_absent_artifact(c)      # gnomAD never surveyed it — nothing is vouched
+        variant=Variant(
+            chrom="1", pos=1, ref="C", alt="G", gene="GENEU", zygosity="hom"
+        ),
+        annotation=Annotation(
+            hpo_match_score=0.9,
+            hpo_best_match=0.9,
+            gnomad_af=0.0,
+            gnomad_ac=0,
+            gnomad_an=0,
+        ),
+        criteria=[],
+        tier="Uncertain Significance (VUS)",
+        rule_path="",
+    )
+    assert not is_hom_absent_artifact(
+        c
+    )  # gnomAD never surveyed it — nothing is vouched
     assert is_hom_gnomad_uncovered(c)
     primary, _sec, other = split_findings([c])
-    assert c in primary and c not in other    # not demoted on absent evidence
+    assert c in primary and c not in other  # not demoted on absent evidence
     txt = " ".join(summarize(_report([c])))
     assert "unknown, not zero" in txt and "GENEU" in txt
-    assert "Verify the genotype" not in txt   # the artifact claim is NOT made
+    assert "Verify the genotype" not in txt  # the artifact claim is NOT made
 
 
 def test_hom_gnomad_absent_without_phenotype_stays_demoted():
@@ -120,10 +182,16 @@ def test_hom_gnomad_absent_without_phenotype_stays_demoted():
     # incidental hom call in a difficult region) is still kept out of primary — this is what
     # prevents the calling artifacts from flooding a proband report.
     from vcf2report.report.assemble import split_findings
+
     art = Classification(
-        variant=Variant(chrom="1", pos=1, ref="A", alt="AT", gene="GENEZ", zygosity="hom"),
+        variant=Variant(
+            chrom="1", pos=1, ref="A", alt="AT", gene="GENEZ", zygosity="hom"
+        ),
         annotation=Annotation(hpo_match_score=0.0, hpo_best_match=0.0, gnomad_af=0.0),
-        criteria=[], tier="Pathogenic", rule_path="")
+        criteria=[],
+        tier="Pathogenic",
+        rule_path="",
+    )
     primary, _sec, other = split_findings([art])
     assert art not in primary and art in other
 
@@ -132,14 +200,21 @@ def test_primary_routing_uses_specific_average_not_the_max():
     # Specificity: a high single-term match (max 0.9) with a low average (0.3) is a non-specific,
     # decoy-like match and must NOT route to primary; a genuine average >= 0.6 does.
     from vcf2report.report.assemble import split_findings
+
     nonspec = Classification(
         variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene="GENEX"),
         annotation=Annotation(hpo_best_match=0.9, hpo_match_score=0.3),
-        criteria=[], tier="Pathogenic", rule_path="")
+        criteria=[],
+        tier="Pathogenic",
+        rule_path="",
+    )
     specific = Classification(
         variant=Variant(chrom="1", pos=2, ref="A", alt="T", gene="GENEY"),
         annotation=Annotation(hpo_best_match=0.9, hpo_match_score=0.8),
-        criteria=[], tier="Pathogenic", rule_path="")
+        criteria=[],
+        tier="Pathogenic",
+        rule_path="",
+    )
     primary, _sec, other = split_findings([nonspec, specific])
     assert specific in primary and nonspec not in primary and nonspec in other
 
@@ -158,12 +233,16 @@ def test_secondary_sf_finding():
 
 
 def test_low_coverage_caveat_fires():
-    txt = " ".join(summarize(_report([_cls("SCN1A", "Pathogenic", hpo=1.0)], dp_median=12.0)))
+    txt = " ".join(
+        summarize(_report([_cls("SCN1A", "Pathogenic", hpo=1.0)], dp_median=12.0))
+    )
     assert "Coverage limitation" in txt and "12" in txt
 
 
 def test_adequate_coverage_note():
-    txt = " ".join(summarize(_report([_cls("SCN1A", "Pathogenic", hpo=1.0)], dp_median=44.0)))
+    txt = " ".join(
+        summarize(_report([_cls("SCN1A", "Pathogenic", hpo=1.0)], dp_median=44.0))
+    )
     assert "adequate" in txt and "Coverage limitation" not in txt
 
 
@@ -176,18 +255,23 @@ def test_always_recommends_next_steps_and_single_proband():
 def test_renders_in_report():
     from vcf2report import config, pipeline
     from vcf2report.report.render import render_markdown
+
     md = render_markdown(pipeline.run_pipeline(str(config.SAMPLE_VCF)))
     assert "## Conclusion (draft interpretation)" in md
 
 
 # ------------------------------------------- the conclusion must stay readable to be a conclusion
 
+
 def _hom_uncovered(gene, tier="Uncertain Significance (VUS)"):
     """A homozygous call at a site gnomAD does not survey — trips the frequency advisory."""
     return Classification(
         variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene=gene, zygosity="hom"),
         annotation=Annotation(gnomad_an=None, gnomad_absence_vouched=False),
-        criteria=[], tier=tier, rule_path="")
+        criteria=[],
+        tier=tier,
+        rule_path="",
+    )
 
 
 def test_a_genotype_advisory_summarises_instead_of_naming_a_hundred_genes():
@@ -198,8 +282,12 @@ def test_a_genotype_advisory_summarises_instead_of_naming_a_hundred_genes():
     """
     lines = summarize(_report([_hom_uncovered(f"GENE{i}") for i in range(72)]))
     advisory = next(l for l in lines if "Population frequency unknown" in l)
-    assert "and 66 more" in advisory, "the advisory still enumerates every variant inline"
-    assert "72 homozygous" in advisory, "the COUNT is the actionable part and must survive"
+    assert "and 66 more" in advisory, (
+        "the advisory still enumerates every variant inline"
+    )
+    assert "72 homozygous" in advisory, (
+        "the COUNT is the actionable part and must survive"
+    )
     assert "GENE0" in advisory and "GENE71" not in advisory
     assert len(advisory) < 800, f"advisory is still {len(advisory)} chars"
 
@@ -212,12 +300,19 @@ def test_the_clinvar_safety_flag_is_never_truncated():
             variant=Variant(chrom="1", pos=1, ref="A", alt="T", gene=f"CVG{i}"),
             annotation=Annotation(
                 clinvar_significance="Pathogenic",
-                clinvar_review_status="criteria provided, multiple submitters, no conflicts"),
-            criteria=[], tier="Benign", rule_path="")
-        for i in range(20)]
+                clinvar_review_status="criteria provided, multiple submitters, no conflicts",
+            ),
+            criteria=[],
+            tier="Benign",
+            rule_path="",
+        )
+        for i in range(20)
+    ]
     lines = summarize(_report(flagged))
     line = next(l for l in lines if "Classified Pathogenic/Likely Pathogenic" in l)
-    assert "more" not in line.split("Review the ClinVar")[0], "the safety flag was truncated"
+    assert "more" not in line.split("Review the ClinVar")[0], (
+        "the safety flag was truncated"
+    )
     for i in range(20):
         assert f"CVG{i}" in line, f"CVG{i} was dropped from the safety flag"
 

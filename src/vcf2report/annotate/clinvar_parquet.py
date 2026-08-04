@@ -11,6 +11,7 @@ The returned fields (significance, review_status, accession, condition) are the 
 values the tabix ``_tabix_lookup`` serves — both derive from ``clinvar_grch38.tsv.gz`` —
 so the classification is byte-identical to the tabix path.
 """
+
 from __future__ import annotations
 
 import threading
@@ -31,6 +32,7 @@ def _get_duckdb():
         _duckdb_tried = True
         try:
             import duckdb  # noqa: F401
+
             _duckdb = duckdb
         except Exception:
             _duckdb = None
@@ -54,7 +56,9 @@ def _q(path: str) -> str:
 def _source_expr() -> str:
     p = Path(config.CLINVAR_PARQUET)
     if p.is_dir():
-        files = [str(f) for f in sorted(p.rglob("*.parquet")) if not f.name.startswith("._")]
+        files = [
+            str(f) for f in sorted(p.rglob("*.parquet")) if not f.name.startswith("._")
+        ]
         lst = ", ".join("'" + _q(f) + "'" for f in files)
         return f"read_parquet([{lst}], hive_partitioning=true, union_by_name=true)"
     return f"read_parquet('{_q(str(p))}')"
@@ -69,6 +73,7 @@ def prime(variants) -> int:
     import csv
     import os
     import tempfile
+
     duckdb = _get_duckdb()
     con = duckdb.connect()
     tmp = None
@@ -85,7 +90,9 @@ def prime(variants) -> int:
         con.execute(
             "CREATE TABLE q AS SELECT column0 AS chrom, CAST(column1 AS INTEGER) AS pos, "
             "column2 AS ref, column3 AS alt, column4 AS key "
-            "FROM read_csv(?, header=false, delim='\t', all_varchar=true)", [tmp])
+            "FROM read_csv(?, header=false, delim='\t', all_varchar=true)",
+            [tmp],
+        )
         chlist = ", ".join("'" + _q(c) + "'" for c in sorted(chroms))
         rows = con.execute(f"""
             SELECT q.key, c.significance, c.review_status, c.accession, c.condition
@@ -106,9 +113,13 @@ def prime(variants) -> int:
         for key, sig, rev, acc, cond in rows:
             if not sig:
                 continue
-            _primed[key] = {"significance": sig, "review_status": rev or None,
-                            "accession": acc or None, "condition": cond or None,
-                            "date": "local snapshot"}
+            _primed[key] = {
+                "significance": sig,
+                "review_status": rev or None,
+                "accession": acc or None,
+                "condition": cond or None,
+                "date": "local snapshot",
+            }
             n += 1
     return n
 

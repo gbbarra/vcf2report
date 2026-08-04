@@ -26,6 +26,7 @@ benign, or engine benign where ClinVar says pathogenic with review stars behind 
 Needs the full stores, like ``run_benchmark.py`` — a sweep on absent stores measures the gate,
 not the engine.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -34,8 +35,22 @@ import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
-FIELDS = ["syn_id", "chrom", "pos", "ref", "alt", "gene", "tier", "consequence", "bucket",
-          "is_planted", "clinvar_significance", "clinvar_stars", "zygosity", "error"]
+FIELDS = [
+    "syn_id",
+    "chrom",
+    "pos",
+    "ref",
+    "alt",
+    "gene",
+    "tier",
+    "consequence",
+    "bucket",
+    "is_planted",
+    "clinvar_significance",
+    "clinvar_stars",
+    "zygosity",
+    "error",
+]
 
 
 def _load_answer_key(bench: Path) -> dict[str, str]:
@@ -51,15 +66,24 @@ def _buckets(report) -> dict[int, str]:
     """
     from vcf2report.report.assemble import carrier_findings, split_findings
     from vcf2report.report.vus_triage import probable_pathogenic_vus
+
     primary, secondary, other = split_findings(report.classifications)
     out: dict[int, str] = {}
-    for name, members in (("other", other), ("secondary", secondary),
-                          ("carrier", carrier_findings(report.classifications)),
-                          ("probable_vus", [e["classification"]
-                                            for e in probable_pathogenic_vus(report.classifications)]),
-                          ("primary", primary)):
+    for name, members in (
+        ("other", other),
+        ("secondary", secondary),
+        ("carrier", carrier_findings(report.classifications)),
+        (
+            "probable_vus",
+            [
+                e["classification"]
+                for e in probable_pathogenic_vus(report.classifications)
+            ],
+        ),
+        ("primary", primary),
+    ):
         for c in members:
-            out[id(c)] = name          # later entries win; primary is the most specific
+            out[id(c)] = name  # later entries win; primary is the most specific
     return out
 
 
@@ -67,9 +91,11 @@ def _sweep_one(args: tuple) -> list[dict]:
     sid, vcf, hpo_path, planted = args
     from vcf2report.cli import read_hpo_file
     from vcf2report.pipeline import run_pipeline
+
     # Stars are DERIVED from the review status, not stored on Annotation — use the same
     # helper the report does, so "2 stars" here means what it means in the laudo.
     from vcf2report.report.assemble import clinvar_stars
+
     try:
         hpo = read_hpo_file(hpo_path) if Path(hpo_path).exists() else []
         report = run_pipeline(vcf, hpo_terms=hpo, sample_id=sid)
@@ -77,28 +103,42 @@ def _sweep_one(args: tuple) -> list[dict]:
         rows = []
         for c in report.classifications:
             a, v = c.annotation, c.variant
-            rows.append({
-                "syn_id": sid,
-                "chrom": v.chrom, "pos": v.pos, "ref": v.ref, "alt": v.alt,
-                "gene": v.gene or "",
-                "tier": c.tier or "",
-                "consequence": (v.consequence or "").split("&")[0],
-                "bucket": buckets.get(id(c), "unranked"),
-                "is_planted": "1" if v.gene == planted else "0",
-                "clinvar_significance": a.clinvar_significance or "",
-                "clinvar_stars": clinvar_stars(a.clinvar_review_status)
-                                 if a.clinvar_review_status else "",
-                "zygosity": v.zygosity or "",
-                "error": "",
-            })
+            rows.append(
+                {
+                    "syn_id": sid,
+                    "chrom": v.chrom,
+                    "pos": v.pos,
+                    "ref": v.ref,
+                    "alt": v.alt,
+                    "gene": v.gene or "",
+                    "tier": c.tier or "",
+                    "consequence": (v.consequence or "").split("&")[0],
+                    "bucket": buckets.get(id(c), "unranked"),
+                    "is_planted": "1" if v.gene == planted else "0",
+                    "clinvar_significance": a.clinvar_significance or "",
+                    "clinvar_stars": clinvar_stars(a.clinvar_review_status)
+                    if a.clinvar_review_status
+                    else "",
+                    "zygosity": v.zygosity or "",
+                    "error": "",
+                }
+            )
         return rows
-    except Exception as e:                       # one bad case must not abort the sweep
-        return [{**{k: "" for k in FIELDS}, "syn_id": sid, "gene": planted,
-                 "error": f"{type(e).__name__}: {e}"}]
+    except Exception as e:  # one bad case must not abort the sweep
+        return [
+            {
+                **{k: "" for k in FIELDS},
+                "syn_id": sid,
+                "gene": planted,
+                "error": f"{type(e).__name__}: {e}",
+            }
+        ]
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Dump every classification across the cohort.")
+    ap = argparse.ArgumentParser(
+        description="Dump every classification across the cohort."
+    )
     ap.add_argument("--annotated", required=True)
     ap.add_argument("--bench", required=True)
     ap.add_argument("--out", default="sweep.tsv")
@@ -108,10 +148,16 @@ def main(argv=None) -> int:
 
     bench, ann = Path(a.bench), Path(a.annotated)
     key = _load_answer_key(bench)
-    tasks = [(sid, str(ann / f"{sid}.annotated.vcf.gz"),
-              str(bench / "sidecars" / f"{sid}.hpo.txt"), gene)
-             for sid, gene in sorted(key.items())
-             if (ann / f"{sid}.annotated.vcf.gz").exists()]
+    tasks = [
+        (
+            sid,
+            str(ann / f"{sid}.annotated.vcf.gz"),
+            str(bench / "sidecars" / f"{sid}.hpo.txt"),
+            gene,
+        )
+        for sid, gene in sorted(key.items())
+        if (ann / f"{sid}.annotated.vcf.gz").exists()
+    ]
     if a.limit:
         tasks = tasks[: a.limit]
     if not tasks:
@@ -124,7 +170,9 @@ def main(argv=None) -> int:
             futs = [ex.submit(_sweep_one, t) for t in tasks]
             for i, f in enumerate(as_completed(futs), 1):
                 rows.extend(f.result())
-                print(f"\r  swept {i}/{len(tasks)}", end="", file=sys.stderr, flush=True)
+                print(
+                    f"\r  swept {i}/{len(tasks)}", end="", file=sys.stderr, flush=True
+                )
     else:
         for i, t in enumerate(tasks, 1):
             rows.extend(_sweep_one(t))

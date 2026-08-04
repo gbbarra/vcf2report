@@ -5,6 +5,7 @@
 
 Defaults to the bundled sample VCF + HPO terms.
 """
+
 import sys
 from pathlib import Path
 

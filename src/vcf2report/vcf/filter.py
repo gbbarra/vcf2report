@@ -3,6 +3,7 @@
 Each funnel step is recorded so the shortlist is explainable in the report.
 Runs on already-annotated variants (needs population AF + ClinVar + HPO match).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,13 +16,20 @@ from ..models import Annotation, Variant
 # disruptive_/conservative_inframe_*), so recognise any term containing "inframe" rather than
 # an exact allowlist — otherwise a real in-frame indel is silently dropped before classification.
 IMPACTFUL = {
-    "stop_gained", "frameshift_variant", "splice_donor_variant",
-    "splice_acceptor_variant", "start_lost", "stop_lost",
-    "missense_variant", "inframe_insertion", "inframe_deletion",
+    "stop_gained",
+    "frameshift_variant",
+    "splice_donor_variant",
+    "splice_acceptor_variant",
+    "start_lost",
+    "stop_lost",
+    "missense_variant",
+    "inframe_insertion",
+    "inframe_deletion",
     # Whole-transcript / whole-exon loss. These are the MOST damaging consequences an
     # annotator emits, and omitting them meant annparse translated SnpEff's EXON_DELETED
     # into "transcript_ablation" only for this filter to discard it one step later.
-    "transcript_ablation", "exon_loss_variant",
+    "transcript_ablation",
+    "exon_loss_variant",
     # VEP's catch-all for a protein-length/sequence change it cannot type more precisely.
     "protein_altering_variant",
 }
@@ -41,8 +49,10 @@ IMPACTFUL = {
 #     with which to raise them.
 # Wire a splice predictor and this trade-off should be revisited.
 NEAR_SPLICE = {
-    "splice_region_variant", "splice_donor_5th_base_variant",
-    "splice_donor_region_variant", "splice_polypyrimidine_tract_variant",
+    "splice_region_variant",
+    "splice_donor_5th_base_variant",
+    "splice_donor_region_variant",
+    "splice_polypyrimidine_tract_variant",
 }
 
 
@@ -115,21 +125,19 @@ def filter_variants(
 
     # Step 2 — impact (coding/splice; ClinVar P/LP retained regardless).
     impactful = [
-        (v, a) for v, a in rare
-        if is_impactful(v.consequence) or _is_clinvar_plp(a)
+        (v, a) for v, a in rare if is_impactful(v.consequence) or _is_clinvar_plp(a)
     ]
     funnel.after_impact = len(impactful)
     funnel.near_splice_excluded = sum(
-        1 for v, a in rare
-        if v.consequence in NEAR_SPLICE and not _is_clinvar_plp(a)
+        1 for v, a in rare if v.consequence in NEAR_SPLICE and not _is_clinvar_plp(a)
     )
 
     # Step 3 — phenotype ranking: on-phenotype variants and ClinVar P/LP float up.
     def rank_key(pair: tuple[Variant, Annotation]) -> tuple:
         v, a = pair
         return (
-            0 if _is_clinvar_plp(a) else 1,          # ClinVar P/LP first
-            -(a.hpo_match_score or 0.0),             # higher phenotype match first
+            0 if _is_clinvar_plp(a) else 1,  # ClinVar P/LP first
+            -(a.hpo_match_score or 0.0),  # higher phenotype match first
             max(a.gnomad_af or 0.0, a.local_cohort_af or 0.0),  # rarer first
         )
 

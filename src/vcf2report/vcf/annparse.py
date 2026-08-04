@@ -5,14 +5,26 @@ from the VCF header). Falls back to plain ``GENE``/``CSQ``/``HGVSC``/``HGVSP``
 keys (as the bundled synthetic sample uses). Returns a dict with gene,
 consequence, hgvs_c, hgvs_p, exon, transcript — or None if nothing usable is found.
 """
+
 from __future__ import annotations
 
 import re
 from typing import Optional
 
 # SnpEff ANN subfield order (fixed by the SnpEff spec).
-_SNPEFF = ["allele", "annotation", "impact", "gene", "gene_id", "feature_type",
-           "feature_id", "biotype", "rank", "hgvs_c", "hgvs_p"]
+_SNPEFF = [
+    "allele",
+    "annotation",
+    "impact",
+    "gene",
+    "gene_id",
+    "feature_type",
+    "feature_id",
+    "biotype",
+    "rank",
+    "hgvs_c",
+    "hgvs_p",
+]
 
 
 def parse_csq_format(header_lines: list[str]) -> Optional[list[str]]:
@@ -44,7 +56,14 @@ def parse_ann_format(header_lines: list[str]) -> Optional[list[str]]:
             continue
         for marker in ("Format:", "annotations:", "Functional annotations:"):
             if marker in line:
-                fmt = line.split(marker)[1].strip().rstrip('">').strip().strip("'").strip()
+                fmt = (
+                    line.split(marker)[1]
+                    .strip()
+                    .rstrip('">')
+                    .strip()
+                    .strip("'")
+                    .strip()
+                )
                 names = [f.strip().strip("'\"") for f in fmt.split("|")]
                 lower = {n.lower() for n in names}
                 # SnpEff spells these "Annotation" / "Gene_Name" / "HGVS.c"; VEP does not.
@@ -91,18 +110,29 @@ def parse_snpeff(ann: str, alt: str, ref: str = "", n_alt: int = 1) -> Optional[
     if matched is not None:
         f = matched
     elif n_alt == 1 and first is not None:
-        f = first          # single-allele record: the only allele is safe to use
+        f = first  # single-allele record: the only allele is safe to use
     else:
-        return None        # multiallelic no-match: never borrow another allele
-    return {"gene": f[3] or None, "consequence": _first_term(f[1]),
-            "hgvs_c": f[9] or None, "hgvs_p": f[10] or None,
-            "exon": f[8] or None,          # SnpEff "rank" = exon "N/M"
-            "transcript": f[6] or None}    # SnpEff "feature_id" = transcript
+        return None  # multiallelic no-match: never borrow another allele
+    return {
+        "gene": f[3] or None,
+        "consequence": _first_term(f[1]),
+        "hgvs_c": f[9] or None,
+        "hgvs_p": f[10] or None,
+        "exon": f[8] or None,  # SnpEff "rank" = exon "N/M"
+        "transcript": f[6] or None,
+    }  # SnpEff "feature_id" = transcript
 
 
-def parse_vep(csq: str, alt: str, field_names: list[str], ref: str = "",
-              alt_index: int = 0, n_alt: int = 1) -> Optional[dict]:
+def parse_vep(
+    csq: str,
+    alt: str,
+    field_names: list[str],
+    ref: str = "",
+    alt_index: int = 0,
+    n_alt: int = 1,
+) -> Optional[dict]:
     from urllib.parse import unquote
+
     idx = {name.lower(): i for i, name in enumerate(field_names)}
 
     def get(f: list[str], name: str) -> Optional[str]:
@@ -111,28 +141,31 @@ def parse_vep(csq: str, alt: str, field_names: list[str], ref: str = "",
         return unquote(v) if v else v  # VEP percent-encodes reserved chars
 
     def row(f: list[str]) -> dict:
-        return {"gene": get(f, "symbol") or get(f, "gene"),
-                "consequence": _first_term(get(f, "consequence") or ""),
-                "hgvs_c": get(f, "hgvsc"), "hgvs_p": get(f, "hgvsp"),
-                "exon": get(f, "exon"),
-                "transcript": get(f, "feature")}   # VEP "Feature" = transcript id
+        return {
+            "gene": get(f, "symbol") or get(f, "gene"),
+            "consequence": _first_term(get(f, "consequence") or ""),
+            "hgvs_c": get(f, "hgvsc"),
+            "hgvs_p": get(f, "hgvsp"),
+            "exon": get(f, "exon"),
+            "transcript": get(f, "feature"),
+        }  # VEP "Feature" = transcript id
 
     entries = [e.split("|") for e in csq.split(",")]
     an = idx.get("allele_num")
     a = idx.get("allele")
 
     def matches(f: list[str]) -> bool:
-        if an is not None and an < len(f) and f[an]:   # prefer VEP's ALLELE_NUM
+        if an is not None and an < len(f) and f[an]:  # prefer VEP's ALLELE_NUM
             return f[an] == str(alt_index + 1)
         return a is not None and a < len(f) and _allele_match(f[a], alt, ref)
 
     candidates = [f for f in entries if matches(f)]
     if not candidates:
         if n_alt == 1:
-            candidates = entries          # single allele: all blocks are this ALT
+            candidates = entries  # single allele: all blocks are this ALT
         else:
-            return None                   # multiallelic no-match: don't borrow
-    for f in candidates:                  # PICK > CANONICAL > MANE_SELECT > first
+            return None  # multiallelic no-match: don't borrow
+    for f in candidates:  # PICK > CANONICAL > MANE_SELECT > first
         if get(f, "pick") == "1":
             return row(f)
     for f in candidates:
@@ -146,22 +179,52 @@ def parse_vep(csq: str, alt: str, field_names: list[str], ref: str = "",
 
 # Legacy SnpEff EFF effect names -> Sequence Ontology terms the engine uses.
 _EFF_SO = {
-    "NON_SYNONYMOUS_CODING": "missense_variant", "SYNONYMOUS_CODING": "synonymous_variant",
-    "STOP_GAINED": "stop_gained", "STOP_LOST": "stop_lost", "START_LOST": "start_lost",
-    "NON_SYNONYMOUS_START": "start_lost", "FRAME_SHIFT": "frameshift_variant",
-    "SPLICE_SITE_ACCEPTOR": "splice_acceptor_variant", "SPLICE_SITE_DONOR": "splice_donor_variant",
-    "CODON_DELETION": "inframe_deletion", "CODON_INSERTION": "inframe_insertion",
+    "NON_SYNONYMOUS_CODING": "missense_variant",
+    "SYNONYMOUS_CODING": "synonymous_variant",
+    "STOP_GAINED": "stop_gained",
+    "STOP_LOST": "stop_lost",
+    "START_LOST": "start_lost",
+    "NON_SYNONYMOUS_START": "start_lost",
+    "FRAME_SHIFT": "frameshift_variant",
+    "SPLICE_SITE_ACCEPTOR": "splice_acceptor_variant",
+    "SPLICE_SITE_DONOR": "splice_donor_variant",
+    "CODON_DELETION": "inframe_deletion",
+    "CODON_INSERTION": "inframe_insertion",
     "CODON_CHANGE_PLUS_CODON_DELETION": "inframe_deletion",
-    "CODON_CHANGE_PLUS_CODON_INSERTION": "inframe_insertion", "EXON_DELETED": "transcript_ablation",
-    "SYNONYMOUS_STOP": "stop_retained_variant", "UTR_5_PRIME": "5_prime_UTR_variant",
-    "UTR_3_PRIME": "3_prime_UTR_variant", "INTRON": "intron_variant",
-    "UPSTREAM": "upstream_gene_variant", "DOWNSTREAM": "downstream_gene_variant",
+    "CODON_CHANGE_PLUS_CODON_INSERTION": "inframe_insertion",
+    "EXON_DELETED": "transcript_ablation",
+    "SYNONYMOUS_STOP": "stop_retained_variant",
+    "UTR_5_PRIME": "5_prime_UTR_variant",
+    "UTR_3_PRIME": "3_prime_UTR_variant",
+    "INTRON": "intron_variant",
+    "UPSTREAM": "upstream_gene_variant",
+    "DOWNSTREAM": "downstream_gene_variant",
     "INTERGENIC": "intergenic_variant",
 }
 _EFF_IMPACT = {"HIGH": 3, "MODERATE": 2, "LOW": 1, "MODIFIER": 0}
-_AA3 = {"A": "Ala", "R": "Arg", "N": "Asn", "D": "Asp", "C": "Cys", "Q": "Gln", "E": "Glu",
-        "G": "Gly", "H": "His", "I": "Ile", "L": "Leu", "K": "Lys", "M": "Met", "F": "Phe",
-        "P": "Pro", "S": "Ser", "T": "Thr", "W": "Trp", "Y": "Tyr", "V": "Val", "*": "Ter"}
+_AA3 = {
+    "A": "Ala",
+    "R": "Arg",
+    "N": "Asn",
+    "D": "Asp",
+    "C": "Cys",
+    "Q": "Gln",
+    "E": "Glu",
+    "G": "Gly",
+    "H": "His",
+    "I": "Ile",
+    "L": "Leu",
+    "K": "Lys",
+    "M": "Met",
+    "F": "Phe",
+    "P": "Pro",
+    "S": "Ser",
+    "T": "Thr",
+    "W": "Trp",
+    "Y": "Tyr",
+    "V": "Val",
+    "*": "Ter",
+}
 
 
 def _eff_hgvs_p(aa: str) -> Optional[str]:
@@ -194,23 +257,36 @@ def parse_snpeff_eff(eff: str, alt_index: int = 0, n_alt: int = 1) -> Optional[d
     if not best:
         return None
     effect, f = best
-    return {"gene": f[5] or None,
-            "consequence": _EFF_SO.get(effect, effect.lower() or None),
-            "hgvs_c": None, "hgvs_p": _eff_hgvs_p(f[3]),
-            "exon": f[9] or None, "transcript": f[8] or None}
+    return {
+        "gene": f[5] or None,
+        "consequence": _EFF_SO.get(effect, effect.lower() or None),
+        "hgvs_c": None,
+        "hgvs_p": _eff_hgvs_p(f[3]),
+        "exon": f[9] or None,
+        "transcript": f[8] or None,
+    }
 
 
-def extract(info: dict[str, str], alt: str, csq_format: Optional[list[str]] = None,
-            ref: str = "", alt_index: int = 0, n_alt: int = 1,
-            ann_format: Optional[list[str]] = None) -> Optional[dict]:
+def extract(
+    info: dict[str, str],
+    alt: str,
+    csq_format: Optional[list[str]] = None,
+    ref: str = "",
+    alt_index: int = 0,
+    n_alt: int = 1,
+    ann_format: Optional[list[str]] = None,
+) -> Optional[dict]:
     """Best consequence/HGVS from ANN, then legacy EFF, then CSQ, then plain keys.
 
     ``ann_format`` is set only when the ANN header declares VEP's field order (see
     :func:`parse_ann_format`); ANN is otherwise parsed with SnpEff's fixed offsets.
     """
     if info.get("ANN"):
-        r = (parse_vep(info["ANN"], alt, ann_format, ref, alt_index, n_alt) if ann_format
-             else parse_snpeff(info["ANN"], alt, ref, n_alt))
+        r = (
+            parse_vep(info["ANN"], alt, ann_format, ref, alt_index, n_alt)
+            if ann_format
+            else parse_snpeff(info["ANN"], alt, ref, n_alt)
+        )
         if r and (r.get("gene") or r.get("consequence")):
             return r
     if info.get("EFF"):
@@ -226,9 +302,15 @@ def extract(info: dict[str, str], alt: str, csq_format: Optional[list[str]] = No
     # Plain keys (synthetic sample / simple pipelines). _first_term applies here too: a
     # plain CSQ may still carry an "&"-joined term list, and passing the whole string
     # through made downstream is_impactful() reject e.g. "stop_gained&splice_region_variant".
-    simple = {"gene": info.get("GENE"),
-              "consequence": (_first_term(info["CSQ"])
-                              if (info.get("CSQ") and "|" not in info["CSQ"]) else None),
-              "hgvs_c": info.get("HGVSC"), "hgvs_p": info.get("HGVSP"),
-              "transcript": info.get("TRANSCRIPT") or info.get("FEATURE")}
+    simple = {
+        "gene": info.get("GENE"),
+        "consequence": (
+            _first_term(info["CSQ"])
+            if (info.get("CSQ") and "|" not in info["CSQ"])
+            else None
+        ),
+        "hgvs_c": info.get("HGVSC"),
+        "hgvs_p": info.get("HGVSP"),
+        "transcript": info.get("TRANSCRIPT") or info.get("FEATURE"),
+    }
     return simple if any(simple.values()) else None

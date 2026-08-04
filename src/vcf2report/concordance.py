@@ -26,6 +26,7 @@ The panel data (``ground_truth.tsv`` + ``gnomad_frozen.json``) is produced once,
 with network, by ``scripts/build_concordance_panel.py``; thereafter this module —
 and the test that guards it — runs fully offline.
 """
+
 from __future__ import annotations
 
 import json
@@ -54,8 +55,14 @@ FROZEN_GNOMAD = CONCORDANCE_DIR / "gnomad_frozen.json"
 FROZEN_ALPHAMISSENSE = CONCORDANCE_DIR / "alphamissense_frozen.json"
 
 _GT_COLUMNS = [
-    "key", "gene", "consequence", "hgvs_p",
-    "clinvar_significance", "review_status", "accession", "condition",
+    "key",
+    "gene",
+    "consequence",
+    "hgvs_p",
+    "clinvar_significance",
+    "review_status",
+    "accession",
+    "condition",
 ]
 
 # The three collapsed classes the panel scores on.
@@ -155,16 +162,17 @@ class ConcordanceResult:
 def _variant_from_row(row: dict) -> Variant:
     chrom, pos, ref, alt = row["key"].split("-")
     return Variant(
-        chrom=chrom, pos=int(pos), ref=ref, alt=alt,
+        chrom=chrom,
+        pos=int(pos),
+        ref=ref,
+        alt=alt,
         gene=row.get("gene") or None,
         hgvs_p=row.get("hgvs_p") or None,
         consequence=row.get("consequence") or None,
     )
 
 
-def _annotation_from_frozen(
-    entry: PanelEntry, withhold_clinvar: bool
-) -> Annotation:
+def _annotation_from_frozen(entry: PanelEntry, withhold_clinvar: bool) -> Annotation:
     """Assemble an :class:`Annotation` for a panel variant, fully offline.
 
     gnomAD comes from the frozen snapshot; local cohort and gene constraint from the
@@ -193,7 +201,10 @@ def _annotation_from_frozen(
         cv_sig = cv_review = cv_acc = None
     else:
         cv_sig, cv_review, cv_acc = (
-            entry.truth_significance, entry.review_status, entry.accession)
+            entry.truth_significance,
+            entry.review_status,
+            entry.accession,
+        )
 
     return Annotation(
         clinvar_significance=cv_sig,
@@ -220,9 +231,11 @@ def _annotation_from_frozen(
             "gnomad": f"gnomAD v{g.get('release', '4.1')} (frozen panel)",
             "local_cohort": ab.get("_source", ""),
             "gene_constraint": con.get("_source", ""),
-            "alphamissense": "AlphaMissense (frozen panel)" if am.get("am_pathogenicity") is not None
+            "alphamissense": "AlphaMissense (frozen panel)"
+            if am.get("am_pathogenicity") is not None
             else "AlphaMissense (no score)",
-            "clinvar": "withheld (concordance panel)" if withhold_clinvar
+            "clinvar": "withheld (concordance panel)"
+            if withhold_clinvar
             else "ClinVar (panel truth)",
         },
     )
@@ -269,15 +282,17 @@ def load_panel(
         truth_class = collapse_clinvar(row.get("clinvar_significance"))
         if truth_class not in (PATH, BEN):
             continue
-        entries.append(PanelEntry(
-            variant=_variant_from_row(row),
-            truth_significance=row.get("clinvar_significance"),
-            truth_class=truth_class,
-            review_status=row.get("review_status") or None,
-            accession=row.get("accession") or None,
-            frozen_gnomad=frozen.get(row["key"], {}),
-            frozen_alphamissense=am_frozen.get(row["key"], {}),
-        ))
+        entries.append(
+            PanelEntry(
+                variant=_variant_from_row(row),
+                truth_significance=row.get("clinvar_significance"),
+                truth_class=truth_class,
+                review_status=row.get("review_status") or None,
+                accession=row.get("accession") or None,
+                frozen_gnomad=frozen.get(row["key"], {}),
+                frozen_alphamissense=am_frozen.get(row["key"], {}),
+            )
+        )
     return entries
 
 
@@ -304,24 +319,26 @@ def evaluate_panel(
         truth = entry.truth_class
         matrix[truth][engine_class] += 1
         gross = (truth == PATH and engine_class == BEN) or (
-            truth == BEN and engine_class == PATH)
-        rows.append(PanelRow(
-            key=entry.variant.key,
-            gene=entry.variant.gene,
-            consequence=entry.variant.consequence,
-            is_lof=entry.variant.is_lof,
-            truth_class=truth,
-            truth_significance=entry.truth_significance,
-            engine_tier=result.tier,
-            engine_class=engine_class,
-            rule_path=result.rule_path,
-            met_codes=result.met_codes,
-            concordant=(engine_class == truth),
-            gross=gross,
-        ))
+            truth == BEN and engine_class == PATH
+        )
+        rows.append(
+            PanelRow(
+                key=entry.variant.key,
+                gene=entry.variant.gene,
+                consequence=entry.variant.consequence,
+                is_lof=entry.variant.is_lof,
+                truth_class=truth,
+                truth_significance=entry.truth_significance,
+                engine_tier=result.tier,
+                engine_class=engine_class,
+                rule_path=result.rule_path,
+                met_codes=result.met_codes,
+                concordant=(engine_class == truth),
+                gross=gross,
+            )
+        )
 
-    return ConcordanceResult(rows=rows, matrix=matrix,
-                             metrics=_metrics(rows, matrix))
+    return ConcordanceResult(rows=rows, matrix=matrix, metrics=_metrics(rows, matrix))
 
 
 def _rate(numerator: int, denominator: int) -> float:
@@ -355,25 +372,32 @@ def _metrics(rows: list[PanelRow], matrix: dict[str, dict[str, int]]) -> dict:
         "decisiveness": _rate(len(decisive), total),
         # Of the calls the engine DID commit to, how many match ClinVar.
         "concordance_when_decisive": _rate(
-            sum(1 for r in decisive if r.concordant), len(decisive)),
+            sum(1 for r in decisive if r.concordant), len(decisive)
+        ),
         # Of the engine's PATH calls, how many are truly ClinVar-pathogenic.
         "pathogenic_precision": _rate(
-            sum(1 for r in engine_path if r.truth_class == PATH), len(engine_path)),
+            sum(1 for r in engine_path if r.truth_class == PATH), len(engine_path)
+        ),
         # Of the engine's BEN calls, how many are truly ClinVar-benign.
         "benign_precision": _rate(
-            sum(1 for r in engine_ben if r.truth_class == BEN), len(engine_ben)),
+            sum(1 for r in engine_ben if r.truth_class == BEN), len(engine_ben)
+        ),
         # Of ClinVar-pathogenic variants, how many the engine also calls PATH.
         "pathogenic_sensitivity": _rate(
-            sum(1 for r in truth_path if r.engine_class == PATH), len(truth_path)),
+            sum(1 for r in truth_path if r.engine_class == PATH), len(truth_path)
+        ),
         # Restricted to the deterministic axis v1 actually exercises (LoF).
         "lof_pathogenic_sensitivity": _rate(
-            sum(1 for r in lof_path if r.engine_class == PATH), len(lof_path)),
+            sum(1 for r in lof_path if r.engine_class == PATH), len(lof_path)
+        ),
         # Of ClinVar-benign variants, how many the engine also calls BEN.
         "benign_agreement": _rate(
-            sum(1 for r in truth_ben if r.engine_class == BEN), len(truth_ben)),
+            sum(1 for r in truth_ben if r.engine_class == BEN), len(truth_ben)
+        ),
         # Of ClinVar-benign variants, how many the engine does NOT wrongly call PATH.
         "benign_specificity": _rate(
-            sum(1 for r in truth_ben if r.engine_class != PATH), len(truth_ben)),
+            sum(1 for r in truth_ben if r.engine_class != PATH), len(truth_ben)
+        ),
         # The clinical safety number — must be zero.
         "gross_discordances": gross,
         "gross_discordance_rate": _rate(gross, total),
@@ -388,9 +412,11 @@ def _render_markdown(res: ConcordanceResult) -> str:
     lines: list[str] = []
     lines.append("# Concordance panel — ClinVar ground truth vs vcf2report engine")
     lines.append("")
-    lines.append(f"- Variants scored: **{m['n']}** "
-                 f"({m['n_pathogenic']} pathogenic, {m['n_benign']} benign; "
-                 f"{m['n_lof_pathogenic']} of the pathogenic are LoF)")
+    lines.append(
+        f"- Variants scored: **{m['n']}** "
+        f"({m['n_pathogenic']} pathogenic, {m['n_benign']} benign; "
+        f"{m['n_lof_pathogenic']} of the pathogenic are LoF)"
+    )
     lines.append(f"- ClinVar withheld from the engine (non-circular)")
     lines.append("")
     lines.append("## Confusion matrix (truth rows x engine columns)")
@@ -404,21 +430,33 @@ def _render_markdown(res: ConcordanceResult) -> str:
     lines.append("")
     lines.append("## Safety (the numbers that must hold)")
     lines.append("")
-    lines.append(f"- **Gross discordances (PATH<->BEN flips):** "
-                 f"**{m['gross_discordances']}** — must be 0")
-    lines.append(f"- **Pathogenic precision (engine PATH → truly pathogenic):** "
-                 f"{m['pathogenic_precision']:.1%}")
-    lines.append(f"- **Benign precision (engine BEN → truly benign):** "
-                 f"{m['benign_precision']:.1%}")
+    lines.append(
+        f"- **Gross discordances (PATH<->BEN flips):** "
+        f"**{m['gross_discordances']}** — must be 0"
+    )
+    lines.append(
+        f"- **Pathogenic precision (engine PATH → truly pathogenic):** "
+        f"{m['pathogenic_precision']:.1%}"
+    )
+    lines.append(
+        f"- **Benign precision (engine BEN → truly benign):** "
+        f"{m['benign_precision']:.1%}"
+    )
     lines.append("")
     lines.append("## Behaviour (a conservative engine defers to VUS)")
     lines.append("")
     lines.append(f"- **Decisiveness (non-VUS calls):** {m['decisiveness']:.1%}")
-    lines.append(f"- **Concordance WHEN decisive:** {m['concordance_when_decisive']:.1%}")
-    lines.append(f"- **Pathogenic sensitivity:** {m['pathogenic_sensitivity']:.1%} "
-                 f"(LoF-only: {m['lof_pathogenic_sensitivity']:.1%})")
+    lines.append(
+        f"- **Concordance WHEN decisive:** {m['concordance_when_decisive']:.1%}"
+    )
+    lines.append(
+        f"- **Pathogenic sensitivity:** {m['pathogenic_sensitivity']:.1%} "
+        f"(LoF-only: {m['lof_pathogenic_sensitivity']:.1%})"
+    )
     lines.append(f"- **Benign agreement:** {m['benign_agreement']:.1%}")
-    lines.append(f"- **Overall concordance (3-class, recall-flavoured):** {m['concordance']:.1%}")
+    lines.append(
+        f"- **Overall concordance (3-class, recall-flavoured):** {m['concordance']:.1%}"
+    )
     lines.append("")
     if res.gross_discordances:
         lines.append("### ⚠ Gross discordances")
@@ -426,7 +464,9 @@ def _render_markdown(res: ConcordanceResult) -> str:
         lines.append("| variant | gene | truth | engine | rule path |")
         lines.append("|---|---|---|---|---|")
         for r in res.gross_discordances:
-            lines.append(f"| {r.key} | {r.gene or ''} | {r.truth_class} | "
-                         f"{r.engine_tier} | {r.rule_path} |")
+            lines.append(
+                f"| {r.key} | {r.gene or ''} | {r.truth_class} | "
+                f"{r.engine_tier} | {r.rule_path} |"
+            )
         lines.append("")
     return "\n".join(lines)

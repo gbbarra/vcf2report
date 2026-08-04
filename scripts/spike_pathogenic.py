@@ -26,22 +26,37 @@ Notes on downstream ACMG (vcf2report):
     be LoF-intolerant in data/constraint/gene_constraint.tsv (ClinVar alone is only
     PP5/supporting in this engine, by design).
 """
+
 from __future__ import annotations
 import argparse, gzip, sys
 from pathlib import Path
 
 # ClinVar MC (SO term names) -> canonical consequence vcf2report understands.
 MC_MAP = {
-    "nonsense": "stop_gained", "frameshift_variant": "frameshift_variant",
+    "nonsense": "stop_gained",
+    "frameshift_variant": "frameshift_variant",
     "splice_donor_variant": "splice_donor_variant",
     "splice_acceptor_variant": "splice_acceptor_variant",
-    "initiator_codon_variant": "start_lost", "stop_lost": "stop_lost",
+    "initiator_codon_variant": "start_lost",
+    "stop_lost": "stop_lost",
     "missense_variant": "missense_variant",
     "synonymous_variant": "synonymous_variant",
 }
-LOF = {"stop_gained", "frameshift_variant", "splice_donor_variant",
-       "splice_acceptor_variant", "start_lost", "stop_lost"}
-_CHROM_ORDER = {**{str(i): i for i in range(1, 23)}, "X": 23, "Y": 24, "M": 25, "MT": 25}
+LOF = {
+    "stop_gained",
+    "frameshift_variant",
+    "splice_donor_variant",
+    "splice_acceptor_variant",
+    "start_lost",
+    "stop_lost",
+}
+_CHROM_ORDER = {
+    **{str(i): i for i in range(1, 23)},
+    "X": 23,
+    "Y": 24,
+    "M": 25,
+    "MT": 25,
+}
 
 
 def _open(p):
@@ -53,7 +68,8 @@ def parse_info(s: str) -> dict:
     d = {}
     for kv in s.split(";"):
         if "=" in kv:
-            k, v = kv.split("=", 1); d[k] = v
+            k, v = kv.split("=", 1)
+            d[k] = v
         elif kv:
             d[kv] = True
     return d
@@ -93,18 +109,29 @@ def collect_from_clinvar(clinvar_path, genes):
                 continue
             csq, is_lof = mc_consequence(info)
             rs = info.get("RS", "")
-            hits[gene].append({
-                "chrom": chrom.replace("chr", ""), "pos": int(pos), "ref": ref, "alt": alt,
-                "gene": gene, "clnsig": info.get("CLNSIG", ""), "csq": csq or "missense_variant",
-                "is_lof": is_lof, "rs": ("rs" + rs) if rs else ".", "vid": vid,
-                "clndn": info.get("CLNDN", ""),
-                # review status drives PP5 (reputable-source, >=1-star) in the engine
-                "clnrevstat": info.get("CLNREVSTAT", ""),
-            })
+            hits[gene].append(
+                {
+                    "chrom": chrom.replace("chr", ""),
+                    "pos": int(pos),
+                    "ref": ref,
+                    "alt": alt,
+                    "gene": gene,
+                    "clnsig": info.get("CLNSIG", ""),
+                    "csq": csq or "missense_variant",
+                    "is_lof": is_lof,
+                    "rs": ("rs" + rs) if rs else ".",
+                    "vid": vid,
+                    "clndn": info.get("CLNDN", ""),
+                    # review status drives PP5 (reputable-source, >=1-star) in the engine
+                    "clnrevstat": info.get("CLNREVSTAT", ""),
+                }
+            )
     picked = {}
     for g, recs in hits.items():
         if recs:
-            recs.sort(key=lambda r: (0 if r["is_lof"] else 1, r["pos"]))  # LoF first, deterministic
+            recs.sort(
+                key=lambda r: (0 if r["is_lof"] else 1, r["pos"])
+            )  # LoF first, deterministic
             picked[g] = recs[0]
     return picked
 
@@ -148,11 +175,23 @@ def spiked_line(rec, style, zyg, sample_id, col_count):
     chrom = ("chr" + rec["chrom"]) if style == "chr" else rec["chrom"]
     gt = "1/1" if zyg == "hom" else "0/1"
     dp, ad = (44, "0,44") if zyg == "hom" else (44, "22,22")
-    info = (f"GENE={rec['gene']};CSQ={rec['csq']};CLNSIG={rec['clnsig']};"
-            f"CLNREVSTAT={rec['clnrevstat'] or '.'};CLNDN={rec['clndn'] or '.'};"
-            f"CLNVID={rec['vid']};SPIKED=1")
-    fixed = [chrom, str(rec["pos"]), rec["rs"], rec["ref"], rec["alt"], "800", "PASS",
-             info, "GT:DP:GQ:AD", f"{gt}:{dp}:99:{ad}"]
+    info = (
+        f"GENE={rec['gene']};CSQ={rec['csq']};CLNSIG={rec['clnsig']};"
+        f"CLNREVSTAT={rec['clnrevstat'] or '.'};CLNDN={rec['clndn'] or '.'};"
+        f"CLNVID={rec['vid']};SPIKED=1"
+    )
+    fixed = [
+        chrom,
+        str(rec["pos"]),
+        rec["rs"],
+        rec["ref"],
+        rec["alt"],
+        "800",
+        "PASS",
+        info,
+        "GT:DP:GQ:AD",
+        f"{gt}:{dp}:99:{ad}",
+    ]
     # pad to the exome's column count (single-sample expected; extra sample cols = '.')
     while len(fixed) < col_count:
         fixed.append(".")
@@ -174,8 +213,10 @@ def main():
 
     missing = [g for g in genes if g not in picked]
     if missing:
-        print(f"WARNING: no pathogenic ClinVar record found for: {', '.join(missing)}",
-              file=sys.stderr)
+        print(
+            f"WARNING: no pathogenic ClinVar record found for: {', '.join(missing)}",
+            file=sys.stderr,
+        )
 
     meta, col_line, records, style = load_exome(a.exome)
     cols = col_line.split("\t")
@@ -186,12 +227,16 @@ def main():
         if gene in picked:
             r = picked[gene]
             spikes.append(spiked_line(r, style, zyg, a.sample_id, col_count))
-            print(f"  spiked {gene:8s} {style}:{r['pos']} {r['ref']}>{r['alt']} "
-                  f"[{r['csq']}, {r['clnsig']}, {category}]  {r['clndn'][:40]}",
-                  file=sys.stderr)
+            print(
+                f"  spiked {gene:8s} {style}:{r['pos']} {r['ref']}>{r['alt']} "
+                f"[{r['csq']}, {r['clnsig']}, {category}]  {r['clndn'][:40]}",
+                file=sys.stderr,
+            )
 
     all_rows = records + spikes
-    all_rows.sort(key=lambda f: (_CHROM_ORDER.get(f[0].replace("chr", ""), 99), int(f[1])))
+    all_rows.sort(
+        key=lambda f: (_CHROM_ORDER.get(f[0].replace("chr", ""), 99), int(f[1]))
+    )
 
     # De-identify: single opaque sample id in the genotype column(s).
     new_cols = cols[:9] + [a.sample_id] + ["." for _ in cols[10:]]
@@ -216,8 +261,11 @@ def main():
         for f in all_rows:
             out.write("\t".join(f) + "\n")
 
-    print(f"Wrote {a.out}: {len(records)} background + {len(spikes)} spiked "
-          f"= {len(all_rows)} variants (sample '{a.sample_id}')", file=sys.stderr)
+    print(
+        f"Wrote {a.out}: {len(records)} background + {len(spikes)} spiked "
+        f"= {len(all_rows)} variants (sample '{a.sample_id}')",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":

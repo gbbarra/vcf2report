@@ -4,6 +4,7 @@ cyvcf2 is optional; skipped if unavailable. Uses a proper-header VCF (cyvcf2
 requires declared contigs/FORMATs), covering multiallelic, star alleles, and
 missing DP/GQ sentinels.
 """
+
 import pytest
 
 pytest.importorskip("cyvcf2")
@@ -28,27 +29,35 @@ PROPER = """##fileformat=VCFv4.2
 
 
 def _tuples(variants):
-    return sorted((v.key, v.gene, v.consequence, v.zygosity, v.depth, v.gq,
-                   v.allele_balance) for v in variants)
+    return sorted(
+        (v.key, v.gene, v.consequence, v.zygosity, v.depth, v.gq, v.allele_balance)
+        for v in variants
+    )
 
 
 def test_cyvcf2_path_and_agreement_with_pure(tmp_path, monkeypatch):
     p = tmp_path / "p.vcf"
     p.write_text(PROPER)
 
-    monkeypatch.delenv("VCF2REPORT_NO_CYVCF2", raising=False)   # enable cyvcf2
+    monkeypatch.delenv("VCF2REPORT_NO_CYVCF2", raising=False)  # enable cyvcf2
     cy = parse_vcf(p)[0]
-    monkeypatch.setenv("VCF2REPORT_NO_CYVCF2", "1")             # force pure
+    monkeypatch.setenv("VCF2REPORT_NO_CYVCF2", "1")  # force pure
     pure = parse_vcf(p)[0]
 
     keys = {v.key for v in cy}
-    assert "2-200-C-*" not in keys              # star allele skipped
-    assert {"2-166003360-C-T", "2-100-A-G", "2-100-A-T", "2-200-C-T", "2-300-A-G"} <= keys
+    assert "2-200-C-*" not in keys  # star allele skipped
+    assert {
+        "2-166003360-C-T",
+        "2-100-A-G",
+        "2-100-A-T",
+        "2-200-C-T",
+        "2-300-A-G",
+    } <= keys
 
     scn = next(v for v in cy if v.key == "2-166003360-C-T")
     assert scn.depth == 45 and scn.gq == 99 and scn.zygosity == "het"
 
-    v300 = next(v for v in cy if v.key == "2-300-A-G")          # DP/GQ '.' sentinels
+    v300 = next(v for v in cy if v.key == "2-300-A-G")  # DP/GQ '.' sentinels
     assert v300.depth is None and v300.gq is None
 
     # cyvcf2 and the pure reader must agree on the essentials.

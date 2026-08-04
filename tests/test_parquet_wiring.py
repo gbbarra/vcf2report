@@ -5,13 +5,18 @@ never asserts AM absence (miss -> None), a ClinVar miss falls through (get -> No
 clients prefer the parquet, and everything degrades to the tabix path when the store /
 duckdb is absent.
 """
+
 import pytest
 
 duckdb = pytest.importorskip("duckdb")
 
 from vcf2report import config
-from vcf2report.annotate import (alphamissense, alphamissense_parquet, clinvar,
-                                 clinvar_parquet)
+from vcf2report.annotate import (
+    alphamissense,
+    alphamissense_parquet,
+    clinvar,
+    clinvar_parquet,
+)
 from vcf2report.annotate import cache as anncache
 from vcf2report.models import Variant
 
@@ -65,8 +70,13 @@ def test_clinvar_parquet_prime_and_get(tmp_path, monkeypatch):
     v = Variant(chrom="1", pos=100, ref="A", alt="T")
     assert clinvar_parquet.prime([v]) == 1
     rec = clinvar_parquet.get(v.key)
-    assert rec["significance"] == "Pathogenic" and rec["review_status"] == "reviewed by expert panel"
-    assert clinvar_parquet.get("9-9-A-T") is None  # miss -> None -> lookup falls through
+    assert (
+        rec["significance"] == "Pathogenic"
+        and rec["review_status"] == "reviewed by expert panel"
+    )
+    assert (
+        clinvar_parquet.get("9-9-A-T") is None
+    )  # miss -> None -> lookup falls through
 
 
 def test_clinvar_lookup_uses_parquet(tmp_path, monkeypatch):
@@ -85,5 +95,8 @@ def test_parquet_unavailable_falls_back(tmp_path, monkeypatch):
     alphamissense_parquet._reset_for_tests()
     clinvar_parquet._reset_for_tests()
     v = Variant(chrom="1", pos=1, ref="A", alt="T")
-    assert not alphamissense_parquet.available() and alphamissense_parquet.prime([v]) is None
+    assert (
+        not alphamissense_parquet.available()
+        and alphamissense_parquet.prime([v]) is None
+    )
     assert not clinvar_parquet.available() and clinvar_parquet.prime([v]) == 0

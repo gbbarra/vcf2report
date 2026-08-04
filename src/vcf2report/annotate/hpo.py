@@ -16,6 +16,7 @@ Two scorers, in order of preference:
 * **exact overlap** — the dependency-free fallback when the graph is absent:
   ``|patient ∩ gene_terms| / |patient|``. Unchanged behaviour, demo-safe.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -38,6 +39,7 @@ def _read_lines(fp):
     gzipped to keep the repo lean)."""
     if str(fp).endswith(".gz"):
         import gzip
+
         with gzip.open(fp, "rt") as fh:
             for line in fh:
                 yield line.rstrip("\n")
@@ -89,7 +91,13 @@ def _load_graph() -> tuple[dict, dict, dict]:
                     ic[hid] = float(parts[2])
                 except ValueError:
                     ic[hid] = 0.0
-                parents[hid] = [p for p in (parts[3].split("|") if len(parts) > 3 and parts[3] else []) if p]
+                parents[hid] = [
+                    p
+                    for p in (
+                        parts[3].split("|") if len(parts) > 3 and parts[3] else []
+                    )
+                    if p
+                ]
         _graph = (parents, ic, names)
     return _graph
 
@@ -142,12 +150,21 @@ def _semantic_match(gene_terms: set, patient_hpo: list[str]) -> Optional[dict]:
     # score = best-match-average (overall phenotype coverage, drives PP4); best =
     # the single strongest patient<->gene match (drives primary-vs-secondary routing,
     # so a gene that strongly explains ONE key phenotype isn't diluted out of primary).
-    score = round(sum(t[2] for t in per_term) / len(patient_hpo), 3) if patient_hpo else 0.0
+    score = (
+        round(sum(t[2] for t in per_term) / len(patient_hpo), 3) if patient_hpo else 0.0
+    )
     best = round(max((t[2] for t in per_term), default=0.0), 3)
-    matched = [f"{p}→{g} ({names.get(g, '?')}, {s:.2f})"
-               for (p, g, s) in per_term if g and s >= 0.3]
-    return {"score": score, "best": best, "matched_terms": matched,
-            "_source": "HPO ontology-aware (Lin/IC, local)"}
+    matched = [
+        f"{p}→{g} ({names.get(g, '?')}, {s:.2f})"
+        for (p, g, s) in per_term
+        if g and s >= 0.3
+    ]
+    return {
+        "score": score,
+        "best": best,
+        "matched_terms": matched,
+        "_source": "HPO ontology-aware (Lin/IC, local)",
+    }
 
 
 def match(gene: Optional[str], patient_hpo: list[str]) -> dict:
@@ -163,8 +180,13 @@ def match(gene: Optional[str], patient_hpo: list[str]) -> dict:
     # Callers that rank or route already coalesce with `or 0`; only the evidence line needs the
     # distinction.
     if not gene or not patient_hpo:
-        return {"score": None, "best": None, "matched_terms": [], "_source": "HPO (no gene/terms)"}
-    _load()          # loaders clear _match_cache on a (re)load, so hits are never stale
+        return {
+            "score": None,
+            "best": None,
+            "matched_terms": [],
+            "_source": "HPO (no gene/terms)",
+        }
+    _load()  # loaders clear _match_cache on a (re)load, so hits are never stale
     _load_graph()
     ck = (gene, tuple(patient_hpo))
     hit = _match_cache.get(ck)
@@ -179,8 +201,12 @@ def _match_compute(gene: str, patient_hpo: list[str]) -> dict:
     gene_terms = _load().get(gene, set())
     if not gene_terms:
         # The gene carries no HPO annotation — again "not comparable", not "compared and scored 0".
-        return {"score": None, "best": None, "matched_terms": [],
-                "_source": "HPO genes_to_phenotype (gene not annotated)"}
+        return {
+            "score": None,
+            "best": None,
+            "matched_terms": [],
+            "_source": "HPO genes_to_phenotype (gene not annotated)",
+        }
     sem = _semantic_match(gene_terms, patient_hpo)
     if sem is not None:
         return sem
@@ -190,5 +216,9 @@ def _match_compute(gene: str, patient_hpo: list[str]) -> dict:
     matched = sorted(patient & gene_terms)
     score = round(len(matched) / len(patient), 3) if patient else 0.0
     labelled = [f"{t} ({_term_names.get(t, '?')})" for t in matched]
-    return {"score": score, "best": 1.0 if matched else 0.0, "matched_terms": labelled,
-            "_source": "HPO genes_to_phenotype (local)"}
+    return {
+        "score": score,
+        "best": 1.0 if matched else 0.0,
+        "matched_terms": labelled,
+        "_source": "HPO genes_to_phenotype (local)",
+    }

@@ -8,6 +8,7 @@ from this and falls back to the per-variant tabix loop when the store / duckdb i
 behaviour-preserving. AlphaMissense absence is never asserted: a locus with no missense
 score simply maps to ``None`` (exactly as the tabix path's ``_best`` returns None).
 """
+
 from __future__ import annotations
 
 import threading
@@ -27,6 +28,7 @@ def _get_duckdb():
         _duckdb_tried = True
         try:
             import duckdb  # noqa: F401
+
             _duckdb = duckdb
         except Exception:
             _duckdb = None
@@ -51,7 +53,9 @@ def _source_expr() -> str:
     """read_parquet(...) over the store's real parquet files (excluding macOS '._' sidecars)."""
     p = Path(config.ALPHAMISSENSE_PARQUET)
     if p.is_dir():
-        files = [str(f) for f in sorted(p.rglob("*.parquet")) if not f.name.startswith("._")]
+        files = [
+            str(f) for f in sorted(p.rglob("*.parquet")) if not f.name.startswith("._")
+        ]
         lst = ", ".join("'" + _q(f) + "'" for f in files)
         return f"read_parquet([{lst}], hive_partitioning=true, union_by_name=true)"
     return f"read_parquet('{_q(str(p))}')"
@@ -65,6 +69,7 @@ def prime(variants) -> Optional[dict]:
     import csv
     import os
     import tempfile
+
     duckdb = _get_duckdb()
     con = duckdb.connect()
     tmp = None
@@ -81,7 +86,9 @@ def prime(variants) -> Optional[dict]:
         con.execute(
             "CREATE TABLE q AS SELECT column0 AS chrom, CAST(column1 AS INTEGER) AS pos, "
             "column2 AS ref, column3 AS alt, column4 AS key "
-            "FROM read_csv(?, header=false, delim='\t', all_varchar=true)", [tmp])
+            "FROM read_csv(?, header=false, delim='\t', all_varchar=true)",
+            [tmp],
+        )
         # Prune the store to the candidate chroms (partition pruning -> sub-second).
         chlist = ", ".join("'" + _q(c) + "'" for c in sorted(chroms))
         rows = con.execute(f"""
@@ -100,8 +107,11 @@ def prime(variants) -> Optional[dict]:
         os.remove(tmp)
     out: dict = {}
     for key, am_path, am_class in rows:
-        out[key] = ({"am_pathogenicity": float(am_path), "am_class": am_class}
-                    if am_path is not None else None)
+        out[key] = (
+            {"am_pathogenicity": float(am_path), "am_class": am_class}
+            if am_path is not None
+            else None
+        )
     return out
 
 

@@ -20,6 +20,7 @@ laudo is stamped DEMONSTRATION RUN (see ``vcf2report.demo``).
 Exit code is non-zero if any store is missing / corrupt / incomplete / stale, so it doubles
 as a cron / CI monitoring probe.
 """
+
 import argparse
 import json
 import sys
@@ -28,22 +29,36 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from vcf2report import demo, stores  # noqa: E402
 
-_ICON = {"ok": "OK ", "stale": "STALE", "incomplete": "BAD", "corrupt": "BAD", "missing": "—"}
+_ICON = {
+    "ok": "OK ",
+    "stale": "STALE",
+    "incomplete": "BAD",
+    "corrupt": "BAD",
+    "missing": "—",
+}
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("store", nargs="?", choices=["gnomad", "alphamissense", "clinvar"])
     ap.add_argument("--json", action="store_true", help="machine-readable output")
-    ap.add_argument("--quick", action="store_true", help="skip the row-count / integrity scan")
-    ap.add_argument("--gate", action="store_true",
-                    help="analysis gate: exit non-zero ONLY if a store blocks (missing/corrupt/"
-                         "incomplete); a merely-stale store warns but passes")
-    ap.add_argument("--demo", metavar="VCF",
-                    help="demo mode: relax the gate for one of this repository's committed "
-                         "example VCFs (data/example/*.vcf.gz), so the guided flow can be "
-                         "demonstrated without the ~1 GB stores. REFUSED for any other path — "
-                         "this is not a store override. The resulting laudo is stamped.")
+    ap.add_argument(
+        "--quick", action="store_true", help="skip the row-count / integrity scan"
+    )
+    ap.add_argument(
+        "--gate",
+        action="store_true",
+        help="analysis gate: exit non-zero ONLY if a store blocks (missing/corrupt/"
+        "incomplete); a merely-stale store warns but passes",
+    )
+    ap.add_argument(
+        "--demo",
+        metavar="VCF",
+        help="demo mode: relax the gate for one of this repository's committed "
+        "example VCFs (data/example/*.vcf.gz), so the guided flow can be "
+        "demonstrated without the ~1 GB stores. REFUSED for any other path — "
+        "this is not a store override. The resulting laudo is stamped.",
+    )
     a = ap.parse_args()
 
     health = stores.store_health(name=a.store, measure=not a.quick)
@@ -68,9 +83,13 @@ def main() -> int:
             if e.get("complete") is not None:
                 det.append(f"complete={'yes' if e['complete'] else 'NO'}")
             if e.get("built_at"):
-                age = f" ({int(e['age_days'])}d ago)" if e.get("age_days") is not None else ""
+                age = (
+                    f" ({int(e['age_days'])}d ago)"
+                    if e.get("age_days") is not None
+                    else ""
+                )
                 det.append(f"built={e['built_at'][:10]}{age}")
-            src = (e.get("source") or {})
+            src = e.get("source") or {}
             if src.get("release"):
                 det.append(f"{src.get('name', '')} {src['release']}")
             if det:
@@ -79,7 +98,9 @@ def main() -> int:
             if e.get("missing_core_chroms"):
                 print(f"          ⚠ missing core contigs: {e['missing_core_chroms']}")
             if e.get("rows_mismatch"):
-                print(f"          ⚠ row-count mismatch (corrupt/partial): {e['rows_mismatch']}")
+                print(
+                    f"          ⚠ row-count mismatch (corrupt/partial): {e['rows_mismatch']}"
+                )
         print()
 
     if a.gate:
@@ -94,20 +115,32 @@ def main() -> int:
                 print(f"  ⛔ {d.reason}\n")
             elif blocking and exempt:
                 print(f"  🧪 DEMO MODE — {d.reason}")
-                print(f"     Store(s) {blocking} would normally BLOCK this run; the exemption "
-                      f"lets it proceed because the input is a repository fixture.")
-                print(f"     Criteria not backed by full stores: "
-                      f"{demo.degraded_criteria(blocking)}.")
-                print("     The laudo will be stamped DEMONSTRATION RUN. Do NOT compare it "
-                      "against a real case.\n")
+                print(
+                    f"     Store(s) {blocking} would normally BLOCK this run; the exemption "
+                    f"lets it proceed because the input is a repository fixture."
+                )
+                print(
+                    f"     Criteria not backed by full stores: "
+                    f"{demo.degraded_criteria(blocking)}."
+                )
+                print(
+                    "     The laudo will be stamped DEMONSTRATION RUN. Do NOT compare it "
+                    "against a real case.\n"
+                )
             elif blocking:
-                print(f"  ⛔ BLOCKED — parquet store(s) not available/intact: {blocking}. "
-                      "Analysis must NOT run — build/repair them and re-run.\n")
+                print(
+                    f"  ⛔ BLOCKED — parquet store(s) not available/intact: {blocking}. "
+                    "Analysis must NOT run — build/repair them and re-run.\n"
+                )
             else:
                 warn = f"  (⚠ stale, update soon: {stale})" if stale else ""
-                demo_note = "  🧪 (demo input — laudo still stamped)" if d.active else ""
-                print(f"  ✅ READY — all required parquet stores are available + intact."
-                      f"{warn}{demo_note}\n")
+                demo_note = (
+                    "  🧪 (demo input — laudo still stamped)" if d.active else ""
+                )
+                print(
+                    f"  ✅ READY — all required parquet stores are available + intact."
+                    f"{warn}{demo_note}\n"
+                )
         if d.refused:
             return 1
         return 1 if (blocking and not exempt) else 0

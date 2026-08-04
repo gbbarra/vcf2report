@@ -3,6 +3,7 @@
 The MANE filter matches the tag as a substring of a comma-list (tag=...,MANE_Select,...);
 a `tag=MANE_Select` prefix match silently yields an EMPTY BED. Pin it.
 """
+
 import importlib.util
 import pathlib
 
@@ -29,16 +30,16 @@ def _gff(tmp_path):
 
 def test_mane_selects_only_mane_tagged(tmp_path):
     iv = list(beb.exon_intervals(_gff(tmp_path), "mane"))
-    assert ("chr1", 99, 200) in iv          # MANE_Select
-    assert ("chr1", 499, 600) in iv         # MANE_Plus_Clinical
-    assert ("chr1", 149, 260) not in iv     # not MANE
-    assert not any(c == "chrZ" for c, _s, _e in iv)   # non-standard contig dropped
-    assert all(row for row in iv)           # CDS feature ignored (only 'exon')
+    assert ("chr1", 99, 200) in iv  # MANE_Select
+    assert ("chr1", 499, 600) in iv  # MANE_Plus_Clinical
+    assert ("chr1", 149, 260) not in iv  # not MANE
+    assert not any(c == "chrZ" for c, _s, _e in iv)  # non-standard contig dropped
+    assert all(row for row in iv)  # CDS feature ignored (only 'exon')
 
 
 def test_protein_coding_excludes_lncrna(tmp_path):
     iv = list(beb.exon_intervals(_gff(tmp_path), "protein_coding"))
-    assert ("chr1", 499, 600) not in iv     # lncRNA exon excluded
+    assert ("chr1", 499, 600) not in iv  # lncRNA exon excluded
     assert len(iv) == 2
 
 
@@ -47,7 +48,9 @@ def test_all_keeps_every_exon(tmp_path):
 
 
 def test_merge_pads_and_collapses():
-    assert beb.merge([("chr1", 100, 200), ("chr1", 150, 260)], pad=0) == [("chr1", 100, 260)]
+    assert beb.merge([("chr1", 100, 200), ("chr1", 150, 260)], pad=0) == [
+        ("chr1", 100, 260)
+    ]
     assert beb.merge([("chr1", 100, 200)], pad=50) == [("chr1", 50, 250)]
     # a gap wider than the padding stays split
     assert len(beb.merge([("chr1", 100, 200), ("chr1", 400, 500)], pad=50)) == 2

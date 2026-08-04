@@ -5,6 +5,7 @@ gnomAD AF, ClinVar, and in-silico scores are in INFO. Reading them here means th
 whole pipeline runs offline with zero per-variant DB lookups — the fast path for
 a real exome. Field names are resolved via ``config.INFO_ALIASES``.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -21,8 +22,9 @@ def _first(info: dict, keys: list[str]) -> Optional[str]:
     return None
 
 
-def _pick(x: Optional[str], idx: int, n_alts: int = 1, per_allele: bool = False
-          ) -> Optional[str]:
+def _pick(
+    x: Optional[str], idx: int, n_alts: int = 1, per_allele: bool = False
+) -> Optional[str]:
     """The idx-th comma element of a multi-value INFO field.
 
     ``per_allele=True`` marks a VCF ``Number=A`` field — gnomAD AF/AC/AN/nhomalt and
@@ -75,6 +77,7 @@ def _multi_num(x: Optional[str], idx: int = 0, n_alts: int = 1):
     if x is None:
         return None
     import re
+
     s = str(x)
     parts = s.split(",")
     if n_alts > 1 and len(parts) == n_alts:
@@ -160,7 +163,11 @@ def extract(variant: Variant) -> dict:
     am = _multi_num(_first(info, A["am_pathogenicity"]), i, n)
     if am is not None:
         out["am_pathogenicity"] = am
-        amc = _pick(_first(info, A["am_class"]), i) if n > 1 else _first(info, A["am_class"])
+        amc = (
+            _pick(_first(info, A["am_class"]), i)
+            if n > 1
+            else _first(info, A["am_class"])
+        )
         if amc is not None:
             out["am_class"] = str(amc)
     return out

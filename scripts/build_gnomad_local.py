@@ -33,6 +33,7 @@ Examples
     # full genome-wide table from local sites files (no network)
     python scripts/build_gnomad_local.py --full --src /Volumes/DATA/gnomad_v4.1
 """
+
 from __future__ import annotations
 
 import argparse
@@ -46,10 +47,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from vcf2report import config                        # noqa: E402
-from vcf2report.annotate import gnomad_remote        # noqa: E402
-from vcf2report.vcf.parse import parse_vcf           # noqa: E402
-from vcf2report.models import Variant                # noqa: E402
+from vcf2report import config  # noqa: E402
+from vcf2report.annotate import gnomad_remote  # noqa: E402
+from vcf2report.vcf.parse import parse_vcf  # noqa: E402
+from vcf2report.models import Variant  # noqa: E402
 
 HEADER = "#chrom\tpos\tref\talt\taf\tac\tan\thom\tfaf95\tpop"
 RELEASE = gnomad_remote.RELEASE
@@ -85,18 +86,20 @@ def _fmt(v) -> str:
 
 
 def _row(chrom, pos, ref, alt, r: dict) -> str:
-    return "\t".join((
-        _norm_chrom(chrom),
-        str(int(pos)),
-        str(ref),
-        str(alt),
-        _fmt(r.get("af")),
-        _fmt(r.get("ac")),
-        _fmt(r.get("an")),
-        _fmt(r.get("hom")),
-        _fmt(r.get("faf95")),
-        (r.get("pop") or ""),
-    ))
+    return "\t".join(
+        (
+            _norm_chrom(chrom),
+            str(int(pos)),
+            str(ref),
+            str(alt),
+            _fmt(r.get("af")),
+            _fmt(r.get("ac")),
+            _fmt(r.get("an")),
+            _fmt(r.get("hom")),
+            _fmt(r.get("faf95")),
+            (r.get("pop") or ""),
+        )
+    )
 
 
 def _to_float(s: str):
@@ -122,16 +125,17 @@ def _open_source(kind: str, chrom_pref: str, src: str | None):
     given, else the cached remote handle from ``gnomad_remote``. None if missing."""
     if src:
         import pysam
+
         p = Path(src) / f"gnomad.{kind}.v{RELEASE}.sites.{chrom_pref}.vcf.bgz"
         if not p.exists():
             _warn(f"missing local sites file: {p}")
             return None
         try:
             return pysam.VariantFile(str(p))
-        except Exception as e:                       # unreadable / bad index
+        except Exception as e:  # unreadable / bad index
             _warn(f"cannot open {p}: {e}")
             return None
-    return gnomad_remote._open(kind, chrom_pref)     # cached, remote GCS URL
+    return gnomad_remote._open(kind, chrom_pref)  # cached, remote GCS URL
 
 
 def _emit_records(chrom_norm, chrom_pref, start, end, src, raw_fh) -> tuple[int, bool]:
@@ -147,13 +151,19 @@ def _emit_records(chrom_norm, chrom_pref, start, end, src, raw_fh) -> tuple[int,
     for kind in ("exomes", "genomes"):
         vf = _open_source(kind, chrom_pref, src)
         if vf is None:
-            complete = False                         # a callset didn't open -> incomplete
+            complete = False  # a callset didn't open -> incomplete
             continue
         try:
-            recs = vf.fetch(chrom_pref) if start is None else vf.fetch(chrom_pref, start, end)
+            recs = (
+                vf.fetch(chrom_pref)
+                if start is None
+                else vf.fetch(chrom_pref, start, end)
+            )
         except Exception as e:
-            _warn(f"fetch failed for {kind} {chrom_pref}"
-                  f"{'' if start is None else f':{start}-{end}'}: {e}")
+            _warn(
+                f"fetch failed for {kind} {chrom_pref}"
+                f"{'' if start is None else f':{start}-{end}'}: {e}"
+            )
             complete = False
             continue
         try:
@@ -166,7 +176,7 @@ def _emit_records(chrom_norm, chrom_pref, start, end, src, raw_fh) -> tuple[int,
                     continue
                 raw_fh.write(_row(chrom_norm, rec.pos, rec.ref, alts[0], cand) + "\n")
                 n += 1
-        except Exception as e:                       # flaky remote read mid-stream
+        except Exception as e:  # flaky remote read mid-stream
             _warn(f"stream interrupted for {kind} {chrom_pref}: {e}")
             complete = False
             continue
@@ -192,8 +202,10 @@ def _callset_incomplete(chrom_pref: str) -> bool:
     """True if EITHER gnomAD callset handle for this chrom failed to open during the
     run (gnomad_remote._failed is a permanent per-run cache). An 'absent' answer then
     came from a single callset and cannot be trusted as a real absence."""
-    return (("exomes", chrom_pref) in gnomad_remote._failed
-            or ("genomes", chrom_pref) in gnomad_remote._failed)
+    return ("exomes", chrom_pref) in gnomad_remote._failed or (
+        "genomes",
+        chrom_pref,
+    ) in gnomad_remote._failed
 
 
 def _looks_absent(r: dict) -> bool:
@@ -209,12 +221,15 @@ _tls = threading.local()
 
 def _tls_handle(kind: str, chrom_pref: str):
     import pysam
+
     if not hasattr(_tls, "h"):
         _tls.h = {}
     key = (kind, chrom_pref)
     if key not in _tls.h:
         try:
-            _tls.h[key] = pysam.VariantFile(gnomad_remote._BASE.format(kind=kind, chrom=chrom_pref))
+            _tls.h[key] = pysam.VariantFile(
+                gnomad_remote._BASE.format(kind=kind, chrom=chrom_pref)
+            )
         except Exception:
             _tls.h[key] = None
     return _tls.h[key]
@@ -247,19 +262,33 @@ def _query_tls(v: Variant) -> tuple[Optional[dict], bool]:
         return None, False
     if best is not None:
         return best, opened == 2
-    return {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None}, opened == 2
+    return {
+        "af": 0.0,
+        "ac": 0,
+        "an": 0,
+        "hom": 0,
+        "faf95": 0.0,
+        "pop": None,
+    }, opened == 2
 
 
-def _gen_from_vcf_parallel(vcf_path: Path, raw_fh, jobs: int, progress_every: int) -> tuple[int, int]:
+def _gen_from_vcf_parallel(
+    vcf_path: Path, raw_fh, jobs: int, progress_every: int
+) -> tuple[int, int]:
     from concurrent.futures import ThreadPoolExecutor
+
     variants, build, _hdr = parse_vcf(vcf_path)
     if build and build != config.GENOME_BUILD:
-        _warn(f"VCF build {build!r} != {config.GENOME_BUILD}; LIFT it first "
-              f"(scripts/liftover_to_grch38.py) or every site will look absent.")
+        _warn(
+            f"VCF build {build!r} != {config.GENOME_BUILD}; LIFT it first "
+            f"(scripts/liftover_to_grch38.py) or every site will look absent."
+        )
     seen: set[str] = set()
     uniq = [v for v in variants if not (v.key in seen or seen.add(v.key))]
-    print(f"Querying gnomAD for {len(uniq)} unique sites with {jobs} workers...",
-          file=sys.stderr)
+    print(
+        f"Querying gnomAD for {len(uniq)} unique sites with {jobs} workers...",
+        file=sys.stderr,
+    )
 
     def work(v: Variant):
         for attempt in range(3):
@@ -271,35 +300,44 @@ def _gen_from_vcf_parallel(vcf_path: Path, raw_fh, jobs: int, progress_every: in
 
     written = skipped = done = 0
     with ThreadPoolExecutor(max_workers=jobs) as ex:
-        for v, res, both in ex.map(work, uniq):     # ordered; writer stays single-threaded
+        for v, res, both in ex.map(work, uniq):  # ordered; writer stays single-threaded
             done += 1
             if res is None:
                 skipped += 1
-            elif _looks_absent(res) and not both:   # single-callset absence is unreliable
+            elif (
+                _looks_absent(res) and not both
+            ):  # single-callset absence is unreliable
                 skipped += 1
             else:
                 raw_fh.write(_row(v.chrom, v.pos, v.ref, v.alt, res) + "\n")
                 written += 1
             if done % progress_every == 0:
-                print(f"  ...{done}/{len(uniq)} ({written} rows, {skipped} skipped)",
-                      file=sys.stderr)
+                print(
+                    f"  ...{done}/{len(uniq)} ({written} rows, {skipped} skipped)",
+                    file=sys.stderr,
+                )
     return written, skipped
 
 
 def _gen_from_vcf(vcf_path: Path, raw_fh, progress_every: int) -> tuple[int, int]:
     variants, build, _hdr = parse_vcf(vcf_path)
     if build and build != config.GENOME_BUILD:
-        _warn(f"VCF build {build!r} != {config.GENOME_BUILD}; gnomAD v{RELEASE} is "
-              f"{config.GENOME_BUILD} — LIFT the VCF first (scripts/liftover_to_grch38.py) "
-              f"or the coordinates won't match and every site will look absent.")
+        _warn(
+            f"VCF build {build!r} != {config.GENOME_BUILD}; gnomAD v{RELEASE} is "
+            f"{config.GENOME_BUILD} — LIFT the VCF first (scripts/liftover_to_grch38.py) "
+            f"or the coordinates won't match and every site will look absent."
+        )
     seen: set[str] = set()
     uniq = [v for v in variants if not (v.key in seen or seen.add(v.key))]
-    print(f"Querying gnomAD for {len(uniq)} unique sites "
-          f"({len(variants)} variants in {vcf_path})...", file=sys.stderr)
+    print(
+        f"Querying gnomAD for {len(uniq)} unique sites "
+        f"({len(variants)} variants in {vcf_path})...",
+        file=sys.stderr,
+    )
     written = skipped = 0
     for i, v in enumerate(uniq, 1):
         r = _query_with_retry(v)
-        if r is None:                                # transport failure -> skip, no fabrication
+        if r is None:  # transport failure -> skip, no fabrication
             skipped += 1
             _warn(f"skipping {v.key}: gnomAD lookup failed after retries")
             continue
@@ -307,13 +345,17 @@ def _gen_from_vcf(vcf_path: Path, raw_fh, progress_every: int) -> tuple[int, int
         # (it may be common in the missing callset) — skip rather than bake a false 0.0.
         if _looks_absent(r) and _callset_incomplete(_prefixed(v.chrom)):
             skipped += 1
-            _warn(f"skipping {v.key}: a gnomAD callset failed for this chrom; absence unreliable")
+            _warn(
+                f"skipping {v.key}: a gnomAD callset failed for this chrom; absence unreliable"
+            )
             continue
         raw_fh.write(_row(v.chrom, v.pos, v.ref, v.alt, r) + "\n")
         written += 1
         if i % progress_every == 0:
-            print(f"  ...{i}/{len(uniq)} sites ({written} rows, {skipped} skipped)",
-                  file=sys.stderr)
+            print(
+                f"  ...{i}/{len(uniq)} sites ({written} rows, {skipped} skipped)",
+                file=sys.stderr,
+            )
     return written, skipped
 
 
@@ -327,19 +369,23 @@ def _parse_bed(bed_path: Path) -> list[tuple[str, int, int]]:
         if len(f) < 3:
             continue
         try:
-            regions.append((f[0], int(f[1]), int(f[2])))   # BED: 0-based, half-open
+            regions.append((f[0], int(f[1]), int(f[2])))  # BED: 0-based, half-open
         except ValueError:
             _warn(f"skipping malformed BED line: {ln}")
     return regions
 
 
-def _gen_bed(bed_path: Path, src: str | None, raw_fh, progress_every: int) -> tuple[int, int]:
+def _gen_bed(
+    bed_path: Path, src: str | None, raw_fh, progress_every: int
+) -> tuple[int, int]:
     regions = _parse_bed(bed_path)
     print(f"Reducing gnomAD over {len(regions)} BED region(s)...", file=sys.stderr)
     written = 0
     for j, (chrom, start, end) in enumerate(regions, 1):
-        n, _complete = _emit_records(_norm_chrom(chrom), _prefixed(chrom), start, end, src, raw_fh)
-        written += n                                 # bed is always 'partial' -> no absence
+        n, _complete = _emit_records(
+            _norm_chrom(chrom), _prefixed(chrom), start, end, src, raw_fh
+        )
+        written += n  # bed is always 'partial' -> no absence
         if j % progress_every == 0:
             print(f"  ...{j}/{len(regions)} regions ({written} rows)", file=sys.stderr)
     return written, 0
@@ -356,17 +402,23 @@ def _gen_full(src: str | None, raw_fh, progress_every: int) -> tuple[int, list[s
         if complete and n > 0:
             covered.append(chrom)
         else:
-            _warn(f"chr{chrom} INCOMPLETE (missing/failed callset or no rows) — EXCLUDED "
-                  f"from absence assertions; a query there will fall back, not return 0.0")
-        print(f"  chr{chrom}: {n} variants ({'complete' if (complete and n > 0) else 'INCOMPLETE'})",
-              file=sys.stderr)
+            _warn(
+                f"chr{chrom} INCOMPLETE (missing/failed callset or no rows) — EXCLUDED "
+                f"from absence assertions; a query there will fall back, not return 0.0"
+            )
+        print(
+            f"  chr{chrom}: {n} variants ({'complete' if (complete and n > 0) else 'INCOMPLETE'})",
+            file=sys.stderr,
+        )
     return written, covered
 
 
 # ---------------------------------------------------------------------------
 # Sort + collapse + index
 # ---------------------------------------------------------------------------
-def _sort_file(raw_path: Path, sorted_path: Path, require_external: bool = False) -> None:
+def _sort_file(
+    raw_path: Path, sorted_path: Path, require_external: bool = False
+) -> None:
     """Sort raw rows by (chrom, pos-numeric, ref, alt). Tries the streaming system
     ``sort`` (handles the huge --full case); falls back to an in-memory Python sort —
     UNLESS ``require_external`` (a genome-wide --full build), where an in-RAM sort of
@@ -374,15 +426,28 @@ def _sort_file(raw_path: Path, sorted_path: Path, require_external: bool = False
     env = dict(os.environ, LC_ALL="C")
     try:
         subprocess.run(
-            ["sort", "-t", "\t", "-k1,1", "-k2,2n", "-k3,3", "-k4,4",
-             "-o", str(sorted_path), str(raw_path)],
-            check=True, env=env)
+            [
+                "sort",
+                "-t",
+                "\t",
+                "-k1,1",
+                "-k2,2n",
+                "-k3,3",
+                "-k4,4",
+                "-o",
+                str(sorted_path),
+                str(raw_path),
+            ],
+            check=True,
+            env=env,
+        )
         return
     except (FileNotFoundError, subprocess.CalledProcessError) as e:
         if require_external:
             raise RuntimeError(
                 f"system `sort` is required for a --full build (the table is too large "
-                f"to sort in memory) but failed: {e}") from e
+                f"to sort in memory) but failed: {e}"
+            ) from e
         _warn(f"system sort unavailable ({e}); sorting in Python (needs RAM).")
     rows = [ln for ln in raw_path.read_text().splitlines() if ln]
 
@@ -431,9 +496,17 @@ def _collapse(sorted_path: Path, final_path: Path) -> int:
 
 def _index(final_path: Path, out: Path) -> None:
     import pysam
+
     pysam.tabix_compress(str(final_path), str(out), force=True)
-    pysam.tabix_index(str(out), seq_col=0, start_col=1, end_col=1,
-                      meta_char="#", line_skip=0, force=True)
+    pysam.tabix_index(
+        str(out),
+        seq_col=0,
+        start_col=1,
+        end_col=1,
+        meta_char="#",
+        line_skip=0,
+        force=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -442,24 +515,48 @@ def _index(final_path: Path, out: Path) -> None:
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description="Build the reduced offline gnomAD frequency table "
-                    "(bgzipped TSV + .tbi) read by annotate/gnomad_local.py.")
+        "(bgzipped TSV + .tbi) read by annotate/gnomad_local.py."
+    )
     g = p.add_mutually_exclusive_group()
-    g.add_argument("--from-vcf", metavar="VCF",
-                   help="build a per-VCF table (default: the bundled demo VCF).")
-    g.add_argument("--bed", metavar="BED",
-                   help="build a table covering the given BED regions.")
-    g.add_argument("--full", action="store_true",
-                   help="build a genome-wide table (chr1..22,X,Y). Heavy.")
-    p.add_argument("--src", metavar="DIR",
-                   help="[--full only] directory of local gnomAD per-chrom sites "
-                        "files (gnomad.<kind>.v%s.sites.chrN.vcf.bgz); no network." % RELEASE)
-    p.add_argument("--out", metavar="PATH", default=str(config.GNOMAD_LOCAL_TABIX),
-                   help="output .tsv.gz path (default: %(default)s).")
-    p.add_argument("--jobs", type=int, default=1, metavar="N",
-                   help="[--from-vcf] parallel gnomAD workers (thread-local handles). "
-                        "An exome-size build is hours at N=1; N=8-16 brings it to minutes.")
-    p.add_argument("--progress-every", type=int, default=None,
-                   help="progress interval (default: adaptive per mode).")
+    g.add_argument(
+        "--from-vcf",
+        metavar="VCF",
+        help="build a per-VCF table (default: the bundled demo VCF).",
+    )
+    g.add_argument(
+        "--bed", metavar="BED", help="build a table covering the given BED regions."
+    )
+    g.add_argument(
+        "--full",
+        action="store_true",
+        help="build a genome-wide table (chr1..22,X,Y). Heavy.",
+    )
+    p.add_argument(
+        "--src",
+        metavar="DIR",
+        help="[--full only] directory of local gnomAD per-chrom sites "
+        "files (gnomad.<kind>.v%s.sites.chrN.vcf.bgz); no network." % RELEASE,
+    )
+    p.add_argument(
+        "--out",
+        metavar="PATH",
+        default=str(config.GNOMAD_LOCAL_TABIX),
+        help="output .tsv.gz path (default: %(default)s).",
+    )
+    p.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        metavar="N",
+        help="[--from-vcf] parallel gnomAD workers (thread-local handles). "
+        "An exome-size build is hours at N=1; N=8-16 brings it to minutes.",
+    )
+    p.add_argument(
+        "--progress-every",
+        type=int,
+        default=None,
+        help="progress interval (default: adaptive per mode).",
+    )
     return p
 
 
@@ -468,7 +565,10 @@ def main(argv: list[str] | None = None) -> int:
 
     # Resolve mode + input.
     if args.full:
-        mode, built_from = "full", (f"--full --src {args.src}" if args.src else "--full (remote)")
+        mode, built_from = (
+            "full",
+            (f"--full --src {args.src}" if args.src else "--full (remote)"),
+        )
     elif args.bed:
         mode, built_from = "bed", f"--bed {args.bed}"
     else:
@@ -478,38 +578,51 @@ def main(argv: list[str] | None = None) -> int:
         print("ERROR: --src is only valid with --full.", file=sys.stderr)
         return 2
 
-    table_mode = "full" if mode == "full" else "partial"   # sidecar "mode" field
+    table_mode = "full" if mode == "full" else "partial"  # sidecar "mode" field
 
     # Network gating: everything but --full --src reaches gnomAD over the network.
     needs_net = not (mode == "full" and args.src)
     if needs_net and config.offline():
-        print("ERROR: this build needs network access to reach gnomAD, but egress is "
-              "disabled.\n  Set VCF2REPORT_ALLOW_NETWORK=1 (and ensure OFFLINE is unset).",
-              file=sys.stderr)
+        print(
+            "ERROR: this build needs network access to reach gnomAD, but egress is "
+            "disabled.\n  Set VCF2REPORT_ALLOW_NETWORK=1 (and ensure OFFLINE is unset).",
+            file=sys.stderr,
+        )
         return 2
 
     # Verify pysam is importable up front (needed for tabix compress/index).
     try:
         import pysam  # noqa: F401
     except Exception:
-        print("ERROR: pysam is required (tabix compress/index). pip install pysam",
-              file=sys.stderr)
+        print(
+            "ERROR: pysam is required (tabix compress/index). pip install pysam",
+            file=sys.stderr,
+        )
         return 2
 
     if mode == "full":
         print("=" * 72, file=sys.stderr)
         print("WARNING: --full is a HEAVY build.", file=sys.stderr)
         if args.src:
-            print(f"  Reading local gnomAD v{RELEASE} sites files from: {args.src}",
-                  file=sys.stderr)
+            print(
+                f"  Reading local gnomAD v{RELEASE} sites files from: {args.src}",
+                file=sys.stderr,
+            )
         else:
-            print(f"  Streaming gnomAD v{RELEASE} exomes+genomes from GCS: this reads on"
-                  " the order of ~150-200 GB over the network.", file=sys.stderr)
-        print("  The output table is genome-wide; ensure the --out volume has room.",
-              file=sys.stderr)
+            print(
+                f"  Streaming gnomAD v{RELEASE} exomes+genomes from GCS: this reads on"
+                " the order of ~150-200 GB over the network.",
+                file=sys.stderr,
+            )
+        print(
+            "  The output table is genome-wide; ensure the --out volume has room.",
+            file=sys.stderr,
+        )
         print("=" * 72, file=sys.stderr)
 
-    progress_every = args.progress_every or {"from-vcf": 25, "bed": 500, "full": 1}[mode]
+    progress_every = (
+        args.progress_every or {"from-vcf": 25, "bed": 500, "full": 1}[mode]
+    )
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -527,7 +640,9 @@ def main(argv: list[str] | None = None) -> int:
                     return 2
                 jobs = max(1, min(args.jobs, 32))
                 if jobs > 1:
-                    written, skipped = _gen_from_vcf_parallel(vcf, raw_fh, jobs, progress_every)
+                    written, skipped = _gen_from_vcf_parallel(
+                        vcf, raw_fh, jobs, progress_every
+                    )
                 else:
                     written, skipped = _gen_from_vcf(vcf, raw_fh, progress_every)
             elif mode == "bed":
@@ -544,7 +659,12 @@ def main(argv: list[str] | None = None) -> int:
         rows = _collapse(srt, fin)
         _index(fin, out)
 
-        meta = {"mode": table_mode, "source": SOURCE, "built_from": built_from, "rows": rows}
+        meta = {
+            "mode": table_mode,
+            "source": SOURCE,
+            "built_from": built_from,
+            "rows": rows,
+        }
         if mode == "full":
             # Only these contigs may assert a genuine absence; a chromosome that failed
             # to stream (or MT / alt-decoy, never covered) is excluded so the client
@@ -552,9 +672,11 @@ def main(argv: list[str] | None = None) -> int:
             meta["contigs"] = covered
             incomplete = [c for c in CHROMS if c not in covered]
             if incomplete:
-                _warn(f"{len(incomplete)}/{len(CHROMS)} chromosomes INCOMPLETE and excluded "
-                      f"from absence assertions: {','.join(incomplete)}. Re-run to complete; "
-                      f"queries on them fall back to remote/unknown (never a fake 0.0).")
+                _warn(
+                    f"{len(incomplete)}/{len(CHROMS)} chromosomes INCOMPLETE and excluded "
+                    f"from absence assertions: {','.join(incomplete)}. Re-run to complete; "
+                    f"queries on them fall back to remote/unknown (never a fake 0.0)."
+                )
         meta_path = out.with_name(out.name + ".meta")
         meta_path.write_text(json.dumps(meta, indent=2) + "\n")
     finally:
@@ -569,8 +691,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Done ({mode}, mode={table_mode}).", file=sys.stderr)
     print(f"  rows written : {rows}", file=sys.stderr)
     if skipped:
-        print(f"  skipped      : {skipped} (gnomAD lookup failed after retries)",
-              file=sys.stderr)
+        print(
+            f"  skipped      : {skipped} (gnomAD lookup failed after retries)",
+            file=sys.stderr,
+        )
     print(f"  table        : {out}  ({_human(size)})", file=sys.stderr)
     print(f"  index        : {out}.tbi", file=sys.stderr)
     print(f"  sidecar      : {out}.meta", file=sys.stderr)

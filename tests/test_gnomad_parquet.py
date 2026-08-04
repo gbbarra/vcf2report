@@ -1,4 +1,5 @@
 """gnomAD DuckDB/Parquet source: batch prime, the full/partial absence guard, case."""
+
 import json
 
 import pytest
@@ -19,9 +20,10 @@ def _make_parquet(tmp_path, mode=None, contigs=("chr1",)):
         AS t(chrom, pos, ref, alt, af, af_grpmax, ac, an, nhomalt, faf95, grpmax_pop))
         TO '{p}' (FORMAT PARQUET)""")
     con.close()
-    if mode:   # a build that vouches for the store writes this sidecar
+    if mode:  # a build that vouches for the store writes this sidecar
         (tmp_path / "g.parquet.meta.json").write_text(
-            json.dumps({"mode": mode, "contigs": list(contigs)}))
+            json.dumps({"mode": mode, "contigs": list(contigs)})
+        )
     return p
 
 
@@ -32,6 +34,7 @@ def parquet(tmp_path, monkeypatch):
         monkeypatch.setattr(config, "GNOMAD_PARQUET", str(p))
         gnomad_parquet._reset_for_tests()
         return p
+
     yield _setup
     gnomad_parquet._reset_for_tests()
 
@@ -46,7 +49,9 @@ def test_prime_and_match(parquet):
     assert n == 2
     r = gnomad_parquet.get("1-100-A-T")
     # af is the grpmax (popmax) value the ACMG engine cites, not the overall af.
-    assert r["af"] == 0.50 and r["faf95"] == 0.48 and r["pop"] == "nfe" and r["hom"] == 20
+    assert (
+        r["af"] == 0.50 and r["faf95"] == 0.48 and r["pop"] == "nfe" and r["hom"] == 20
+    )
 
 
 def test_partial_default_never_fabricates_absence(parquet):
@@ -61,12 +66,18 @@ def test_full_covered_absence_is_zero(parquet):
     parquet(mode="full", contigs=("chr1",))
     gnomad_parquet.prime([_v("1", 999, "A", "T")])
     assert gnomad_parquet.get("1-999-A-T") == {
-        "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None,
+        "af": 0.0,
+        "ac": 0,
+        "an": 0,
+        "hom": 0,
+        "faf95": 0.0,
+        "pop": None,
         # A store that covers the locus and holds no row VOUCHES for the absence. It has
         # no gnomAD record and therefore no AN, so AN cannot carry that meaning — the flag
         # does. report.assemble.is_hom_absent_artifact reads it to tell a surveyed absence
         # from a site gnomAD never surveyed.
-        "vouched_absent": True}
+        "vouched_absent": True,
+    }
 
 
 def test_bed_mode_asserts_absence_only_inside_intervals(tmp_path, monkeypatch):
@@ -74,22 +85,33 @@ def test_bed_mode_asserts_absence_only_inside_intervals(tmp_path, monkeypatch):
     # sound because the store is complete there; off-panel it stays unprimed (no fake 0.0).
     p = _make_parquet(tmp_path)
     bed = tmp_path / "panel.bed"
-    bed.write_text("chr1\t50\t250\n")     # 0-based half-open -> covers 1-based 51..250
-    (tmp_path / "g.parquet.meta.json").write_text(json.dumps(
-        {"mode": "bed", "contigs": ["chr1"], "bed_path": str(bed)}))
+    bed.write_text("chr1\t50\t250\n")  # 0-based half-open -> covers 1-based 51..250
+    (tmp_path / "g.parquet.meta.json").write_text(
+        json.dumps({"mode": "bed", "contigs": ["chr1"], "bed_path": str(bed)})
+    )
     monkeypatch.setattr(config, "GNOMAD_PARQUET", str(p))
     gnomad_parquet._reset_for_tests()
-    gnomad_parquet.prime([_v("1", 100, "A", "T"),    # matches parquet -> served
-                          _v("1", 150, "A", "T"),    # in BED, absent -> genuine 0.0
-                          _v("1", 5000, "A", "T")])   # off BED, absent -> unprimed
+    gnomad_parquet.prime(
+        [
+            _v("1", 100, "A", "T"),  # matches parquet -> served
+            _v("1", 150, "A", "T"),  # in BED, absent -> genuine 0.0
+            _v("1", 5000, "A", "T"),
+        ]
+    )  # off BED, absent -> unprimed
     assert gnomad_parquet.get("1-100-A-T")["af"] == 0.50
     assert gnomad_parquet.get("1-150-A-T") == {
-        "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None,
+        "af": 0.0,
+        "ac": 0,
+        "an": 0,
+        "hom": 0,
+        "faf95": 0.0,
+        "pop": None,
         # A store that covers the locus and holds no row VOUCHES for the absence. It has
         # no gnomAD record and therefore no AN, so AN cannot carry that meaning — the flag
         # does. report.assemble.is_hom_absent_artifact reads it to tell a surveyed absence
         # from a site gnomAD never surveyed.
-        "vouched_absent": True}
+        "vouched_absent": True,
+    }
     assert gnomad_parquet.get("1-5000-A-T") is None
     gnomad_parquet._reset_for_tests()
 
@@ -97,12 +119,19 @@ def test_bed_mode_asserts_absence_only_inside_intervals(tmp_path, monkeypatch):
 def test_bed_mode_without_bed_file_stays_partial(tmp_path, monkeypatch):
     # mode='bed' but the BED can't be loaded -> fall back to partial (never assert absence).
     p = _make_parquet(tmp_path)
-    (tmp_path / "g.parquet.meta.json").write_text(json.dumps(
-        {"mode": "bed", "contigs": ["chr1"], "bed_path": str(tmp_path / "missing.bed")}))
+    (tmp_path / "g.parquet.meta.json").write_text(
+        json.dumps(
+            {
+                "mode": "bed",
+                "contigs": ["chr1"],
+                "bed_path": str(tmp_path / "missing.bed"),
+            }
+        )
+    )
     monkeypatch.setattr(config, "GNOMAD_PARQUET", str(p))
     gnomad_parquet._reset_for_tests()
     gnomad_parquet.prime([_v("1", 150, "A", "T")])
-    assert gnomad_parquet.get("1-150-A-T") is None      # no BED -> safe, unprimed
+    assert gnomad_parquet.get("1-150-A-T") is None  # no BED -> safe, unprimed
     gnomad_parquet._reset_for_tests()
 
 
@@ -120,20 +149,27 @@ def test_bed_mode_non_pass_variant_is_not_a_false_absence(tmp_path, monkeypatch)
     con.close()
     bed = tmp_path / "panel.bed"
     bed.write_text("chr1\t50\t250\n")
-    (tmp_path / "g.parquet.meta.json").write_text(json.dumps(
-        {"mode": "bed", "contigs": ["chr1"], "bed_path": str(bed)}))
+    (tmp_path / "g.parquet.meta.json").write_text(
+        json.dumps({"mode": "bed", "contigs": ["chr1"], "bed_path": str(bed)})
+    )
     monkeypatch.setattr(config, "GNOMAD_PARQUET", str(p))
     gnomad_parquet._reset_for_tests()
     gnomad_parquet.prime([_v("1", 120, "G", "GA"), _v("1", 130, "A", "T")])
-    rec = gnomad_parquet.get("1-120-G-GA")                 # present but non-PASS
-    assert rec is not None and rec["af"] is None           # NOT a fake absence (af != 0.0)
-    assert gnomad_parquet.get("1-130-A-T") == {            # truly absent in-BED -> real absence
-        "af": 0.0, "ac": 0, "an": 0, "hom": 0, "faf95": 0.0, "pop": None,
+    rec = gnomad_parquet.get("1-120-G-GA")  # present but non-PASS
+    assert rec is not None and rec["af"] is None  # NOT a fake absence (af != 0.0)
+    assert gnomad_parquet.get("1-130-A-T") == {  # truly absent in-BED -> real absence
+        "af": 0.0,
+        "ac": 0,
+        "an": 0,
+        "hom": 0,
+        "faf95": 0.0,
+        "pop": None,
         # A store that covers the locus and holds no row VOUCHES for the absence. It has
         # no gnomAD record and therefore no AN, so AN cannot carry that meaning — the flag
         # does. report.assemble.is_hom_absent_artifact reads it to tell a surveyed absence
         # from a site gnomAD never surveyed.
-        "vouched_absent": True}
+        "vouched_absent": True,
+    }
     gnomad_parquet._reset_for_tests()
 
 
@@ -171,9 +207,11 @@ def test_non_pass_variant_present_but_af_unavailable(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "GNOMAD_PARQUET", str(p))
     gnomad_parquet._reset_for_tests()
     gnomad_parquet.prime([_v("1", 100, "A", "T"), _v("1", 200, "C", "G")])
-    assert gnomad_parquet.get("1-100-A-T")["af"] == 0.50   # PASS -> served
-    rec = gnomad_parquet.get("1-200-C-G")                   # non-PASS artifact
-    assert rec is not None and rec["af"] is None            # present, but AF not served (not absent)
+    assert gnomad_parquet.get("1-100-A-T")["af"] == 0.50  # PASS -> served
+    rec = gnomad_parquet.get("1-200-C-G")  # non-PASS artifact
+    assert (
+        rec is not None and rec["af"] is None
+    )  # present, but AF not served (not absent)
     gnomad_parquet._reset_for_tests()
 
 
@@ -196,16 +234,20 @@ def test_auto_detects_local_store(tmp_path, monkeypatch):
     # (so a built/fetched data/gnomad/gnomad_parquet/ is "always used" without config).
     monkeypatch.delenv("VCF2REPORT_GNOMAD_PARQUET", raising=False)
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
-    monkeypatch.setattr(config, "DEFAULT_GNOMAD_PARQUET", tmp_path / "gnomad" / "gnomad_parquet")
-    assert config._resolve_gnomad_parquet() is None      # not built yet -> feature off
+    monkeypatch.setattr(
+        config, "DEFAULT_GNOMAD_PARQUET", tmp_path / "gnomad" / "gnomad_parquet"
+    )
+    assert config._resolve_gnomad_parquet() is None  # not built yet -> feature off
     d = tmp_path / "gnomad" / "gnomad_parquet"
     d.mkdir(parents=True)
-    assert config._resolve_gnomad_parquet() == str(d)    # present -> auto-detected
+    assert config._resolve_gnomad_parquet() == str(d)  # present -> auto-detected
 
 
 def test_env_var_overrides_local_store(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
-    monkeypatch.setattr(config, "DEFAULT_GNOMAD_PARQUET", tmp_path / "gnomad" / "gnomad_parquet")
+    monkeypatch.setattr(
+        config, "DEFAULT_GNOMAD_PARQUET", tmp_path / "gnomad" / "gnomad_parquet"
+    )
     (tmp_path / "gnomad" / "gnomad_parquet").mkdir(parents=True)
     monkeypatch.setenv("VCF2REPORT_GNOMAD_PARQUET", "/somewhere/else.parquet")
     assert config._resolve_gnomad_parquet() == "/somewhere/else.parquet"
@@ -213,6 +255,7 @@ def test_env_var_overrides_local_store(tmp_path, monkeypatch):
 
 def test_lookup_prefers_primed_parquet(parquet, monkeypatch):
     from vcf2report.annotate import cache
+
     parquet()
     monkeypatch.setattr(cache, "get", lambda *a, **k: None)
     gnomad_parquet.prime([_v("1", 100, "A", "T")])
@@ -224,9 +267,13 @@ def test_parquet_wins_over_stale_cache(parquet, monkeypatch):
     # M1: a stale/wrong disk-cache entry must NOT shadow the fresh parquet answer —
     # the fresh authoritative source is checked before the persisted cache.
     from vcf2report.annotate import cache
+
     parquet()
     gnomad_parquet.prime([_v("1", 100, "A", "T")])
-    monkeypatch.setattr(cache, "get",
-                        lambda *a, **k: {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "pop": None})
+    monkeypatch.setattr(
+        cache,
+        "get",
+        lambda *a, **k: {"af": 0.0, "ac": 0, "an": 0, "hom": 0, "pop": None},
+    )
     r = gnomad.lookup(_v("1", 100, "A", "T"))
     assert r["af"] == 0.50 and "parquet" in r["_source"]

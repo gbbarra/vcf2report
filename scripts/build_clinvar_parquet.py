@@ -12,6 +12,7 @@ other source (gnomAD/AlphaMissense stay frozen).
 
 Defaults: SRC = config.CLINVAR_TABIX, OUT = config.CLINVAR_PARQUET.
 """
+
 import sys
 from pathlib import Path
 
@@ -27,8 +28,10 @@ SRC = Path(sys.argv[1]) if len(sys.argv) > 1 else config.CLINVAR_TABIX
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else config.CLINVAR_PARQUET
 
 if not SRC.exists():
-    raise SystemExit(f"ClinVar TSV not found: {SRC}\n"
-                     f"Build it first: python3 scripts/build_clinvar_local.py <clinvar.vcf.gz>")
+    raise SystemExit(
+        f"ClinVar TSV not found: {SRC}\n"
+        f"Build it first: python3 scripts/build_clinvar_local.py <clinvar.vcf.gz>"
+    )
 
 TMP = OUT.with_name(OUT.name + ".building")
 OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -56,14 +59,18 @@ COPY (
                           'accession':'VARCHAR','condition':'VARCHAR'}})
 ) TO '{TMP.as_posix()}' (FORMAT PARQUET, PARTITION_BY (chrom), OVERWRITE_OR_IGNORE);
 """)
-n = con.execute(f"SELECT count(*) FROM read_parquet('{TMP.as_posix()}/**/*.parquet')").fetchone()[0]
+n = con.execute(
+    f"SELECT count(*) FROM read_parquet('{TMP.as_posix()}/**/*.parquet')"
+).fetchone()[0]
 con.close()
 
 import shutil  # noqa: E402
+
 if OUT.exists():
     shutil.rmtree(OUT)
 TMP.rename(OUT)
 print(f"[clinvar-parquet] wrote {n:,} variants (review_stars precomputed) -> {OUT}")
 from vcf2report import stores  # noqa: E402
+
 stores.write_manifest("clinvar", path=str(OUT))
 print("[clinvar-parquet] _manifest.json stamped — verify with scripts/check_stores.py")

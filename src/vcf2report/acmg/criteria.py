@@ -18,6 +18,7 @@ Criteria requiring data we don't have from a single proband VCF (trio,
 segregation, phasing) are returned with ``applies=False`` and an explicit
 reason, so the output is honest instead of silently incomplete.
 """
+
 from __future__ import annotations
 
 from typing import Callable, Optional
@@ -35,17 +36,21 @@ REVEL_PATHOGENIC = 0.70
 REVEL_BENIGN = 0.15
 CADD_PATHOGENIC = 20.0
 CADD_BENIGN = 10.0
-BS2_HOM_MIN = 2             # healthy homozygotes incompatible with severe disease
-HPO_PP4_MIN = 0.60          # phenotype-match score to support PP4
+BS2_HOM_MIN = 2  # healthy homozygotes incompatible with severe disease
+HPO_PP4_MIN = 0.60  # phenotype-match score to support PP4
 
 # Shared audit-trail wording for the three residue-index criteria (PS1/PM5/PM1). Written once
 # because these are user-facing report text that must read identically across the three — and
 # because the first embeds a SCRIPT PATH, which would otherwise have to be found in three literals
 # if the script is ever renamed.
-_RESIDUE_UNAVAILABLE = ("ClinVar residue index unavailable — {code} not assessed "
-                        "(build it: scripts/fetch_clinvar_residue.py)")
-_OWN_PLP_WITHHELD = ("variant's own ClinVar assertion is pathogenic — captured by PP5; "
-                     "{code} withheld to avoid double-counting the same ClinVar evidence")
+_RESIDUE_UNAVAILABLE = (
+    "ClinVar residue index unavailable — {code} not assessed "
+    "(build it: scripts/fetch_clinvar_residue.py)"
+)
+_OWN_PLP_WITHHELD = (
+    "variant's own ClinVar assertion is pathogenic — captured by PP5; "
+    "{code} withheld to avoid double-counting the same ClinVar evidence"
+)
 
 # The criteria decided from GENE- or RESIDUE-level missense context rather than from the variant's
 # own record: gnomAD missense constraint (PP2/BP1) and the ClinVar residue index (PS1/PM5/PM1).
@@ -62,6 +67,7 @@ def criterion(code: str) -> Callable[[CriterionFn], CriterionFn]:
     def deco(fn: CriterionFn) -> CriterionFn:
         _REGISTRY[code] = fn
         return fn
+
     return deco
 
 
@@ -72,13 +78,20 @@ def all_criteria() -> dict[str, CriterionFn]:
 def _na(code: str, name: str, strength: str, reason: str) -> CriterionResult:
     """A criterion that does not apply to a single-proband VCF."""
     return CriterionResult(
-        code=code, name=name, default_strength=strength, applies=False,
-        met=False, reasoning=reason, confidence="high", adjudicated_by="engine",
+        code=code,
+        name=name,
+        default_strength=strength,
+        applies=False,
+        met=False,
+        reasoning=reason,
+        confidence="high",
+        adjudicated_by="engine",
     )
 
 
-def _judgment(code: str, name: str, strength: str, reason: str,
-              evidence: dict | None = None) -> CriterionResult:
+def _judgment(
+    code: str, name: str, strength: str, reason: str, evidence: dict | None = None
+) -> CriterionResult:
     """A criterion needing genuine clinical/literature judgement.
 
     The evidence is surfaced and the decision tagged ``adjudicated_by="model"``, defaulting to
@@ -86,8 +99,15 @@ def _judgment(code: str, name: str, strength: str, reason: str,
     fact. One helper so the contract lives in one place rather than being restated per criterion.
     """
     return CriterionResult(
-        code=code, name=name, default_strength=strength, applies=True, met=False,
-        adjudicated_by="model", confidence="low", evidence=evidence or {}, reasoning=reason,
+        code=code,
+        name=name,
+        default_strength=strength,
+        applies=True,
+        met=False,
+        adjudicated_by="model",
+        confidence="low",
+        evidence=evidence or {},
+        reasoning=reason,
     )
 
 
@@ -153,10 +173,15 @@ def pvs1(v: Variant, a: Annotation) -> CriterionResult:
     strength = _pvs1_strength(v) if met else None
     # ClinGen HI=3 is a curated gene-disease-mechanism statement, so it is named first when present;
     # constraint and the recessive-phenotype route are the proxies that fill the gaps it leaves.
-    basis = ("gene is ClinGen Haploinsufficiency=3 (curated: LoF causes disease)" if clingen_hi
-             else "gene is LoF-intolerant (population constraint)" if a.gene_lof_intolerant
-             else "gene has an established autosomal-recessive phenotype (HPO)" if ar_mechanism
-             else None)
+    basis = (
+        "gene is ClinGen Haploinsufficiency=3 (curated: LoF causes disease)"
+        if clingen_hi
+        else "gene is LoF-intolerant (population constraint)"
+        if a.gene_lof_intolerant
+        else "gene has an established autosomal-recessive phenotype (HPO)"
+        if ar_mechanism
+        else None
+    )
     cites = []
     if clingen_hi:
         cites.append("ClinGen Dosage Sensitivity (HI=3, local)")
@@ -173,21 +198,33 @@ def pvs1(v: Variant, a: Annotation) -> CriterionResult:
     elif met:
         reason = f"{v.consequence} is loss-of-function and LoF is a disease mechanism in {v.gene} ({basis})"
     elif v.is_lof:
-        reason = (f"{v.consequence} is a null variant, but LoF is not an established disease "
-                  f"mechanism in {v.gene}: not LoF-intolerant by constraint and no known "
-                  f"autosomal-recessive phenotype")
+        reason = (
+            f"{v.consequence} is a null variant, but LoF is not an established disease "
+            f"mechanism in {v.gene}: not LoF-intolerant by constraint and no known "
+            f"autosomal-recessive phenotype"
+        )
     else:
         reason = f"{v.consequence or 'variant'} is not a qualifying null variant"
     return CriterionResult(
-        "PVS1", name, "very_strong", applies=True, met=met,
+        "PVS1",
+        name,
+        "very_strong",
+        applies=True,
+        met=met,
         applied_strength=strength,
-        evidence={"consequence": v.consequence, "gene_lof_intolerant": a.gene_lof_intolerant,
-                  "lof_mechanism_basis": basis, "gene_moi": config.gene_inheritance(v.gene),
-                  "exon": v.exon, "pvs1_strength": strength},
+        evidence={
+            "consequence": v.consequence,
+            "gene_lof_intolerant": a.gene_lof_intolerant,
+            "lof_mechanism_basis": basis,
+            "gene_moi": config.gene_inheritance(v.gene),
+            "exon": v.exon,
+            "pvs1_strength": strength,
+        },
         # Only cite when the criterion fired: an unmet PVS1 was still printing "ClinGen Dosage
         # Sensitivity (HI=3)" in the Source column of a row whose reasoning is about consequence
         # type, asserting a curated lookup as the basis of a decision that never used it.
-        citation=cites if met else [], reasoning=reason,
+        citation=cites if met else [],
+        reasoning=reason,
     )
 
 
@@ -199,9 +236,11 @@ def _clinvar_reviewed(a: Annotation) -> bool:
     "criteria provided" — is correctly excluded.
     """
     review = (a.clinvar_review_status or "").lower().replace("_", " ").strip()
-    return (review.startswith("criteria provided")
-            or "reviewed by expert" in review
-            or "practice guideline" in review)
+    return (
+        review.startswith("criteria provided")
+        or "reviewed by expert" in review
+        or "practice guideline" in review
+    )
 
 
 def _clinvar_says(a: Annotation, *prefixes: str) -> bool:
@@ -236,9 +275,11 @@ def ps1(v: Variant, a: Annotation) -> CriterionResult:
     met = m is not None and not own_plp
     if met:
         acc = m.get("accession")
-        reason = (f"same amino-acid change ({m.get('ref_aa','')}"
-                  f"{'→' + m['alt_aa'] if m.get('alt_aa') else ''}) as an established ClinVar "
-                  f"pathogenic variant {acc or ''} ({m.get('stars')}★) at a different locus")
+        reason = (
+            f"same amino-acid change ({m.get('ref_aa', '')}"
+            f"{'→' + m['alt_aa'] if m.get('alt_aa') else ''}) as an established ClinVar "
+            f"pathogenic variant {acc or ''} ({m.get('stars')}★) at a different locus"
+        )
     elif m is not None and own_plp:
         reason = _OWN_PLP_WITHHELD.format(code="PS1")
     elif not a.clinvar_residue_available:
@@ -246,11 +287,18 @@ def ps1(v: Variant, a: Annotation) -> CriterionResult:
     elif not v.hgvs_p:
         reason = "no protein change (not a missense) — PS1 not applicable"
     else:
-        reason = "no distinct ClinVar pathogenic variant with the same amino-acid change"
+        reason = (
+            "no distinct ClinVar pathogenic variant with the same amino-acid change"
+        )
     return CriterionResult(
-        "PS1", name, "strong", applies=True, met=met,
+        "PS1",
+        name,
+        "strong",
+        applies=True,
+        met=met,
         applied_strength="strong" if met else None,
-        adjudicated_by="engine", confidence="high" if a.clinvar_residue_available else "low",
+        adjudicated_by="engine",
+        confidence="high" if a.clinvar_residue_available else "low",
         evidence={"hgvs_p": v.hgvs_p, "ps1_match": m, "own_clinvar_plp": own_plp},
         citation=[m["accession"]] if (met and m.get("accession")) else [],
         reasoning=reason,
@@ -259,23 +307,33 @@ def ps1(v: Variant, a: Annotation) -> CriterionResult:
 
 @criterion("PS2")
 def ps2(v: Variant, a: Annotation) -> CriterionResult:
-    return _na("PS2", "De novo (confirmed) in a patient", "strong",
-               "Requires parental (trio) data — not available from a single proband VCF")
+    return _na(
+        "PS2",
+        "De novo (confirmed) in a patient",
+        "strong",
+        "Requires parental (trio) data — not available from a single proband VCF",
+    )
 
 
 @criterion("PS3")
 def ps3(v: Variant, a: Annotation) -> CriterionResult:
     return _judgment(
-        "PS3", "Well-established functional studies show a damaging effect", "strong",
-        "Requires literature review of functional assays — left for expert/model adjudication")
+        "PS3",
+        "Well-established functional studies show a damaging effect",
+        "strong",
+        "Requires literature review of functional assays — left for expert/model adjudication",
+    )
 
 
 @criterion("PS4")
 def ps4(v: Variant, a: Annotation) -> CriterionResult:
     return _judgment(
-        "PS4", "Prevalence in affected significantly increased vs controls", "strong",
+        "PS4",
+        "Prevalence in affected significantly increased vs controls",
+        "strong",
         "Needs case-control data; population absence alone is captured by PM2",
-        evidence={"gnomad_af": a.gnomad_af, "local_cohort_af": a.local_cohort_af})
+        evidence={"gnomad_af": a.gnomad_af, "local_cohort_af": a.local_cohort_af},
+    )
 
 
 def _pm1_signals(v: Variant, a: Annotation) -> dict:
@@ -303,8 +361,10 @@ def _pm1_signals(v: Variant, a: Annotation) -> dict:
         # a pathogenic ClinVar assertion LOWERED the tier (LP -> VUS), which no reading defends.
         # PM1's evidence is the NEIGHBOURING residues (hotspot() excludes the query residue), so it
         # is independent of PP5 and cannot double-count it.
-        "same_residue": ((a.clinvar_ps1 is not None or a.clinvar_pm5 is not None)
-                         and not _own_clinvar_plp(a)),
+        "same_residue": (
+            (a.clinvar_ps1 is not None or a.clinvar_pm5 is not None)
+            and not _own_clinvar_plp(a)
+        ),
         # None (gene absent from the constraint table, or the caller never populated it) is NOT the
         # same as False. `bool(None)` made "unknown" behave exactly like "proven constrained", so
         # PM1's stand-in for ACMG's "without benign variation" silently vanished — the criterion
@@ -317,9 +377,14 @@ def _pm1_signals(v: Variant, a: Annotation) -> dict:
     # Require the tolerance guard to be ANSWERABLE, not merely non-True: firing PM1 while the
     # constraint metric is unknown means asserting a hotspot with the "without benign variation"
     # half of the criterion never evaluated.
-    s["fires"] = bool(s["is_missense"] and s["dense"] and s["enriched"]
-                      and not s["same_residue"]
-                      and s["tolerance_known"] and not s["tolerant"])
+    s["fires"] = bool(
+        s["is_missense"]
+        and s["dense"]
+        and s["enriched"]
+        and not s["same_residue"]
+        and s["tolerance_known"]
+        and not s["tolerant"]
+    )
     return s
 
 
@@ -342,42 +407,70 @@ def pm1(v: Variant, a: Annotation) -> CriterionResult:
     #     (BP1's flag) is excluded.
     #   * a high residue count is required (not a single neighbour), so isolated pairs don't fire.
     s = _pm1_signals(v, a)
-    hot, n_res, n_chg, enrich = s["hot"], s["n_residues"], s["n_changes"], s["enrichment"]
+    hot, n_res, n_chg, enrich = (
+        s["hot"],
+        s["n_residues"],
+        s["n_changes"],
+        s["enrichment"],
+    )
     is_missense, same_residue_evidence = s["is_missense"], s["same_residue"]
     tolerant, dense, enriched = s["tolerant"], s["dense"], s["enriched"]
     met = s["fires"]
     if met:
-        reason = (f"{n_res} distinct pathogenic-missense residues within ±{hot.get('window')} aa "
-                  f"({n_chg} pathogenic changes), {enrich}× denser than {v.gene}'s own baseline — "
-                  f"mutational hotspot by ClinVar density")
+        reason = (
+            f"{n_res} distinct pathogenic-missense residues within ±{hot.get('window')} aa "
+            f"({n_chg} pathogenic changes), {enrich}× denser than {v.gene}'s own baseline — "
+            f"mutational hotspot by ClinVar density"
+        )
     elif not is_missense:
         reason = f"{v.consequence or 'variant'} is not a missense variant"
     elif not a.clinvar_residue_available:
         reason = _RESIDUE_UNAVAILABLE.format(code="PM1")
     elif same_residue_evidence:
-        reason = ("pathogenic missense at this exact residue — carried by PS1/PM5; "
-                  "PM1 withheld so the same residue evidence is not counted twice")
+        reason = (
+            "pathogenic missense at this exact residue — carried by PS1/PM5; "
+            "PM1 withheld so the same residue evidence is not counted twice"
+        )
     elif tolerant:
-        reason = f"{v.gene} tolerates missense (gnomAD obs/exp) — not a constrained hotspot"
+        reason = (
+            f"{v.gene} tolerates missense (gnomAD obs/exp) — not a constrained hotspot"
+        )
     elif not s["tolerance_known"]:
-        reason = (f"no gnomAD missense-constraint metric for {v.gene or 'this gene'} — PM1 needs it "
-                  f"to stand in for ACMG's 'without benign variation' clause, so it is not assessed")
+        reason = (
+            f"no gnomAD missense-constraint metric for {v.gene or 'this gene'} — PM1 needs it "
+            f"to stand in for ACMG's 'without benign variation' clause, so it is not assessed"
+        )
     elif dense and not enriched:
-        reason = (f"{n_res} pathogenic-missense residues nearby, but only {enrich}× {v.gene}'s "
-                  f"baseline density (needs {extra_residue.HOTSPOT_MIN_ENRICHMENT}×) — a "
-                  f"well-catalogued gene, not a local hotspot")
+        reason = (
+            f"{n_res} pathogenic-missense residues nearby, but only {enrich}× {v.gene}'s "
+            f"baseline density (needs {extra_residue.HOTSPOT_MIN_ENRICHMENT}×) — a "
+            f"well-catalogued gene, not a local hotspot"
+        )
     else:
-        reason = (f"only {n_res} pathogenic-missense residue(s) within ±{hot.get('window', 0)} aa "
-                  f"(needs {extra_residue.HOTSPOT_MIN_RESIDUES})")
+        reason = (
+            f"only {n_res} pathogenic-missense residue(s) within ±{hot.get('window', 0)} aa "
+            f"(needs {extra_residue.HOTSPOT_MIN_RESIDUES})"
+        )
     return CriterionResult(
-        "PM1", name, "moderate", applies=True, met=met,
+        "PM1",
+        name,
+        "moderate",
+        applies=True,
+        met=met,
         applied_strength="moderate" if met else None,
-        adjudicated_by="engine", confidence="moderate",
-        evidence={"consequence": v.consequence, "hgvs_p": v.hgvs_p,
-                  "hotspot_residues": n_res, "hotspot_changes": n_chg,
-                  "enrichment": enrich, "gene_baseline": hot.get("gene_baseline"),
-                  "window": hot.get("window"), "cutoff": extra_residue.HOTSPOT_MIN_RESIDUES,
-                  "enrichment_cutoff": extra_residue.HOTSPOT_MIN_ENRICHMENT},
+        adjudicated_by="engine",
+        confidence="moderate",
+        evidence={
+            "consequence": v.consequence,
+            "hgvs_p": v.hgvs_p,
+            "hotspot_residues": n_res,
+            "hotspot_changes": n_chg,
+            "enrichment": enrich,
+            "gene_baseline": hot.get("gene_baseline"),
+            "window": hot.get("window"),
+            "cutoff": extra_residue.HOTSPOT_MIN_RESIDUES,
+            "enrichment_cutoff": extra_residue.HOTSPOT_MIN_ENRICHMENT,
+        },
         citation=["ClinVar residue index (local)"] if met else [],
         reasoning=reason,
     )
@@ -400,8 +493,11 @@ def pm2(v: Variant, a: Annotation) -> CriterionResult:
     # the code does not keep. Firing on gnomAD alone is right (absence there is real
     # evidence); presenting it as a two-database result is not.
     local_cohort_checked = a.local_cohort_af is not None
-    name = ("Absent or ultra-rare in population databases (gnomAD + local cohort)" if local_cohort_checked
-            else "Absent or ultra-rare in population databases (gnomAD; local cohort not consulted)")
+    name = (
+        "Absent or ultra-rare in population databases (gnomAD + local cohort)"
+        if local_cohort_checked
+        else "Absent or ultra-rare in population databases (gnomAD; local cohort not consulted)"
+    )
     # gnomAD AF None means 'frequency unavailable' (lookup failed), NOT absence —
     # PM2 must not fire because we cannot assert the variant is rare.
     gnomad_unknown = a.gnomad_af is None
@@ -412,7 +508,12 @@ def pm2(v: Variant, a: Annotation) -> CriterionResult:
     cites = [c for c in (a.source.get("gnomad"), a.source.get("local_cohort")) if c]
     if gnomad_unknown:
         return CriterionResult(
-            "PM2", name, "moderate", applies=True, met=False, adjudicated_by="engine",
+            "PM2",
+            name,
+            "moderate",
+            applies=True,
+            met=False,
+            adjudicated_by="engine",
             confidence="low",
             evidence={"gnomad_af": None, "local_cohort_af": a.local_cohort_af},
             citation=cites,
@@ -426,31 +527,49 @@ def pm2(v: Variant, a: Annotation) -> CriterionResult:
     met = rare_global and rare_local
     # Don't quote an local cohort AF we never checked: None means "not in the local table",
     # not a verified 0.0 (it still doesn't block PM2 — baf defaults to 0.0 above).
-    local_cohort_txt = f"local cohort AF={a.local_cohort_af:.6f}" if a.local_cohort_af is not None else "local cohort not checked"
+    local_cohort_txt = (
+        f"local cohort AF={a.local_cohort_af:.6f}"
+        if a.local_cohort_af is not None
+        else "local cohort not checked"
+    )
     reason = (
         f"gnomAD popmax AF={gaf:.6f}, {local_cohort_txt} — gnomAD at/under {ceiling:g} ({moi_note})"
-        if met else
-        f"present above the {ceiling:g} PM2 ceiling ({moi_note}): "
+        if met
+        else f"present above the {ceiling:g} PM2 ceiling ({moi_note}): "
         f"gnomAD AF={gaf:.6f}, {local_cohort_txt}"
     )
     return CriterionResult(
-        "PM2", name, "moderate", applies=True, met=met,
+        "PM2",
+        name,
+        "moderate",
+        applies=True,
+        met=met,
         applied_strength=config.pm2_strength() if met else None,
         # Rarity established on one population database rather than two is weaker evidence,
         # and the reader should see that without reading the trail. Nothing decides on
         # confidence — it is signal, not a gate.
         confidence="high" if local_cohort_checked else "moderate",
-        evidence={"gnomad_af": a.gnomad_af, "local_cohort_af": a.local_cohort_af,
-                  "local_cohort_checked": local_cohort_checked,
-                  "ceiling": ceiling, "moi": moi, "strength_model": config.acmg_model()},
-        citation=cites, reasoning=reason,
+        evidence={
+            "gnomad_af": a.gnomad_af,
+            "local_cohort_af": a.local_cohort_af,
+            "local_cohort_checked": local_cohort_checked,
+            "ceiling": ceiling,
+            "moi": moi,
+            "strength_model": config.acmg_model(),
+        },
+        citation=cites,
+        reasoning=reason,
     )
 
 
 @criterion("PM3")
 def pm3(v: Variant, a: Annotation) -> CriterionResult:
-    return _na("PM3", "Detected in trans with a pathogenic variant (recessive)", "moderate",
-               "Requires phasing / a second variant — not determinable from this VCF alone")
+    return _na(
+        "PM3",
+        "Detected in trans with a pathogenic variant (recessive)",
+        "moderate",
+        "Requires phasing / a second variant — not determinable from this VCF alone",
+    )
 
 
 @criterion("PM4")
@@ -461,11 +580,18 @@ def pm4(v: Variant, a: Annotation) -> CriterionResult:
     c = (v.consequence or "").lower()
     met = "inframe" in c or c == "stop_lost"
     return CriterionResult(
-        "PM4", name, "moderate", applies=True, met=met,
+        "PM4",
+        name,
+        "moderate",
+        applies=True,
+        met=met,
         applied_strength="moderate" if met else None,
         evidence={"consequence": v.consequence},
-        reasoning=(f"{v.consequence} alters protein length" if met
-                   else "no protein-length-changing consequence"),
+        reasoning=(
+            f"{v.consequence} alters protein length"
+            if met
+            else "no protein-length-changing consequence"
+        ),
     )
 
 
@@ -505,18 +631,25 @@ def pm5(v: Variant, a: Annotation) -> CriterionResult:
     if met:
         acc = m.get("accession")
         n_other = m.get("n_other") or 1
-        extra_note = (f"; {n_other} distinct pathogenic changes at this residue → PM5_{strength}"
-                      if strength != "moderate" else "")
-        reason = (f"a different pathogenic missense at the same residue is established in "
-                  f"ClinVar (→{m['alt_aa']}, {acc or ''}, {m.get('stars')}★); this change is novel"
-                  f"{extra_note}")
+        extra_note = (
+            f"; {n_other} distinct pathogenic changes at this residue → PM5_{strength}"
+            if strength != "moderate"
+            else ""
+        )
+        reason = (
+            f"a different pathogenic missense at the same residue is established in "
+            f"ClinVar (→{m['alt_aa']}, {acc or ''}, {m.get('stars')}★); this change is novel"
+            f"{extra_note}"
+        )
     # own_plp is tested BEFORE the PS1 branch: when the variant's own record is a reviewed P/LP,
     # PS1 is itself withheld, so crediting it would point the reviewer at a criterion that reads
     # "—". Ordering the other way made PM5 say "captured by PS1" while PS1.met was False.
     elif own_plp:
         reason = _OWN_PLP_WITHHELD.format(code="PM5")
     elif a.clinvar_ps1 is not None:
-        reason = "same amino-acid change is itself established — captured by PS1, not PM5"
+        reason = (
+            "same amino-acid change is itself established — captured by PS1, not PM5"
+        )
     elif not a.clinvar_residue_available:
         reason = _RESIDUE_UNAVAILABLE.format(code="PM5")
     elif not v.hgvs_p:
@@ -524,11 +657,20 @@ def pm5(v: Variant, a: Annotation) -> CriterionResult:
     else:
         reason = "no other ClinVar pathogenic missense at this residue"
     return CriterionResult(
-        "PM5", name, "moderate", applies=True, met=met,
+        "PM5",
+        name,
+        "moderate",
+        applies=True,
+        met=met,
         applied_strength=strength,
-        adjudicated_by="engine", confidence="high" if a.clinvar_residue_available else "low",
-        evidence={"hgvs_p": v.hgvs_p, "pm5_match": m, "own_clinvar_plp": own_plp,
-                  "pm5_strength": strength},
+        adjudicated_by="engine",
+        confidence="high" if a.clinvar_residue_available else "low",
+        evidence={
+            "hgvs_p": v.hgvs_p,
+            "pm5_match": m,
+            "own_clinvar_plp": own_plp,
+            "pm5_strength": strength,
+        },
         citation=[m["accession"]] if (met and m.get("accession")) else [],
         reasoning=reason,
     )
@@ -536,15 +678,22 @@ def pm5(v: Variant, a: Annotation) -> CriterionResult:
 
 @criterion("PM6")
 def pm6(v: Variant, a: Annotation) -> CriterionResult:
-    return _na("PM6", "Assumed de novo (parentage not confirmed)", "moderate",
-               "Requires parental data — not available from a single proband VCF")
+    return _na(
+        "PM6",
+        "Assumed de novo (parentage not confirmed)",
+        "moderate",
+        "Requires parental data — not available from a single proband VCF",
+    )
 
 
 @criterion("PP1")
 def pp1(v: Variant, a: Annotation) -> CriterionResult:
-    return _na("PP1", "Co-segregation with disease in multiple affected family members",
-               "supporting",
-               "Requires genotypes for affected relatives — not available from a single proband VCF")
+    return _na(
+        "PP1",
+        "Co-segregation with disease in multiple affected family members",
+        "supporting",
+        "Requires genotypes for affected relatives — not available from a single proband VCF",
+    )
 
 
 @criterion("PP2")
@@ -569,27 +718,44 @@ def pp2(v: Variant, a: Annotation) -> CriterionResult:
         # deserialised Annotation can set the flag alone — and formatting None with :.2f raised
         # TypeError out of evaluate_criteria, aborting the whole classification rather than
         # degrading one criterion's wording.
-        score = f"gnomAD mis_z={mz:.2f} ≥ {extra.MIS_Z_CONSTRAINED}" if mz is not None \
+        score = (
+            f"gnomAD mis_z={mz:.2f} ≥ {extra.MIS_Z_CONSTRAINED}"
+            if mz is not None
             else "flagged missense-constrained by the annotation (mis_z not supplied)"
+        )
         reason = f"missense in {v.gene}, a missense-constrained gene ({score})"
     elif pm1_fires:
-        reason = ("regional hotspot evidence applies (PM1, Moderate) — PP2 stands down so the "
-                  "same missense-intolerance signal is not counted at two granularities")
+        reason = (
+            "regional hotspot evidence applies (PM1, Moderate) — PP2 stands down so the "
+            "same missense-intolerance signal is not counted at two granularities"
+        )
     elif not is_missense:
         reason = f"{v.consequence or 'variant'} is not a missense variant"
     elif mz is not None:
-        reason = (f"{v.gene} missense z-score {mz:.2f} is below the "
-                  f"{extra.MIS_Z_CONSTRAINED} missense-constraint threshold")
+        reason = (
+            f"{v.gene} missense z-score {mz:.2f} is below the "
+            f"{extra.MIS_Z_CONSTRAINED} missense-constraint threshold"
+        )
     else:
         reason = f"no gnomAD missense-constraint metric for {v.gene or 'variant'}"
     return CriterionResult(
-        "PP2", name, "supporting", applies=True, met=met,
+        "PP2",
+        name,
+        "supporting",
+        applies=True,
+        met=met,
         applied_strength="supporting" if met else None,
-        adjudicated_by="engine", confidence="high",
-        evidence={"consequence": v.consequence, "gene": v.gene, "mis_z": mz,
-                  "mis_z_cutoff": extra.MIS_Z_CONSTRAINED,
-                  "missense_constrained": a.gene_missense_constrained},
-        citation=cites, reasoning=reason,
+        adjudicated_by="engine",
+        confidence="high",
+        evidence={
+            "consequence": v.consequence,
+            "gene": v.gene,
+            "mis_z": mz,
+            "mis_z_cutoff": extra.MIS_Z_CONSTRAINED,
+            "missense_constrained": a.gene_missense_constrained,
+        },
+        citation=cites,
+        reasoning=reason,
     )
 
 
@@ -601,7 +767,11 @@ def _insilico_names(a: Annotation) -> str:
     a rendering failure rather than "not computed", and it hid how many lines of evidence the
     criterion really rested on.
     """
-    parts = [f"{n}={x}" for n, x in (("REVEL", a.revel), ("CADD", a.cadd_phred)) if x is not None]
+    parts = [
+        f"{n}={x}"
+        for n, x in (("REVEL", a.revel), ("CADD", a.cadd_phred))
+        if x is not None
+    ]
     return ", ".join(parts) if parts else "no in-silico predictor available"
 
 
@@ -612,10 +782,12 @@ def _insilico_direction(a: Annotation) -> Optional[str]:
     one benign) neither fires, so a variant can never earn both a pathogenic- and
     a benign-supporting line from the same in-silico evidence.
     """
-    patho = (a.revel is not None and a.revel >= REVEL_PATHOGENIC) or \
-            (a.cadd_phred is not None and a.cadd_phred >= CADD_PATHOGENIC)
-    benign = (a.revel is not None and a.revel <= REVEL_BENIGN) or \
-             (a.cadd_phred is not None and a.cadd_phred <= CADD_BENIGN)
+    patho = (a.revel is not None and a.revel >= REVEL_PATHOGENIC) or (
+        a.cadd_phred is not None and a.cadd_phred >= CADD_PATHOGENIC
+    )
+    benign = (a.revel is not None and a.revel <= REVEL_BENIGN) or (
+        a.cadd_phred is not None and a.cadd_phred <= CADD_BENIGN
+    )
     if patho and benign:
         return "conflicting"
     if patho:
@@ -635,29 +807,51 @@ def pp3(v: Variant, a: Annotation) -> CriterionResult:
         strength = config.am_pp3_strength(a.am_pathogenicity)
         met = strength is not None
         return CriterionResult(
-            "PP3", name, "supporting", applies=True, met=met,
+            "PP3",
+            name,
+            "supporting",
+            applies=True,
+            met=met,
             applied_strength=strength if met else None,
-            evidence={"am_pathogenicity": a.am_pathogenicity, "am_class": a.am_class,
-                      "predictor": "AlphaMissense (ClinGen-calibrated)"},
+            evidence={
+                "am_pathogenicity": a.am_pathogenicity,
+                "am_class": a.am_class,
+                "predictor": "AlphaMissense (ClinGen-calibrated)",
+            },
             citation=[c for c in [a.source.get("alphamissense")] if c],
             confidence="moderate",
-            reasoning=(f"AlphaMissense={a.am_pathogenicity:.3f} -> PP3_{strength}"
-                       if met else
-                       f"AlphaMissense={a.am_pathogenicity:.3f} below the PP3 pathogenic threshold"),
+            reasoning=(
+                f"AlphaMissense={a.am_pathogenicity:.3f} -> PP3_{strength}"
+                if met
+                else f"AlphaMissense={a.am_pathogenicity:.3f} below the PP3 pathogenic threshold"
+            ),
         )
     # Fallback: REVEL/CADD at Supporting strength.
     direction = _insilico_direction(a)
     met = direction == "pathogenic"
     return CriterionResult(
-        "PP3", name, "supporting", applies=True, met=met,
+        "PP3",
+        name,
+        "supporting",
+        applies=True,
+        met=met,
         applied_strength="supporting" if met else None,
-        evidence={"revel": a.revel, "cadd_phred": a.cadd_phred,
-                  "revel_cutoff": REVEL_PATHOGENIC, "cadd_cutoff": CADD_PATHOGENIC},
+        evidence={
+            "revel": a.revel,
+            "cadd_phred": a.cadd_phred,
+            "revel_cutoff": REVEL_PATHOGENIC,
+            "cadd_cutoff": CADD_PATHOGENIC,
+        },
         citation=[c for c in [a.source.get("insilico")] if c],
-        reasoning=(f"{_insilico_names(a)} above deleterious cutoffs"
-                   if met else ("in-silico predictors conflict — neither PP3 nor BP4 applied"
-                                if _insilico_direction(a) == "conflicting"
-                                else "in-silico predictors below deleterious cutoffs / unavailable")),
+        reasoning=(
+            f"{_insilico_names(a)} above deleterious cutoffs"
+            if met
+            else (
+                "in-silico predictors conflict — neither PP3 nor BP4 applied"
+                if _insilico_direction(a) == "conflicting"
+                else "in-silico predictors below deleterious cutoffs / unavailable"
+            )
+        ),
     )
 
 
@@ -671,33 +865,54 @@ def pp4(v: Variant, a: Annotation) -> CriterionResult:
     score = a.hpo_match_score
     met = score is not None and score >= HPO_PP4_MIN
     return CriterionResult(
-        "PP4", name, "supporting", applies=True, met=met,
+        "PP4",
+        name,
+        "supporting",
+        applies=True,
+        met=met,
         applied_strength="supporting" if met else None,
         confidence="high" if score is not None else "low",
-        evidence={"hpo_match_score": score, "matched_terms": a.hpo_matched_terms,
-                  "cutoff": HPO_PP4_MIN},
+        evidence={
+            "hpo_match_score": score,
+            "matched_terms": a.hpo_matched_terms,
+            "cutoff": HPO_PP4_MIN,
+        },
         citation=[c for c in [a.source.get("hpo")] if c] if score is not None else [],
-        reasoning=("no phenotype comparison — no HPO terms supplied, or the gene has no HPO "
-                   "annotation" if score is None
-                   else f"phenotype match {score:.2f} (terms: {', '.join(a.hpo_matched_terms) or 'n/a'})"
-                   if met else f"phenotype match {score:.2f} below {HPO_PP4_MIN}"),
+        reasoning=(
+            "no phenotype comparison — no HPO terms supplied, or the gene has no HPO "
+            "annotation"
+            if score is None
+            else f"phenotype match {score:.2f} (terms: {', '.join(a.hpo_matched_terms) or 'n/a'})"
+            if met
+            else f"phenotype match {score:.2f} below {HPO_PP4_MIN}"
+        ),
     )
 
 
 @criterion("PP5")
 def pp5(v: Variant, a: Annotation) -> CriterionResult:
     name = "Reputable source (ClinVar) classifies the variant as pathogenic"
-    met = _own_clinvar_plp(a)   # a REVIEWED (>=1-star) P/LP assertion — see the helper
+    met = _own_clinvar_plp(a)  # a REVIEWED (>=1-star) P/LP assertion — see the helper
     # PP5 was deprecated by the ClinGen SVI; retained here as a transparent, gated
     # SUPPORTING line so ClinVar contributes without over-weighting (vs the old PS1).
     return CriterionResult(
-        "PP5", name, "supporting", applies=True, met=met,
+        "PP5",
+        name,
+        "supporting",
+        applies=True,
+        met=met,
         applied_strength="supporting" if met else None,
-        evidence={"clinvar": a.clinvar_significance, "review_status": a.clinvar_review_status},
+        evidence={
+            "clinvar": a.clinvar_significance,
+            "review_status": a.clinvar_review_status,
+        },
         citation=[a.clinvar_accession] if (met and a.clinvar_accession) else [],
         confidence="moderate",
-        reasoning=(f"ClinVar {a.clinvar_significance} ({a.clinvar_review_status})"
-                   if met else "no reviewed ClinVar pathogenic assertion (or 0-star)"),
+        reasoning=(
+            f"ClinVar {a.clinvar_significance} ({a.clinvar_review_status})"
+            if met
+            else "no reviewed ClinVar pathogenic assertion (or 0-star)"
+        ),
     )
 
 
@@ -740,7 +955,8 @@ def _benign_af(a: Annotation) -> tuple[float, str]:
     if a.gnomad_af_filtered is not None:
         return a.gnomad_af_filtered, (
             f"gnomAD popmax AF at a site filtered as {a.gnomad_filter or 'non-PASS'} "
-            "(call-quality flag, not a retracted observation)")
+            "(call-quality flag, not a retracted observation)"
+        )
     return None, "no gnomAD/local cohort frequency available"
 
 
@@ -752,14 +968,24 @@ def ba1(v: Variant, a: Annotation) -> CriterionResult:
     # name and met-wording both say "exceeds". At exactly 5.00% `>=` awarded stand-alone Benign —
     # the strongest possible under-call — on a boundary the guideline does not authorise.
     met = af is not None and af > AF_BA1
-    reasoning = (f"{basis} — cannot assess" if af is None
-                 else f"{basis} = {af:.4f} exceeds {AF_BA1:g}" if met
-                 else f"{basis} = {af:.4f} at or below {AF_BA1:g}")
+    reasoning = (
+        f"{basis} — cannot assess"
+        if af is None
+        else f"{basis} = {af:.4f} exceeds {AF_BA1:g}"
+        if met
+        else f"{basis} = {af:.4f} at or below {AF_BA1:g}"
+    )
     return CriterionResult(
-        "BA1", name, "stand_alone", applies=True, met=met,
+        "BA1",
+        name,
+        "stand_alone",
+        applies=True,
+        met=met,
         applied_strength="stand_alone" if met else None,
         evidence={"af": af, "cutoff": AF_BA1, "basis": basis},
-        citation=[c for c in (a.source.get("gnomad"), a.source.get("local_cohort")) if c],
+        citation=[
+            c for c in (a.source.get("gnomad"), a.source.get("local_cohort")) if c
+        ],
         reasoning=reasoning,
     )
 
@@ -775,16 +1001,27 @@ def bs1(v: Variant, a: Annotation) -> CriterionResult:
     # Three outcomes, not two: below the band, inside it, or above it (where BA1 takes over). The
     # ladder previously had no arm for "above", so an 8% allele was described as "under the 0.01
     # cutoff" on the line directly beneath BA1 reporting it exceeded 0.05.
-    reasoning = (f"{basis} — cannot assess ({moi_note})" if af is None
-                 else f"{basis} = {af:.4f} ≥ {cutoff:g} ({moi_note}), at or below BA1's {AF_BA1:g}" if met
-                 else f"{basis} = {af:.4f} exceeds BA1's {AF_BA1:g} — superseded by BA1 "
-                      f"(stand-alone benign), which subsumes BS1" if af > AF_BA1
-                 else f"{basis} = {af:.4f} under the {cutoff:g} BS1 cutoff ({moi_note})")
+    reasoning = (
+        f"{basis} — cannot assess ({moi_note})"
+        if af is None
+        else f"{basis} = {af:.4f} ≥ {cutoff:g} ({moi_note}), at or below BA1's {AF_BA1:g}"
+        if met
+        else f"{basis} = {af:.4f} exceeds BA1's {AF_BA1:g} — superseded by BA1 "
+        f"(stand-alone benign), which subsumes BS1"
+        if af > AF_BA1
+        else f"{basis} = {af:.4f} under the {cutoff:g} BS1 cutoff ({moi_note})"
+    )
     return CriterionResult(
-        "BS1", name, "strong", applies=True, met=met,
+        "BS1",
+        name,
+        "strong",
+        applies=True,
+        met=met,
         applied_strength="strong" if met else None,
         evidence={"af": af, "cutoff": cutoff, "moi": moi, "basis": basis},
-        citation=[c for c in (a.source.get("gnomad"), a.source.get("local_cohort")) if c],
+        citation=[
+            c for c in (a.source.get("gnomad"), a.source.get("local_cohort")) if c
+        ],
         reasoning=reasoning,
     )
 
@@ -802,20 +1039,32 @@ def bs2(v: Variant, a: Annotation) -> CriterionResult:
     filtered_note = ""
     if homs is None and a.gnomad_homozygotes_filtered is not None:
         homs = a.gnomad_homozygotes_filtered
-        filtered_note = (f" at a site filtered as {a.gnomad_filter or 'non-PASS'} "
-                         "(call-quality flag, not a retracted observation)")
+        filtered_note = (
+            f" at a site filtered as {a.gnomad_filter or 'non-PASS'} "
+            "(call-quality flag, not a retracted observation)"
+        )
     met = homs is not None and homs >= BS2_HOM_MIN
     return CriterionResult(
-        "BS2", name, "strong", applies=True, met=met,
+        "BS2",
+        name,
+        "strong",
+        applies=True,
+        met=met,
         applied_strength="strong" if met else None,
         confidence="high" if homs is not None else "low",
-        evidence={"gnomad_homozygotes": homs, "cutoff": BS2_HOM_MIN,
-                  **({"gnomad_filter": a.gnomad_filter} if filtered_note else {})},
+        evidence={
+            "gnomad_homozygotes": homs,
+            "cutoff": BS2_HOM_MIN,
+            **({"gnomad_filter": a.gnomad_filter} if filtered_note else {}),
+        },
         citation=[c for c in [a.source.get("gnomad")] if c] if homs is not None else [],
-        reasoning=("gnomAD homozygote count unavailable — cannot assess healthy homozygotes"
-                   if homs is None
-                   else f"{homs} homozygotes in gnomAD{filtered_note}" if met
-                   else f"{homs} homozygotes (below {BS2_HOM_MIN}){filtered_note}"),
+        reasoning=(
+            "gnomAD homozygote count unavailable — cannot assess healthy homozygotes"
+            if homs is None
+            else f"{homs} homozygotes in gnomAD{filtered_note}"
+            if met
+            else f"{homs} homozygotes (below {BS2_HOM_MIN}){filtered_note}"
+        ),
     )
 
 
@@ -824,19 +1073,28 @@ def bs3(v: Variant, a: Annotation) -> CriterionResult:
     # The benign mirror of PS3: same evidence class (published functional assays), same reason it
     # cannot be automated — it needs a literature judgement, not a lookup.
     return _judgment(
-        "BS3", "Well-established functional studies show NO damaging effect", "strong",
-        "Requires literature review of functional assays — left for expert/model adjudication")
+        "BS3",
+        "Well-established functional studies show NO damaging effect",
+        "strong",
+        "Requires literature review of functional assays — left for expert/model adjudication",
+    )
 
 
 @criterion("BS4")
 def bs4(v: Variant, a: Annotation) -> CriterionResult:
-    return _na("BS4", "Lack of segregation in affected members of a family", "strong",
-               "Requires genotypes for affected relatives — not available from a single proband VCF")
+    return _na(
+        "BS4",
+        "Lack of segregation in affected members of a family",
+        "strong",
+        "Requires genotypes for affected relatives — not available from a single proband VCF",
+    )
 
 
 @criterion("BP1")
 def bp1(v: Variant, a: Annotation) -> CriterionResult:
-    name = "Missense variant in a gene where primarily truncating variants cause disease"
+    name = (
+        "Missense variant in a gene where primarily truncating variants cause disease"
+    )
     # Engine proxy for BP1 (no curated gene list): a missense variant in a gene that is
     # LoF-intolerant (truncating variants are the disease mechanism) yet shows NO missense
     # depletion (gnomAD oe_mis_upper >= 1.0 — missense is tolerated). Both conditions
@@ -849,8 +1107,10 @@ def bp1(v: Variant, a: Annotation) -> CriterionResult:
     met = is_missense and lof_mech and tolerant
     cites = [a.source["gene_constraint"]] if a.source.get("gene_constraint") else []
     if met:
-        reason = (f"missense in {v.gene}: LoF-intolerant gene (truncating is the mechanism) "
-                  f"that tolerates missense (gnomAD oe_mis upper ≥ {extra.OE_MIS_TOLERANT})")
+        reason = (
+            f"missense in {v.gene}: LoF-intolerant gene (truncating is the mechanism) "
+            f"that tolerates missense (gnomAD oe_mis upper ≥ {extra.OE_MIS_TOLERANT})"
+        )
     elif not is_missense:
         reason = f"{v.consequence or 'variant'} is not a missense variant"
     elif not lof_mech:
@@ -858,26 +1118,37 @@ def bp1(v: Variant, a: Annotation) -> CriterionResult:
     else:
         reason = f"{v.gene or 'gene'} does not tolerate missense (not depleted-free) — BP1 not supported"
     return CriterionResult(
-        "BP1", name, "supporting", applies=True, met=met,
+        "BP1",
+        name,
+        "supporting",
+        applies=True,
+        met=met,
         applied_strength="supporting" if met else None,
-        adjudicated_by="engine", confidence="moderate",
-        evidence={"consequence": v.consequence, "gene": v.gene,
-                  "gene_lof_intolerant": a.gene_lof_intolerant,
-                  "oe_mis_upper": a.gene_oe_mis_upper,
-                  "oe_mis_cutoff": extra.OE_MIS_TOLERANT,
-                  "missense_tolerant": a.gene_missense_tolerant,
-                  "missense_constrained": a.gene_missense_constrained},
-        citation=cites, reasoning=reason,
+        adjudicated_by="engine",
+        confidence="moderate",
+        evidence={
+            "consequence": v.consequence,
+            "gene": v.gene,
+            "gene_lof_intolerant": a.gene_lof_intolerant,
+            "oe_mis_upper": a.gene_oe_mis_upper,
+            "oe_mis_cutoff": extra.OE_MIS_TOLERANT,
+            "missense_tolerant": a.gene_missense_tolerant,
+            "missense_constrained": a.gene_missense_constrained,
+        },
+        citation=cites,
+        reasoning=reason,
     )
 
 
 @criterion("BP2")
 def bp2(v: Variant, a: Annotation) -> CriterionResult:
-    return _na("BP2",
-               "Observed in trans with a pathogenic variant (dominant gene), or in cis with one",
-               "supporting",
-               "Requires phasing / parental data to establish trans or cis — not available from a "
-               "single proband VCF")
+    return _na(
+        "BP2",
+        "Observed in trans with a pathogenic variant (dominant gene), or in cis with one",
+        "supporting",
+        "Requires phasing / parental data to establish trans or cis — not available from a "
+        "single proband VCF",
+    )
 
 
 @criterion("BP3")
@@ -886,9 +1157,12 @@ def bp3(v: Variant, a: Annotation) -> CriterionResult:
     # neither, and inferring "repetitive" from the sequence alone would be a guess dressed as a fact,
     # so the in-frame consequence is surfaced and the decision left explicit.
     return _judgment(
-        "BP3", "In-frame indel in a repetitive region without a known function", "supporting",
+        "BP3",
+        "In-frame indel in a repetitive region without a known function",
+        "supporting",
         "Requires a repeat/domain annotation the engine does not carry — model adjudication",
-        evidence={"consequence": v.consequence, "hgvs_p": v.hgvs_p})
+        evidence={"consequence": v.consequence, "hgvs_p": v.hgvs_p},
+    )
 
 
 @criterion("BP4")
@@ -900,31 +1174,53 @@ def bp4(v: Variant, a: Annotation) -> CriterionResult:
         strength = config.am_bp4_strength(a.am_pathogenicity)
         met = strength is not None
         return CriterionResult(
-            "BP4", name, "supporting", applies=True, met=met,
+            "BP4",
+            name,
+            "supporting",
+            applies=True,
+            met=met,
             applied_strength=strength if met else None,
-            evidence={"am_pathogenicity": a.am_pathogenicity, "am_class": a.am_class,
-                      "predictor": "AlphaMissense (ClinGen-calibrated)"},
+            evidence={
+                "am_pathogenicity": a.am_pathogenicity,
+                "am_class": a.am_class,
+                "predictor": "AlphaMissense (ClinGen-calibrated)",
+            },
             citation=[c for c in [a.source.get("alphamissense")] if c],
             confidence="moderate",
-            reasoning=(f"AlphaMissense={a.am_pathogenicity:.3f} -> BP4_{strength}"
-                       if met else
-                       f"AlphaMissense={a.am_pathogenicity:.3f} above the BP4 benign threshold"),
+            reasoning=(
+                f"AlphaMissense={a.am_pathogenicity:.3f} -> BP4_{strength}"
+                if met
+                else f"AlphaMissense={a.am_pathogenicity:.3f} above the BP4 benign threshold"
+            ),
         )
     # Fallback: REVEL/CADD at Supporting strength.
     direction = _insilico_direction(a)
     met = direction == "benign"
     return CriterionResult(
-        "BP4", name, "supporting", applies=True, met=met,
+        "BP4",
+        name,
+        "supporting",
+        applies=True,
+        met=met,
         applied_strength="supporting" if met else None,
-        evidence={"revel": a.revel, "cadd_phred": a.cadd_phred,
-                  "revel_cutoff": REVEL_BENIGN, "cadd_cutoff": CADD_BENIGN},
+        evidence={
+            "revel": a.revel,
+            "cadd_phred": a.cadd_phred,
+            "revel_cutoff": REVEL_BENIGN,
+            "cadd_cutoff": CADD_BENIGN,
+        },
         # PP3's identical REVEL/CADD branch cites this; BP4's did not, so a benign call could fire
         # with the Source column blank while a predictor demonstrably drove it.
         citation=[c for c in [a.source.get("insilico")] if c],
-        reasoning=(f"{_insilico_names(a)} below benign cutoffs"
-                   if met else ("in-silico predictors conflict — neither PP3 nor BP4 applied"
-                                if direction == "conflicting"
-                                else "in-silico predictors not benign / unavailable")),
+        reasoning=(
+            f"{_insilico_names(a)} below benign cutoffs"
+            if met
+            else (
+                "in-silico predictors conflict — neither PP3 nor BP4 applied"
+                if direction == "conflicting"
+                else "in-silico predictors not benign / unavailable"
+            )
+        ),
     )
 
 
@@ -935,10 +1231,13 @@ def bp5(v: Variant, a: Annotation) -> CriterionResult:
     # A per-variant evaluator cannot see the rest of the case, so this stays explicit rather than
     # being silently inferred from the candidate list.
     return _judgment(
-        "BP5", "Variant found in a case with an alternate molecular basis for disease", "supporting",
+        "BP5",
+        "Variant found in a case with an alternate molecular basis for disease",
+        "supporting",
         "Requires whole-case context (another finding explaining the phenotype) plus clinical "
         "judgement — left for expert/model adjudication",
-        evidence={"gene": v.gene})
+        evidence={"gene": v.gene},
+    )
 
 
 @criterion("BP6")
@@ -954,13 +1253,23 @@ def bp6(v: Variant, a: Annotation) -> CriterionResult:
     # PP5 without over-weighting. PP5 and BP6 are mutually exclusive (a record is P or B, not both),
     # so no double-count; if benign evidence conflicts with pathogenic criteria the combiner reports VUS.
     return CriterionResult(
-        "BP6", name, "supporting", applies=True, met=met,
+        "BP6",
+        name,
+        "supporting",
+        applies=True,
+        met=met,
         applied_strength="supporting" if met else None,
-        evidence={"clinvar": a.clinvar_significance, "review_status": a.clinvar_review_status},
+        evidence={
+            "clinvar": a.clinvar_significance,
+            "review_status": a.clinvar_review_status,
+        },
         citation=[a.clinvar_accession] if (met and a.clinvar_accession) else [],
         confidence="moderate",
-        reasoning=(f"ClinVar {a.clinvar_significance} ({a.clinvar_review_status})"
-                   if met else "no reviewed ClinVar benign assertion (or 0-star)"),
+        reasoning=(
+            f"ClinVar {a.clinvar_significance} ({a.clinvar_review_status})"
+            if met
+            else "no reviewed ClinVar benign assertion (or 0-star)"
+        ),
     )
 
 
@@ -969,9 +1278,16 @@ def bp7(v: Variant, a: Annotation) -> CriterionResult:
     name = "Synonymous variant with no predicted splice impact"
     met = (v.consequence or "") == "synonymous_variant"
     return CriterionResult(
-        "BP7", name, "supporting", applies=True, met=met,
+        "BP7",
+        name,
+        "supporting",
+        applies=True,
+        met=met,
         applied_strength="supporting" if met else None,
         evidence={"consequence": v.consequence},
-        reasoning=("synonymous with no splice prediction" if met
-                   else "not a synonymous variant"),
+        reasoning=(
+            "synonymous with no splice prediction"
+            if met
+            else "not a synonymous variant"
+        ),
     )

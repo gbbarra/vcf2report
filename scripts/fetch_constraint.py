@@ -13,6 +13,7 @@ BP1 (missense-tolerant gene where truncating variants are the mechanism:
 
     VCF2REPORT_ALLOW_NETWORK=1 python scripts/fetch_constraint.py
 """
+
 from __future__ import annotations
 
 import gzip
@@ -21,8 +22,10 @@ import urllib.request
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-URL = ("https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/"
-       "constraint/gnomad.v2.1.1.lof_metrics.by_gene.txt.bgz")
+URL = (
+    "https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/"
+    "constraint/gnomad.v2.1.1.lof_metrics.by_gene.txt.bgz"
+)
 OUT = REPO / "data" / "constraint" / "gene_constraint.tsv.gz"
 
 
@@ -47,8 +50,10 @@ def main() -> int:
         gi, pi, li = idx["gene"], idx["pLI"], idx["oe_lof_upper"]
         mzi, omi = idx["mis_z"], idx["oe_mis_upper"]
         maxi = max(gi, pi, li, mzi, omi)
-        w.write("# gnomAD v2.1.1 constraint (by gene). "
-                "Columns: gene\tpLI\tLOEUF(oe_lof_upper)\tmis_z\toe_mis_upper\n")
+        w.write(
+            "# gnomAD v2.1.1 constraint (by gene). "
+            "Columns: gene\tpLI\tLOEUF(oe_lof_upper)\tmis_z\toe_mis_upper\n"
+        )
         seen = set()
         for line in fh:
             p = line.rstrip("\n").split("\t")
@@ -56,7 +61,7 @@ def main() -> int:
                 continue
             gene = p[gi]
             if not gene or gene in seen:
-                continue      # keep the first (canonical) row per gene symbol
+                continue  # keep the first (canonical) row per gene symbol
             seen.add(gene)
             w.write(f"{gene}\t{_f(p[pi])}\t{_f(p[li])}\t{_f(p[mzi])}\t{_f(p[omi])}\n")
             n += 1
