@@ -23,6 +23,7 @@ _STRENGTH = {
     "PVS1": "very_strong",
     "PS1": "strong",
     "PS3": "strong",
+    "PM1": "moderate",
     "PM2": "supporting",
     "PM4": "moderate",
     "PM5": "moderate",
@@ -87,10 +88,77 @@ def test_strong_pathogenic_evidence_cannot_be_discarded_into_a_benign_call(codes
     assert "conflicting" in path
 
 
-def test_a_common_null_variant_is_not_issued_as_a_pathogenic_finding():
-    """End-to-end through the engine, and through the report's routing."""
-    from vcf2report.report.assemble import split_findings
+@pytest.mark.parametrize(
+    "codes,regra",
+    [
+        (("PM1", "PM4", "PM5"), "LP-4"),  # >=3 Moderate
+        (("PM4", "PM5", "PP3", "PP4"), "LP-5"),  # 2 Moderate + >=2 Supporting
+        (("PM4", "PP2", "PP3", "PP4", "PP5"), "LP-6"),  # 1 Moderate + >=4 Supporting
+    ],
+)
+def test_the_gate_fires_for_a_pathogenic_call_that_holds_nothing_decisive_itself(
+    codes, regra
+):
+    """LP-4/LP-5/LP-6 are the only three rules that reach Likely Pathogenic with no
+    Strong-or-above evidence at all — three Moderates, or Moderates plus Supportings. Every
+    other "gate must fire" case above rests on PVS1 or a Strong, so this shape (a whole
+    pathogenic call made of Moderates, opposed by one Strong benign line) was never
+    exercised. Clinically it is a variant with three moderate pathogenic lines that is *too
+    common in gnomAD for the disorder*: VUS, never Likely Pathogenic.
 
+    It is coverage, not a mutant kill, and the reason is worth recording for the next triage
+    round. Five survivors in `rules.py` sit on the ``losing_side`` plumbing —
+    `_discarded_decisive` #3/#4 (the ``== "benign"`` literal) and `combine` #34/#37/#38 (the
+    ``"pathogenic"`` argument). All five are EQUIVALENT, for two different reasons:
+
+      * `combine` #34/#37/#38 pass ``None`` / ``"XXpathogenicXX"`` / ``"PATHOGENIC"``.
+        `_discarded_decisive` only ever compares ``losing_side`` to ``"benign"``, so every
+        non-``"benign"`` value is literally the same argument. Verified over six fixtures.
+      * `_discarded_decisive` #3/#4 break the ternary so ``_DECISIVE_PATHOGENIC`` is always
+        chosen — but only the ternary; the loop's own ``losing_side == "benign"`` filter is
+        untouched, so the right CODES are still scanned. The two sets overlap on
+        ``"strong"``, and the ``"benign"`` branch is reachable only when no benign rule
+        fired — which excludes BA1 (it would fire BEN-1), leaving ``"strong"`` as the only
+        decisive benign strength that can get there. Same answer either way.
+
+    Both stop being equivalent the moment ``_DECISIVE_BENIGN`` and ``_DECISIVE_PATHOGENIC``
+    stop overlapping, or a second call site passes something meaningful.
+    """
+    sozinho, com_bs1 = _combine(*codes), _combine(*codes, "BS1")
+
+    assert sozinho[0] == rules.LIKELY_PATHOGENIC and regra in sozinho[1], (
+        f"a fixture não chega a {regra} sem o BS1: {sozinho[1]}"
+    )
+    assert all(_STRENGTH[c] not in ("very_strong", "strong") for c in codes), (
+        "a fixture tem evidência decisiva do lado patogênico — não testa o lado perdedor"
+    )
+
+    tier, path = com_bs1
+    assert tier == rules.VUS, f"{'+'.join(codes)} + BS1 saiu como {tier}: {path}"
+    assert "conflicting" in path
+
+
+def test_the_premises_that_make_the_losing_side_mutants_equivalent_still_hold():
+    """Pins the two facts the docstring above rests on, so the triage cannot go stale in
+    silence. If either assertion fails, `_discarded_decisive` #3/#4 have become real gaps and
+    need a real test — not a rewritten comment."""
+    assert rules._DECISIVE_BENIGN & rules._DECISIVE_PATHOGENIC == {"strong"}, (
+        "as duas tabelas decisivas deixaram de se sobrepor em 'strong'"
+    )
+    vazio = {"PVS": 0, "PS": 0, "PM": 0, "PP": 0, "BA": 0, "BS": 0, "BP": 0}
+    assert rules._benign_rule({**vazio, "BA": 1}) is not None, (
+        "BA1 sozinho deixou de disparar uma regra benigna — agora ele ALCANÇA o ramo "
+        "_discarded_decisive(criteria, 'benign') com força stand_alone"
+    )
+
+
+def test_a_common_null_variant_is_not_issued_as_a_pathogenic_finding():
+    """End-to-end through the engine — real criteria, real strengths, not a fixture.
+
+    (The docstring used to also claim "and through the report's routing", next to an unused
+    import of `split_findings`. It never called it. Removed rather than left standing: a
+    false claim about coverage is the thing this suite exists to catch.)
+    """
     v = Variant(
         chrom="14",
         pos=23400000,
@@ -138,6 +206,8 @@ def test_the_audit_trail_never_shows_evidence_the_verdict_ignored():
     [
         # "rare" next to "predicted benign" is not a contradiction — a rare variant can be benign.
         (("PM2", "BP4", "BP6"), rules.LIKELY_BENIGN),
+        # The mirror of the test above: a Moderate on the losing side is not decisive either.
+        (("PM4", "BP4", "BP6"), rules.LIKELY_BENIGN),
         (("PM2", "BS2", "BP4"), rules.LIKELY_BENIGN),
         (("PM4", "BS1", "BS2"), rules.BENIGN),
         # A single Supporting benign line must not veto a call built on two Strong criteria.

@@ -11,9 +11,10 @@ letra a letra criaria 54 testes que o CLAUDE.md §1.1 torna intocáveis para pro
 ortografia. O que precisa ser invariante é mais fraco e mais útil:
 
   1. cada combinação emite o identificador da SUA regra, e de nenhuma outra;
-  2. onde o rótulo é escolhido em tempo de execução, a escolha corresponde à evidência.
+  2. onde o rótulo é escolhido em tempo de execução, a escolha corresponde à evidência;
+  3. a trilha antes do `=>` nomeia só os critérios que dispararam.
 
-Ambos sobrevivem a qualquer reescrita do texto entre parênteses.
+Os três sobrevivem a qualquer reescrita do texto entre parênteses.
 """
 
 from __future__ import annotations
@@ -50,6 +51,18 @@ def _met(code: str, strength: str) -> CriterionResult:
         default_strength=strength,
         applies=True,
         met=True,
+    )
+
+
+def _avaliado_e_nao_atendido(code: str, strength: str) -> CriterionResult:
+    """O critério RODOU e a resposta foi não. `applies=True, met=False` é o estado que os
+    avaliadores emitem para quase todo critério em quase toda variante."""
+    return CriterionResult(
+        code=code,
+        name=f"{code} (fixture)",
+        default_strength=strength,
+        applies=True,
+        met=False,
     )
 
 
@@ -114,10 +127,14 @@ def test_a_regra_que_disparou_se_identifica_no_rule_path(
     tier, rule_path = rules.combine(criterios)
 
     assert tier == tier_esperado, f"{descricao}: {tier} (esperado {tier_esperado})"
-    assert id_esperado in rule_path, f"{descricao}: rule path sem {id_esperado} -> {rule_path}"
+    assert id_esperado in rule_path, (
+        f"{descricao}: rule path sem {id_esperado} -> {rule_path}"
+    )
 
     outros = [i for i in TODOS_OS_IDS if i != id_esperado and i in rule_path]
-    assert not outros, f"{descricao}: rule path cita outra(s) regra(s) {outros} -> {rule_path}"
+    assert not outros, (
+        f"{descricao}: rule path cita outra(s) regra(s) {outros} -> {rule_path}"
+    )
 
 
 def test_toda_regra_do_combinador_esta_coberta():
@@ -130,6 +147,40 @@ def test_toda_regra_do_combinador_esta_coberta():
         f"regras sem caso de teste: {set(TODOS_OS_IDS) - cobertos}; "
         f"casos para regras inexistentes: {cobertos - set(TODOS_OS_IDS)}"
     )
+
+
+def test_a_trilha_lista_so_os_criterios_que_dispararam():
+    """Invariante 3: a trilha é a lista de EVIDÊNCIAS, não a lista de critérios avaliados.
+
+    `combine` monta `met = [cr.code for cr in criteria if cr.applies and cr.met]`. Trocar
+    esse `and` por `or` não move o tier nem o rótulo da regra — os dois vêm de `_counts`,
+    que filtra de novo — e faz o laudo imprimir
+    `PVS1 + PM1 + BA1 + BP4 => Likely Pathogenic [LP-1 ...]`. BA1 e BP4 foram avaliados e
+    NÃO dispararam; apareceriam como se tivessem pesado, e ainda por cima como evidência
+    benigna dentro de uma conclusão patogênica. É a invariante de honestidade do projeto
+    ("ausência de dado nunca é evidência") aplicada à linha que o laudo cita como trilha de
+    auditoria. Sobreviveu à suíte inteira até esta rodada de mutação.
+    """
+    criterios = (
+        _pvs()
+        + _pm(1)
+        + [
+            _avaliado_e_nao_atendido("BA1", "stand_alone"),
+            _avaliado_e_nao_atendido("BP4", "supporting"),
+        ]
+    )
+
+    tier, rule_path = rules.combine(criterios)
+    trilha = rule_path.split("=>")[0]
+
+    assert tier == rules.LIKELY_PATHOGENIC, f"a fixture mudou de tier: {rule_path}"
+    assert "PVS1" in trilha and "PM1" in trilha, (
+        f"trilha perdeu evidência real: {trilha}"
+    )
+    for code in ("BA1", "BP4"):
+        assert code not in trilha, (
+            f"{code} foi avaliado e não atendido, e está na trilha: {rule_path}"
+        )
 
 
 @pytest.mark.parametrize(
