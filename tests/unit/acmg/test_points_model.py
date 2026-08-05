@@ -154,7 +154,7 @@ def test_as_tabelas_de_pontos_cobrem_toda_forca_que_um_criterio_pode_emitir():
     o default deixaria de ser código morto.
     """
     faltando = []
-    for code, fn in crit_mod.all_criteria().items():
+    for code in crit_mod.all_criteria():
         tabela = rules._BENIGN_POINTS if code in rules.BENIGN_CODES else rules._PATH_POINTS
         # A força padrão declarada é a única que um critério pode emitir sem que o motor a
         # ajuste; as ajustadas (PVS1 pela árvore SVI, PP3 pelo AlphaMissense) são sempre um
