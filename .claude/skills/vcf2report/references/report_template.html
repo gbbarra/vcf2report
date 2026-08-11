@@ -182,11 +182,19 @@
               <div class="vgene">{{GENE}}<span class="hgvs">{{HGVS: report's "Variant (c./p.)" — e.g. c.1834C&gt;T (p.Arg612Ter); if none, show the CHR-POS-REF-ALT key}}</span><span class="coord">{{TRANSCRIPT (from the Transcript column; omit this token with its separator if the report shows "—")}} · {{COORD}} · {{CONSEQUENCE}}</span></div></div>
             <span class="tier">{{TIER}}</span>
           </div>
+          <!-- Raw call-quality block: ALWAYS include these five for EVERY card (not just
+               QC-rescued ones) — they let the reviewer judge how solid the call is (a strong
+               finding is AB~50% / high GQ / PASS; a doubtful one is low AB / low GQ / filtered)
+               independently of the ACMG tier. All five come from results.json's variant dict. -->
           <dl class="kv facts">
             <div><dt>Zygosity</dt><dd>{{ZYG}}</dd></div>
+            <div><dt>Allele fraction</dt><dd>{{ALLELE_FRACTION: from the variant's allele_balance and depth — "XX.X% (n/N reads)" where n=round(allele_balance*depth), N=depth; show "—" if either is null}}</dd></div>
+            <div><dt>GQ</dt><dd>{{GQ: variant.gq, or "—"}}</dd></div>
+            <div><dt>QUAL</dt><dd>{{QUAL: variant.qual, or "—"}}</dd></div>
+            <div><dt>Filter</dt><dd>{{FILTER: variant.filter_status, e.g. PASS}}</dd></div>
             <div><dt>ClinVar</dt><dd>{{CLINVAR}}</dd></div>
             <div><dt>gnomAD AF</dt><dd>{{GNOMAD}}</dd></div>
-            <div><dt>ABraOM AF</dt><dd>{{ABRAOM}}</dd></div>
+            <div><dt>Local cohort AF</dt><dd>{{LOCAL_COHORT}}</dd></div>
             <div><dt>HPO match</dt><dd>{{HPO}}</dd></div>
           </dl>
           <div class="rule">{{RULE_PATH}}</div>
@@ -198,7 +206,7 @@
             </tbody>
           </table></div>
         </div>
-        <!-- If a candidate was dropped by ABraOM, add a short note line here. -->
+        <!-- If a candidate was dropped by the local cohort frequency, add a short note line here. -->
       </div>
     </section>
 

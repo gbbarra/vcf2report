@@ -224,7 +224,9 @@ they exist:
    `references/report_template.html` (in the cloned repo) as the exact style + structure. Fill:
    masthead (sample, build, generated, HPO chips), the **Conclusion**, the QC funnel, the
    **Sequencing-quality** panel, **one card per candidate** (gene, HGVS c./p. + transcript,
-   coordinate, tier pill, the data-fact row, the `rule_path`, and the full ACMG criteria table with
+   coordinate, tier pill, the data-fact row — which ALWAYS opens with the five raw call-quality
+   fields Zygosity / Allele fraction / GQ / QUAL / Filter for every card, not just QC-rescued ones,
+   so the reviewer can judge call confidence — the `rule_path`, and the full ACMG criteria table with
    met / N-A / — states), then Methods + the disclaimer footer. If the VCF was not VEP/SnpEff-
    annotated, HGVS/transcript are blank (show the coordinate) — say so, don't invent HGVS.
    - **Order the cards by bucket** and render every bucket the report has: Primary → Secondary (ACMG
