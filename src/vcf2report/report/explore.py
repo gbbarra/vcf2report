@@ -64,6 +64,11 @@ def build_explore(report) -> dict[str, Any]:
     vus = probable_pathogenic_vus(report.classifications)
 
     data = report.to_dict()  # sample, build, hpo, qc funnel, seq_quality, every classification (+criteria)
+    # Attach the gene's associated disease(s) + per-disease inheritance for the laudo card.
+    # A report-layer enrichment, not ACMG evidence — [] when the store isn't installed.
+    from ..annotate import gene_disease
+    for c in data.get("classifications", []):
+        c["gene_diseases"] = gene_disease.lookup((c.get("variant") or {}).get("gene"))
     data["conclusion"] = summarize(report)
     data["buckets"] = {
         "primary": [c.variant.gene for c in primary],

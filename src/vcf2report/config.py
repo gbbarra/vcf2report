@@ -56,6 +56,8 @@ LOCAL_COHORT = Path(os.environ.get("VCF2REPORT_LOCAL_COHORT")) \
     else DATA_DIR / "local_cohort" / "frequencies.tsv"
 HPO_GENES_LOCAL = DATA_DIR / "hpo" / "genes_to_phenotype.tsv.gz"
 HPO_GRAPH_LOCAL = DATA_DIR / "hpo" / "hpo_graph.tsv.gz"  # ontology + IC (build_hpo_graph.py)
+# Gene -> associated diseases with per-disease inheritance (build_gene_disease_store.py).
+HPO_GENE_DISEASE_LOCAL = DATA_DIR / "hpo" / "gene_disease.json.gz"
 # Report routing: a gene is "phenotype-related" (-> primary findings) when its
 # best-match-AVERAGE over the patient's terms (hpo_match_score) is at/above this. The
 # average — not the single strongest match — is what makes the signal specific: a decoy

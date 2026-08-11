@@ -197,6 +197,12 @@
             <div><dt>Local cohort AF</dt><dd>{{LOCAL_COHORT}}</dd></div>
             <div><dt>HPO match</dt><dd>{{HPO}}</dd></div>
           </dl>
+          <!-- Associated disease(s) with inheritance PER DISEASE (never one label per gene — a
+               gene often causes different diseases with different inheritance). From the
+               classification's gene_diseases in results.json. Omit this whole block if that list
+               is empty (store not installed / gene not annotated) — do not assert "no disease". -->
+          <div class="facts"><dl class="kv"><div style="flex-basis:100%"><dt>Associated disease(s)</dt>
+            <dd>{{DISEASES: one entry per gene_diseases item as "disease_name (inheritance joined by /)", separated by " · "; e.g. "Naxos disease (Autosomal recessive) · Arrhythmogenic right ventricular dysplasia 12 (Autosomal dominant)". If an item's inheritance list is empty, show just the disease_name.}}</dd></div></dl></div>
           <div class="rule">{{RULE_PATH}}</div>
           <div class="tbl-wrap"><table class="acmg">
             <thead><tr><th>Criterion</th><th>State</th><th>Strength</th><th>Reasoning</th></tr></thead>
