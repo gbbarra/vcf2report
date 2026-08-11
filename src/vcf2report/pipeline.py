@@ -76,20 +76,27 @@ def _qc_loss_warnings(qc: QCSummary, variants: list, kept: list,
 
 def _qc_rescue(qc: QCSummary, dropped: list[tuple], hpo_terms: list[str],
                build_trusted: bool) -> None:
-    """Name QC-dropped variants that ClinVar classifies P/LP with criteria-backed review.
+    """Name QC-dropped variants worth a second look — not only ClinVar P/LP.
 
     The report's do-not-dismiss net (``assemble.clinvar_pathogenic_flags``) only sees
     variants that survived to classification, and QC runs before annotation — so a
-    well-reviewed pathogenic allele one GQ point under threshold was deleted from the
-    report entirely while the conclusion announced 'no finding'. Only borderline
-    quantitative drops are reconsidered (see ``qc.is_metric_drop``); the ACMG tier is
-    NOT computed and nothing is re-admitted to the candidate list. This is a flag.
+    relevant allele one GQ point under threshold was deleted from the report entirely
+    while the conclusion announced 'no finding'. Only borderline quantitative drops are
+    reconsidered (see ``qc.is_metric_drop``); the ACMG tier is NOT computed and nothing
+    is re-admitted to the candidate list. This is a flag.
 
-    The bar is >=1 star (ClinVar "criteria provided"), one step below the report's
-    do-not-dismiss net. The net triages among variants the reader can already SEE in the
-    ranked table; a QC drop is invisible, so a criteria-backed pathogenic assertion is
-    worth naming even when only a single submitter made it.
+    Three ways a dropped coding/splice variant earns a flag (any one):
+
+    * **P/LP** — ClinVar Pathogenic / Likely pathogenic with >=1 star.
+    * **Well-reviewed & not benign** — >=2 stars and a non-benign assertion (a reviewed
+      VUS/conflicting). This is the case a P/LP-only bar misses: e.g. MYH11 p.Tyr761His,
+      a 2-star VUS for familial thoracic aortic aneurysm dropped at GQ=14, invisible to
+      both the candidate list and the old rescue though it matched the indication.
+    * **Right gene, right phenotype, rare** — the variant's gene matches the patient's
+      HPO (>= the PP4 cutoff) and the allele is rare (at/under the PM2 ceiling or absent),
+      regardless of ClinVar. Catches the novel / uncatalogued allele in the correct gene.
     """
+    from .acmg.criteria import HPO_PP4_MIN
     from .report.assemble import clinvar_stars
     from .vcf.filter import is_impactful
     from .vcf.qc import is_metric_drop
@@ -99,22 +106,39 @@ def _qc_rescue(qc: QCSummary, dropped: list[tuple], hpo_terms: list[str],
         return
     capped = len(pool) > QC_RESCUE_MAX
     for v, reason in pool[:QC_RESCUE_MAX]:
-        # Resolve ClinVar through the SAME path the classified variants use (VCF INFO
-        # first, then the local/live client). Calling the DB client directly would miss
-        # every pre-annotated exome — the recommended production input.
-        a = annotate_variant(v, [], build_trusted=build_trusted,
+        # Resolve annotation through the SAME path the classified variants use (VCF INFO
+        # first, then the local/live client) — pass the HPO terms so the gene-phenotype
+        # score is available for the phenotype-driven rescue path.
+        a = annotate_variant(v, hpo_terms, build_trusted=build_trusted,
                              with_alphamissense=False, with_clinvar_residue=False)
         sig = (a.clinvar_significance or "").lower().replace("_", " ")
         stars = clinvar_stars(a.clinvar_review_status)
-        if not (sig.startswith("pathogenic") or sig.startswith("likely pathogenic")):
-            continue
-        if stars < 1:
+        hpo = a.hpo_match_score or 0.0
+        ceiling, _moi = config.pm2_af_ceiling(v.gene)
+        rare = a.gnomad_af is None or a.gnomad_af <= ceiling
+
+        is_plp = sig.startswith("pathogenic") or sig.startswith("likely pathogenic")
+        is_benign = sig.startswith("benign") or sig.startswith("likely benign")
+        pheno = hpo >= HPO_PP4_MIN
+        # The two new paths are gated on a phenotype match, so that broadening the net does
+        # not turn it into noise: a real callset has ~100 borderline coding drops, and a
+        # reviewed VUS among them is only worth surfacing when it sits in a gene that matches
+        # the indication (the MYH11 case did). A known P/LP is worth naming regardless.
+        why = None
+        if is_plp and stars >= 1:
+            why = f"ClinVar {a.clinvar_significance} ({stars}★)"
+        elif pheno and stars >= 2 and sig and not is_benign:
+            why = (f"ClinVar {a.clinvar_significance} ({stars}★, well-reviewed non-benign) in "
+                   f"{v.gene}, which matches the phenotype (HPO {hpo:.2f})")
+        elif pheno and rare:
+            af = "absent" if a.gnomad_af is None else f"gnomAD AF={a.gnomad_af:g}"
+            why = f"rare ({af}) in {v.gene}, which matches the phenotype (HPO {hpo:.2f})"
+        if why is None:
             continue
         qc.qc_rescued.append(
-            f"{v.gene or v.key} {v.hgvs_p or v.hgvs_c or v.key} — ClinVar "
-            f"{a.clinvar_significance} ({stars}★) but dropped at QC ({reason}). NOT classified "
-            "and NOT counted as a candidate; confirm the call orthogonally (Sanger / "
-            "re-sequencing) before dismissing it."
+            f"{v.gene or v.key} {v.hgvs_p or v.hgvs_c or v.key} — {why} but dropped at QC "
+            f"({reason}). NOT classified and NOT counted as a candidate; confirm the call "
+            "orthogonally (Sanger / re-sequencing) before dismissing it."
         )
     if capped:
         qc.warnings.append(

@@ -104,9 +104,40 @@ def test_unannotated_vcf_says_the_empty_shortlist_is_not_biological(tmp_path):
 
 def test_qc_rescue_is_quiet_on_a_real_exome():
     """The rescue must not become noise: a real callset has ~100 borderline coding drops
-    and none of them are ClinVar-pathogenic."""
+    and none of them are ClinVar-pathogenic. Run without a phenotype, so the two
+    phenotype-gated rescue paths cannot fire either — the net stays silent."""
     r = run_pipeline("data/example/SYN-004.NIPBL.annotated.vcf.gz")
     assert r.qc.qc_rescued == []
+
+
+_SEIZURE_HPO = ["HP:0001250", "HP:0002133", "HP:0001263"]   # SCN1A scores high on these
+
+
+def test_qc_dropped_reviewed_vus_in_phenotype_gene_is_rescued(tmp_path):
+    """The MYH11 case: a well-reviewed (2★) ClinVar VUS dropped at low GQ, in a gene that
+    matches the indication, must be surfaced — the P/LP-only bar missed exactly this."""
+    p = _write(tmp_path, "vus.vcf", """
+        chr2\t166000000\t.\tC\tT\t50\tPASS\tGENE=SCN1A;CSQ=missense_variant;CLNSIG=Uncertain_significance;CLNREVSTAT=criteria_provided,_multiple_submitters,_no_conflicts;gnomad_AF=0.000003\tGT:AD:DP:GQ\t0/1:20,20:40:14\t
+        """)
+    r = run_pipeline(p, hpo_terms=_SEIZURE_HPO)             # SCN1A matches seizures
+    assert "SCN1A" not in [c.variant.gene for c in r.classifications]      # still dropped...
+    assert any("SCN1A" in s and "well-reviewed non-benign" in s for s in r.qc.qc_rescued)
+
+    # ...but the SAME reviewed VUS with NO phenotype supplied must stay quiet (not noise).
+    r0 = run_pipeline(p, hpo_terms=[])
+    assert not any("SCN1A" in s for s in r0.qc.qc_rescued)
+
+
+def test_qc_dropped_rare_variant_in_phenotype_gene_is_rescued_without_clinvar(tmp_path):
+    """The general case: a rare, QC-dropped coding variant in a phenotype-matched gene, with
+    NO ClinVar record at all, is still worth a confirm-before-dismiss flag."""
+    p = _write(tmp_path, "rare.vcf", """
+        chr2\t166000000\t.\tC\tT\t50\tPASS\tGENE=SCN1A;CSQ=missense_variant;gnomad_AF=0.000003\tGT:AD:DP:GQ\t0/1:20,20:40:14\t
+        """)
+    r = run_pipeline(p, hpo_terms=_SEIZURE_HPO)
+    assert any("SCN1A" in s and "matches the phenotype" in s for s in r.qc.qc_rescued)
+    # no phenotype -> the rare-in-gene path cannot fire (would be noise on a real callset)
+    assert run_pipeline(p, hpo_terms=[]).qc.qc_rescued == []
 
 
 # --------------------------------------------------------------------------------------
