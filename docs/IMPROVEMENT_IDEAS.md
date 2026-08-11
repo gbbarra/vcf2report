@@ -119,7 +119,46 @@ anotação (ClinVar/gnomAD/AlphaMissense). QUAL não vem em `results.json` (só 
 
 ---
 
-*Contexto: os quatro itens foram validados manualmente numa sessão de análise da amostra
+## 5. QC-rescue está restrito demais — só pega ClinVar Pathogenic/LP, perde VUS de alto valor
+
+**Problema (achado ao vivo, não hipotético):** o usuário desconfiou de um resultado do laudo
+("nenhum candidato pro fenótipo de aneurisma de aorta") e pediu pra checar de novo. Reinspeção
+manual do VCF anotado (não só da lista de `candidates` já filtrada) achou **MYH11 c.2281T>C
+(p.Tyr761His)** — ultra-raro (gnomAD AF=3e-06), **ClinVar VUS com 2 estrelas
+especificamente pra "Familial thoracic aortic aneurysm and aortic dissection"** (a condição do
+fenótipo informado!), MYH11 sendo gene estabelecido de FTAAD4. Essa variante nunca apareceu nos
+956 candidatos porque tem GQ=14 (abaixo do `min_GQ=20` do pipeline) — e como não é ClinVar
+**Pathogenic/Likely Pathogenic** (só VUS), não bateu no critério do mecanismo de `qc_rescued` que
+salvou MBD4/KCNQ2 (esses sim P/LP) na mesma amostra. Resultado: um achado genuinamente relevante
+ficou invisível tanto pro pipeline quanto pro laudo — quase virou um falso negativo relatado como
+conclusão.
+
+**O que isso revela:** o `qc_rescued` (`pipeline.py`) hoje só dispara pra
+`clinvar_significance in {Pathogenic, Likely pathogenic}`. Isso deixa de fora exatamente o caso
+mais comum na prática — variante rara, QC-dropped, **VUS bem revisado (2+ estrelas) numa condição
+que bate com o fenótipo do paciente** — que é justamente o tipo de achado que mais precisa de
+visibilidade pra decisão de repetir/confirmar a chamada.
+
+**Proposta pro produto:**
+- Ampliar o critério de `qc_rescued` pra também disparar quando: `clinvar_review_status` tem ≥2
+  estrelas **E** (`clinvar_significance` é qualquer coisa não-Benign **OU** a condição do ClinVar
+  bate com o HPO do paciente via o mesmo scorer do PP4).
+- Mais geral ainda: rodar o rescue check pra **qualquer variante rara (abaixo do teto de PM2) que
+  caiu no QC E está em um gene com HPO match ≥ cutoff**, independente de já estar no ClinVar —
+  esse é o caso mais amplo (novo/não catalogado, mas no gene certo, no fenótipo certo).
+- No laudo, dar a esses achados o mesmo tratamento visual dos QC-rescued existentes (card com
+  alerta, campos de qualidade completos, nota de "confirmar antes de descartar") — não os deixar
+  invisíveis só porque não bateram tier de candidato.
+
+**Lição de processo (não só de produto):** antes de declarar "nenhum candidato" pra um gene/
+fenótipo específico, sempre checar o VCF anotado bruto por esse gene, não só a lista final de
+`candidates`/`classifications` já filtrada — a ausência na lista filtrada pode significar "não
+existe variante" ou pode significar "existe mas foi descartada num estágio anterior", e são coisas
+muito diferentes pra reportar.
+
+---
+
+*Contexto: os cinco itens foram validados manualmente numa sessão de análise da amostra
 Genoma_low_Sample (WGS, BaseSpace project "Genoma_low"), com o resultado publicado em
 `~/GBBGENOME/vcf2report_out/Genoma_low_Sample_laudo.html`. Os scripts/lógica usados ali são um bom
 ponto de partida pra implementar isso no pipeline principal.*
