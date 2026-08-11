@@ -209,6 +209,7 @@ def _parse_pure(path: Path, sample: str | None = None
             chrom, pos, _id, ref, alt, _qual, filt, info = cols[:8]
             if not pos.isdigit() or not ref or not alt:
                 continue  # malformed record — skip rather than crash
+            qual = _parse_qual(_qual)
             info_d = _parse_info(info)
             fmt = cols[8] if len(cols) > 8 else ""
             scol = 9 + sample_idx
@@ -229,6 +230,7 @@ def _parse_pure(path: Path, sample: str | None = None
                     exon=ann.get("exon"),
                     transcript=ann.get("transcript"),
                     filter_status=filt,
+                    qual=qual,
                     variant_id=_id if _id not in (".", "") else None,
                     n_alts=len(alts),
                     zygosity=metrics.get("zygosity"),
@@ -240,6 +242,16 @@ def _parse_pure(path: Path, sample: str | None = None
                     alt_index=i,
                 ))
     return variants, detect_build(header), header
+
+
+def _parse_qual(x: str):
+    """VCF QUAL column -> float, or None for the missing value '.'."""
+    if x in (".", "", None):
+        return None
+    try:
+        return float(x)
+    except ValueError:
+        return None
 
 
 def _cyvcf2_int(v):  # pragma: no cover
@@ -303,6 +315,7 @@ def _parse_cyvcf2(path: Path, sample: str | None = None
                 hgvs_p=ann.get("hgvs_p"), consequence=ann.get("consequence"),
                 exon=ann.get("exon"), transcript=ann.get("transcript"),
                 filter_status=rec.FILTER or "PASS", zygosity=zyg, partial_call=partial,
+                qual=(float(rec.QUAL) if rec.QUAL is not None else None),
                 variant_id=rec.ID if rec.ID not in (None, ".", "") else None,
                 n_alts=len(alts),
                 depth=depth_i, gq=gq, allele_balance=allele_balance, info=info,

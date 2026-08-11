@@ -36,6 +36,7 @@ class Variant:
     gq: Optional[int] = None           # genotype quality
     allele_balance: Optional[float] = None
     filter_status: Optional[str] = None  # VCF FILTER column
+    qual: Optional[float] = None       # VCF QUAL column (site-level call confidence)
     variant_id: Optional[str] = None   # VCF ID column (dbSNP rsID if present, else None)
     n_alts: int = 1                    # ALT alleles at this site (>1 => multiallelic)
     info: dict[str, str] = field(default_factory=dict)  # raw INFO (annotator fields)

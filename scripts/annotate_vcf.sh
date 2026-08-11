@@ -31,11 +31,15 @@ VCFANNO_CONF="${VCFANNO_CONF:-$REPO/scripts/vcfanno.conf.toml}"
 THREADS="${THREADS:-4}"
 
 # SnpEff resolution order: explicit SNPEFF_JAR, the setup_snpeff.sh location, then PATH.
+# SNPEFF_XMX overrides the Java heap (default 8g). On an 8 GB machine a fixed -Xmx8g is
+# larger than total RAM and thrashes/OOMs; SNPEFF_XMX=3g runs (peak RSS ~1.5 GB observed,
+# even on chr1) and is the recommended setting for WGS chunked annotation (docs/ANNOTATION.md).
+SNPEFF_XMX="${SNPEFF_XMX:-8g}"
 DEFAULT_JAR="${VCF2REPORT_DATA:-$REPO/data}/tools/snpEff/snpEff.jar"
 if [[ -n "${SNPEFF_JAR:-}" ]]; then
-  SNPEFF=(java -Xmx8g -jar "$SNPEFF_JAR")
+  SNPEFF=(java "-Xmx${SNPEFF_XMX}" -jar "$SNPEFF_JAR")
 elif [[ -f "$DEFAULT_JAR" ]]; then
-  SNPEFF=(java -Xmx8g -jar "$DEFAULT_JAR")
+  SNPEFF=(java "-Xmx${SNPEFF_XMX}" -jar "$DEFAULT_JAR")
 elif command -v snpEff >/dev/null 2>&1; then
   SNPEFF=(snpEff)
 else
