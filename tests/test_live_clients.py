@@ -4,6 +4,7 @@ The HTTP layer (annotate._http) is mocked with realistic payloads — no network
 These tests lock the response parsing and the cache-first / OFFLINE / local-
 fallback behaviour that the clients must preserve.
 """
+
 from vcf2report.annotate import _http, clinvar, gnomad, gnomad_remote
 from vcf2report.models import Variant
 
@@ -19,22 +20,27 @@ def _online(mp):
     # them hermetic — otherwise gnomad.lookup would try the real GCS bucket first.
     mp.setattr(gnomad_remote, "query", lambda variant: None)
 
+
 # --- gnomAD -----------------------------------------------------------------
 _GNOMAD_PAYLOAD = {
-    "data": {"variant": {
-        "variant_id": "2-166003360-C-T",
-        "genome": None,
-        "exome": {
-            "ac": 3, "an": 152000, "homozygote_count": 1,
-            "populations": [
-                {"id": "nfe", "ac": 3, "an": 68000},
-                {"id": "afr", "ac": 0, "an": 40000},
-                {"id": "amr", "ac": 0, "an": 20000},
-                {"id": "sas", "ac": 5, "an": 10000},     # excluded from popmax
-                {"id": "nfe_bgr", "ac": 2, "an": 5000},  # sub-pop, excluded
-            ],
-        },
-    }},
+    "data": {
+        "variant": {
+            "variant_id": "2-166003360-C-T",
+            "genome": None,
+            "exome": {
+                "ac": 3,
+                "an": 152000,
+                "homozygote_count": 1,
+                "populations": [
+                    {"id": "nfe", "ac": 3, "an": 68000},
+                    {"id": "afr", "ac": 0, "an": 40000},
+                    {"id": "amr", "ac": 0, "an": 20000},
+                    {"id": "sas", "ac": 5, "an": 10000},  # excluded from popmax
+                    {"id": "nfe_bgr", "ac": 2, "an": 5000},  # sub-pop, excluded
+                ],
+            },
+        }
+    },
 }
 
 
@@ -54,11 +60,15 @@ def test_gnomad_live_popmax(monkeypatch):
 def test_gnomad_errors_block_falls_back(monkeypatch):
     """A 200 carrying a non-'not found' GraphQL error must fall back, not fake AF 0."""
     _online(monkeypatch)
-    monkeypatch.setattr(_http, "post_json", lambda *a, **k: {
-        "data": {"variant": None},
-        "errors": [{"message": "Query timed out. Please try again."}],
-    })
-    v = Variant(chrom="2", pos=178562809, ref="G", alt="A")   # TTN, in local snapshot
+    monkeypatch.setattr(
+        _http,
+        "post_json",
+        lambda *a, **k: {
+            "data": {"variant": None},
+            "errors": [{"message": "Query timed out. Please try again."}],
+        },
+    )
+    v = Variant(chrom="2", pos=178562809, ref="G", alt="A")  # TTN, in local snapshot
     r = gnomad.lookup(v)
     assert r["af"] == 0.081
     assert "local snapshot" in r["_source"]
@@ -83,7 +93,7 @@ def test_gnomad_not_found_is_absent(monkeypatch):
 def test_gnomad_transport_error_falls_back_to_local(monkeypatch):
     _online(monkeypatch)
     monkeypatch.setattr(_http, "post_json", lambda *a, **k: None)  # network failure
-    v = Variant(chrom="2", pos=178562809, ref="G", alt="A")       # TTN, in local snapshot
+    v = Variant(chrom="2", pos=178562809, ref="G", alt="A")  # TTN, in local snapshot
     r = gnomad.lookup(v)
     assert r["af"] == 0.081
     assert "local snapshot" in r["_source"]
@@ -102,27 +112,65 @@ def test_gnomad_offline_never_calls_network(monkeypatch):
 
 # --- ClinVar ----------------------------------------------------------------
 _ESEARCH = {"esearchresult": {"idlist": ["12345"]}}
-_ESUMMARY_MATCH = {"result": {"uids": ["12345"], "12345": {
-    "accession": "VCV000012345",
-    "germline_classification": {
-        "description": "Pathogenic",
-        "review_status": "criteria provided, multiple submitters, no conflicts",
-        "last_evaluated": "2024/11/01",
-        "trait_set": [{"trait_name": "Dravet syndrome"}],
-    },
-    "variation_set": [{"variation_loc": [{
-        "assembly_name": "GRCh38", "chr": "2", "start": "166003360",
-        "stop": "166003360", "ref": "C", "alt": "T"}]}],
-}}}
+_ESUMMARY_MATCH = {
+    "result": {
+        "uids": ["12345"],
+        "12345": {
+            "accession": "VCV000012345",
+            "germline_classification": {
+                "description": "Pathogenic",
+                "review_status": "criteria provided, multiple submitters, no conflicts",
+                "last_evaluated": "2024/11/01",
+                "trait_set": [{"trait_name": "Dravet syndrome"}],
+            },
+            "variation_set": [
+                {
+                    "variation_loc": [
+                        {
+                            "assembly_name": "GRCh38",
+                            "chr": "2",
+                            "start": "166003360",
+                            "stop": "166003360",
+                            "ref": "C",
+                            "alt": "T",
+                        }
+                    ]
+                }
+            ],
+        },
+    }
+}
 
 
 def _clinvar_router(match=True):
-    summary = _ESUMMARY_MATCH if match else {"result": {"uids": ["12345"], "12345": {
-        "accession": "VCV999", "variation_set": [{"variation_loc": [{
-            "assembly_name": "GRCh38", "chr": "2", "start": "999999", "alt": "G"}]}]}}}
+    summary = (
+        _ESUMMARY_MATCH
+        if match
+        else {
+            "result": {
+                "uids": ["12345"],
+                "12345": {
+                    "accession": "VCV999",
+                    "variation_set": [
+                        {
+                            "variation_loc": [
+                                {
+                                    "assembly_name": "GRCh38",
+                                    "chr": "2",
+                                    "start": "999999",
+                                    "alt": "G",
+                                }
+                            ]
+                        }
+                    ],
+                },
+            }
+        }
+    )
 
     def router(url, params, **k):
         return _ESEARCH if "esearch" in url else summary
+
     return router
 
 
@@ -150,8 +198,13 @@ def test_clinvar_live_mismatch_falls_back_to_local(monkeypatch):
 
 
 def test_clinvar_legacy_field_shape():
-    docsum = {"accession": "VCV1", "clinical_significance": {
-        "description": "Benign", "review_status": "single submitter"}}
+    docsum = {
+        "accession": "VCV1",
+        "clinical_significance": {
+            "description": "Benign",
+            "review_status": "single submitter",
+        },
+    }
     out = clinvar._extract(docsum)
     assert out["significance"] == "Benign"
     assert out["review_status"] == "single submitter"
@@ -161,11 +214,12 @@ def test_clinvar_empty_search_falls_back_to_local(monkeypatch):
     """esearch with no hits must fall back to the local slice, not cache a miss."""
     _online(monkeypatch)
     monkeypatch.setattr(_http, "throttle", lambda *a, **k: None)
-    monkeypatch.setattr(_http, "get_json",
-                        lambda url, params, **k: {"esearchresult": {"idlist": []}})
+    monkeypatch.setattr(
+        _http, "get_json", lambda url, params, **k: {"esearchresult": {"idlist": []}}
+    )
     v = Variant(chrom="2", pos=166003360, ref="C", alt="T", gene="SCN1A")
     r = clinvar.lookup(v)
-    assert r["significance"] == "Pathogenic"   # from local slice
+    assert r["significance"] == "Pathogenic"  # from local slice
     assert "slice" in r["_source"]
 
 
@@ -173,15 +227,34 @@ def test_clinvar_rejects_same_pos_unconfirmed_allele(monkeypatch):
     """Same position but no confirmable ref/alt must be REJECTED (not attached)."""
     _online(monkeypatch)
     monkeypatch.setattr(_http, "throttle", lambda *a, **k: None)
-    summary = {"result": {"uids": ["1"], "1": {
-        "accession": "VCV_OTHER",
-        "germline_classification": {"description": "Benign"},
-        # matching chr/pos but NO ref/alt and NO canonical_spdi -> cannot confirm
-        "variation_set": [{"variation_loc": [{
-            "assembly_name": "GRCh38", "chr": "2", "start": "166003360"}]}],
-    }}}
-    monkeypatch.setattr(_http, "get_json", lambda url, params, **k: (
-        {"esearchresult": {"idlist": ["1"]}} if "esearch" in url else summary))
+    summary = {
+        "result": {
+            "uids": ["1"],
+            "1": {
+                "accession": "VCV_OTHER",
+                "germline_classification": {"description": "Benign"},
+                # matching chr/pos but NO ref/alt and NO canonical_spdi -> cannot confirm
+                "variation_set": [
+                    {
+                        "variation_loc": [
+                            {
+                                "assembly_name": "GRCh38",
+                                "chr": "2",
+                                "start": "166003360",
+                            }
+                        ]
+                    }
+                ],
+            },
+        }
+    }
+    monkeypatch.setattr(
+        _http,
+        "get_json",
+        lambda url, params, **k: (
+            {"esearchresult": {"idlist": ["1"]}} if "esearch" in url else summary
+        ),
+    )
     v = Variant(chrom="2", pos=166003360, ref="C", alt="T", gene="SCN1A")
     r = clinvar.lookup(v)
     # Rejected the unconfirmed record -> fell back to authoritative local slice.
@@ -193,16 +266,34 @@ def test_clinvar_matches_via_canonical_spdi(monkeypatch):
     """Allele can be positively confirmed from canonical_spdi when loc lacks alt."""
     _online(monkeypatch)
     monkeypatch.setattr(_http, "throttle", lambda *a, **k: None)
-    summary = {"result": {"uids": ["1"], "1": {
-        "accession": "VCV000012345",
-        "germline_classification": {"description": "Pathogenic"},
-        "variation_set": [{
-            "canonical_spdi": "NC_000002.12:166003359:C:T",
-            "variation_loc": [{"assembly_name": "GRCh38", "chr": "2",
-                               "start": "166003360"}]}],
-    }}}
-    monkeypatch.setattr(_http, "get_json", lambda url, params, **k: (
-        {"esearchresult": {"idlist": ["1"]}} if "esearch" in url else summary))
+    summary = {
+        "result": {
+            "uids": ["1"],
+            "1": {
+                "accession": "VCV000012345",
+                "germline_classification": {"description": "Pathogenic"},
+                "variation_set": [
+                    {
+                        "canonical_spdi": "NC_000002.12:166003359:C:T",
+                        "variation_loc": [
+                            {
+                                "assembly_name": "GRCh38",
+                                "chr": "2",
+                                "start": "166003360",
+                            }
+                        ],
+                    }
+                ],
+            },
+        }
+    }
+    monkeypatch.setattr(
+        _http,
+        "get_json",
+        lambda url, params, **k: (
+            {"esearchresult": {"idlist": ["1"]}} if "esearch" in url else summary
+        ),
+    )
     v = Variant(chrom="2", pos=166003360, ref="C", alt="T", gene="SCN1A")
     r = clinvar.lookup(v)
     assert r["significance"] == "Pathogenic"

@@ -1,4 +1,5 @@
 """Annotation resolves from local datasets offline; end-to-end pipeline check."""
+
 import os
 
 from vcf2report import config
@@ -12,7 +13,7 @@ def test_offline_annotation_uses_local_snapshots(monkeypatch):
     assert config.offline() is True
     v = Variant(chrom="2", pos=178562809, ref="G", alt="A", gene="TTN")
     a = annotate_variant(v, [])
-    assert a.gnomad_af == 0.081          # from local snapshot
+    assert a.gnomad_af == 0.081  # from local snapshot
     # No cohort is shipped, so the local leg is UNKNOWN — never a checked zero.
     assert a.local_cohort_af is None
     assert "not in local table" in a.source["local_cohort"]
@@ -53,6 +54,6 @@ def test_end_to_end_pipeline_tiers():
     # source — a second cohort is the operator's to supply (annotate/local_cohort.py).
     assert "TTN" not in tiers
     assert tiers["OBSCN"] == "Uncertain Significance (VUS)"
-    assert tiers["RB1"] == "Likely Pathogenic"   # incidental ACMG SF finding
+    assert tiers["RB1"] == "Likely Pathogenic"  # incidental ACMG SF finding
     assert report.qc.candidates == 6
     assert report.qc.local_cohort_filtered == []

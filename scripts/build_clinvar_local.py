@@ -11,11 +11,20 @@ spaces (matching the E-utilities form that clinvar_stars/PP5 parse).
 Default output: data/clinvar/clinvar_grch38.tsv.gz (+ .tbi). Get the source VCF from
 https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz
 """
+
 import gzip, os, re, subprocess, sys
 
 SRC = sys.argv[1]
-OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "clinvar", "clinvar_grch38.tsv.gz")
+OUT = (
+    sys.argv[2]
+    if len(sys.argv) > 2
+    else os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "data",
+        "clinvar",
+        "clinvar_grch38.tsv.gz",
+    )
+)
 TMP = OUT[:-3] if OUT.endswith(".gz") else OUT + ".tsv"
 
 

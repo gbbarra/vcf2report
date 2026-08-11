@@ -13,6 +13,7 @@ parsing, annotation, classification, or the primary/secondary gating fails a
 test instead of silently changing a report. It exercises the same files a user
 gets from ``git pull`` — no network, no external annotation.
 """
+
 from pathlib import Path
 
 import pytest
@@ -28,10 +29,22 @@ HPO = ROOT / "data" / "synthetic"
 # case -> {gene: (expected_tier, expected_bucket)}
 CASES = {
     "SYN-001": {"SCN1A": ("Pathogenic", "primary"), "RB1": ("Pathogenic", "secondary")},
-    "SYN-002": {"KCNQ2": ("Pathogenic", "primary"), "APC": ("Likely Pathogenic", "secondary")},
-    "SYN-003": {"SCN2A": ("Pathogenic", "primary"), "STK11": ("Pathogenic", "secondary")},
-    "SYN-004": {"STXBP1": ("Pathogenic", "primary"), "WT1": ("Pathogenic", "secondary")},
-    "SYN-005": {"SLC2A1": ("Pathogenic", "primary"), "FBN1": ("Pathogenic", "secondary")},
+    "SYN-002": {
+        "KCNQ2": ("Pathogenic", "primary"),
+        "APC": ("Likely Pathogenic", "secondary"),
+    },
+    "SYN-003": {
+        "SCN2A": ("Pathogenic", "primary"),
+        "STK11": ("Pathogenic", "secondary"),
+    },
+    "SYN-004": {
+        "STXBP1": ("Pathogenic", "primary"),
+        "WT1": ("Pathogenic", "secondary"),
+    },
+    "SYN-005": {
+        "SLC2A1": ("Pathogenic", "primary"),
+        "FBN1": ("Pathogenic", "secondary"),
+    },
 }
 
 

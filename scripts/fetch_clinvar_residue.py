@@ -19,6 +19,7 @@ demo + tests exercising PS1/PM5 with no download.
 
     VCF2REPORT_ALLOW_NETWORK=1 python scripts/fetch_clinvar_residue.py
 """
+
 from __future__ import annotations
 
 import gzip
@@ -72,9 +73,18 @@ def main() -> int:
     with gzip.open(tmp, "rt") as fh:
         header = fh.readline().rstrip("\n").split("\t")
         idx = {h: i for i, h in enumerate(header)}
-        gi, ni, si, ri = idx["GeneSymbol"], idx["Name"], idx["ClinicalSignificance"], idx["ReviewStatus"]
+        gi, ni, si, ri = (
+            idx["GeneSymbol"],
+            idx["Name"],
+            idx["ClinicalSignificance"],
+            idx["ReviewStatus"],
+        )
         ai, ci = idx["Assembly"], idx["Chromosome"]
-        pvi, refi, alti = idx["PositionVCF"], idx["ReferenceAlleleVCF"], idx["AlternateAlleleVCF"]
+        pvi, refi, alti = (
+            idx["PositionVCF"],
+            idx["ReferenceAlleleVCF"],
+            idx["AlternateAlleleVCF"],
+        )
         vidi = idx["VariationID"]
         for line in fh:
             f = line.rstrip("\n").split("\t")
@@ -105,12 +115,20 @@ def main() -> int:
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with gzip.open(OUT, "wt") as w:
-        w.write("# ClinVar residue index for PS1/PM5 (GRCh38 P/LP missense, >=1 star).\n")
-        w.write("# Columns: gene\taa_pos\tref_aa\talt_aa\tstars\tgenomic_key\taccession\n")
+        w.write(
+            "# ClinVar residue index for PS1/PM5 (GRCh38 P/LP missense, >=1 star).\n"
+        )
+        w.write(
+            "# Columns: gene\taa_pos\tref_aa\talt_aa\tstars\tgenomic_key\taccession\n"
+        )
         for (gene, pos, alt_aa), (stars, ref_aa, key, vid) in sorted(best.items()):
-            w.write(f"{gene}\t{pos}\t{ref_aa}\t{alt_aa}\t{stars}\t{key}\tVCV{int(vid):09d}\n")
-    print(f"scanned {n_rows:,} GRCh38 rows, {n_missense:,} P/LP missense >=1★ "
-          f"-> {len(best):,} distinct (gene,residue,alt) -> {OUT}")
+            w.write(
+                f"{gene}\t{pos}\t{ref_aa}\t{alt_aa}\t{stars}\t{key}\tVCV{int(vid):09d}\n"
+            )
+    print(
+        f"scanned {n_rows:,} GRCh38 rows, {n_missense:,} P/LP missense >=1★ "
+        f"-> {len(best):,} distinct (gene,residue,alt) -> {OUT}"
+    )
     return 0
 
 

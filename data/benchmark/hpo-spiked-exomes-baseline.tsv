@@ -1,201 +1,201 @@
-syn_id	gene	outcome	tier	consequence	withheld_tier	candidates	error
-SYN-001	TM2D3	primary	Pathogenic	stop_gained		1217	
-SYN-002	GTPBP2	primary	Pathogenic	stop_gained		1148	
-SYN-003	MDGA2	primary	Pathogenic	stop_gained		1082	
-SYN-004	NIPBL	primary	Pathogenic	stop_gained		1160	
-SYN-005	SON	primary	Pathogenic	stop_gained		1133	
-SYN-006	ROR2	primary	Pathogenic	stop_gained		1104	
-SYN-007	ANKRD11	primary	Pathogenic	stop_gained		1180	
-SYN-008	WSB2	primary	Pathogenic	stop_gained		1181	
-SYN-009	POGZ	primary	Likely Pathogenic	stop_gained		1154	
-SYN-010	ARPC5	primary	Pathogenic	stop_gained		1150	
-SYN-011	IRF1	primary	Pathogenic	stop_gained		1182	
-SYN-012	GTPBP1	primary	Pathogenic	stop_gained		1176	
-SYN-013	PI4K2A	primary	Pathogenic	stop_gained		1241	
-SYN-014	ANTXR1	primary	Pathogenic	stop_gained		1153	
-SYN-015	PAN2	primary	Pathogenic	stop_gained		1191	
-SYN-016	WDR26	primary	Pathogenic	stop_gained		1178	
-SYN-017	RC3H1	primary	Pathogenic	stop_gained		1215	
-SYN-018	PLAAT3	primary	Pathogenic	stop_gained		1270	
-SYN-019	HIVEP2	primary	Pathogenic	stop_gained		1199	
-SYN-020	SMAD2	primary	Pathogenic	stop_gained		1178	
-SYN-021	UNC13A	primary	Pathogenic	stop_gained		1148	
-SYN-022	MAU2	primary	Pathogenic	stop_gained		1181	
-SYN-023	COPZ1	primary	Pathogenic	stop_gained		1171	
-SYN-024	GTF2H5	primary	Likely Pathogenic	stop_gained		1148	
-SYN-025	JPH1	primary	Pathogenic	stop_gained		1208	
-SYN-026	BORCS8	primary	Pathogenic	frameshift_variant		1185	
-SYN-027	ZRSR2	primary	Likely Pathogenic	frameshift_variant		1215	
-SYN-028	LZTFL1	primary	Pathogenic	frameshift_variant		1168	
-SYN-029	CILK1	primary	Pathogenic	frameshift_variant		1189	
-SYN-030	INPP4A	primary	Pathogenic	frameshift_variant		1176	
-SYN-031	GUK1	primary	Pathogenic	frameshift_variant		1209	
-SYN-032	FBXO22	primary	Pathogenic	frameshift_variant		1189	
-SYN-033	UGGT1	primary	Pathogenic	frameshift_variant		1166	
-SYN-034	RNU5B-1	absent				1256	
-SYN-035	ESAM	primary	Pathogenic	frameshift_variant		1158	
-SYN-036	AHDC1	primary	Pathogenic	frameshift_variant		1205	
-SYN-037	DVL1	primary	Uncertain Significance (VUS)	frameshift_variant		1159	
-SYN-038	ZFX	primary	Likely Pathogenic	frameshift_variant		1151	
-SYN-039	IFT140	primary	Likely Pathogenic	frameshift_variant		1292	
-SYN-040	FAAP100	primary	Pathogenic	frameshift_variant		1330	
-SYN-041	RFC4	primary	Pathogenic	splice_donor_variant		1268	
-SYN-042	RNU4-2	absent				1300	
-SYN-043	EMILIN1	primary	Pathogenic	frameshift_variant		1272	
-SYN-044	FGD1	primary	Pathogenic	frameshift_variant		1249	
-SYN-045	DMRT2	primary	Pathogenic	frameshift_variant		1316	
-SYN-046	SUPT7L	primary	Pathogenic	frameshift_variant		1311	
-SYN-047	TGFB2	primary	Pathogenic	frameshift_variant		1328	
-SYN-048	DNA2	primary	Pathogenic	frameshift_variant		1280	
-SYN-049	TAF4	primary	Likely Pathogenic	frameshift_variant		1298	
-SYN-050	STXBP1	primary	Pathogenic	frameshift_variant		1299	
-SYN-051	PIGA	primary	Uncertain Significance (VUS)	missense_variant		1346	
-SYN-052	DONSON	primary	Uncertain Significance (VUS)	missense_variant		1318	
-SYN-053	RAP1B	primary	Likely Pathogenic	missense_variant		1311	
-SYN-054	U2AF2	primary	Likely Pathogenic	missense_variant		1305	
-SYN-055	FBXL4	primary	Uncertain Significance (VUS)	missense_variant		1316	
-SYN-056	GON4L	primary	Pathogenic	splice_donor_variant		1323	
-SYN-057	DOT1L	primary	Uncertain Significance (VUS)	missense_variant		1248	
-SYN-058	MED16	primary	Likely Pathogenic	missense_variant		1289	
-SYN-059	SETD2	other	Uncertain Significance (VUS)	missense_variant		1269	
-SYN-060	TGFBR2	primary	Likely Pathogenic	missense_variant		1285	
-SYN-061	FBXO11	primary	Likely Pathogenic	missense_variant		1281	
-SYN-062	SMARCC2	primary	Likely Pathogenic	missense_variant		1271	
-SYN-063	SETBP1	primary	Likely Pathogenic	missense_variant		1324	
-SYN-064	MCCC1	primary	Uncertain Significance (VUS)	missense_variant		1310	
-SYN-065	BRAF	primary	Uncertain Significance (VUS)	missense_variant		1211	
-SYN-066	WDR83OS	primary	Pathogenic	splice_donor_variant		1371	
-SYN-067	CACHD1	primary	Pathogenic	splice_acceptor_variant		1278	
-SYN-068	IKZF2	primary	Likely Pathogenic	missense_variant		1307	
-SYN-069	MAN2B2	primary	Uncertain Significance (VUS)	missense_variant		1285	
-SYN-070	RBSN	probable_vus	Uncertain Significance (VUS)	missense_variant		1362	
-SYN-071	FDXR	primary	Uncertain Significance (VUS)	missense_variant		1309	
-SYN-072	FASTKD5	primary	Uncertain Significance (VUS)	missense_variant		1281	
-SYN-073	BBS2	primary	Pathogenic	splice_acceptor_variant		1291	
-SYN-074	NAA80	primary	Uncertain Significance (VUS)	missense_variant		1221	
-SYN-075	TRAF7	primary	Likely Pathogenic	missense_variant		1158	
-SYN-076	MTOR	primary	Uncertain Significance (VUS)	missense_variant		1239	
-SYN-077	OAS2	primary	Uncertain Significance (VUS)	missense_variant		1405	
-SYN-078	KMT2D	primary	Likely Pathogenic	missense_variant		1327	
-SYN-079	SC5D	primary	Uncertain Significance (VUS)	missense_variant		1308	
-SYN-080	ITGAV	primary	Likely Pathogenic	missense_variant		1257	
-SYN-081	MAPK8IP3	other	Uncertain Significance (VUS)	missense_variant		1231	
-SYN-082	MOCS3	other	Uncertain Significance (VUS)	missense_variant		1277	
-SYN-083	ERI1	primary	Likely Pathogenic	missense_variant		1244	
-SYN-084	CDK10	primary	Pathogenic	splice_donor_variant		1217	
-SYN-085	CRELD1	primary	Likely Pathogenic	missense_variant		1198	
-SYN-086	SMC3	primary	Uncertain Significance (VUS)	disruptive_inframe_insertion		1252	
-SYN-087	SMARCB1	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion		1243	
-SYN-088	TOP2B	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion		1308	
-SYN-089	ETFB	other	Uncertain Significance (VUS)	disruptive_inframe_deletion		1236	
-SYN-090	LZTR1	primary	Uncertain Significance (VUS)	conservative_inframe_deletion		1321	
-SYN-091	ELFN1	probable_vus	Uncertain Significance (VUS)	conservative_inframe_deletion		1172	
-SYN-092	ANKH	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion		1252	
-SYN-093	TGFBR1	primary	Uncertain Significance (VUS)	conservative_inframe_deletion		1138	
-SYN-094	B3GALT6	primary	Uncertain Significance (VUS)	conservative_inframe_deletion		1258	
-SYN-095	SPINK5	primary	Pathogenic	splice_donor_variant		1161	
-SYN-096	DCLRE1C	primary	Likely Pathogenic	missense_variant		1152	
-SYN-097	TRA2B	primary	Uncertain Significance (VUS)	start_lost		1260	
-SYN-098	GCSH	primary	Pathogenic	stop_gained		1273	
-SYN-099	MSL2	primary	Uncertain Significance (VUS)	start_lost		1314	
-SYN-100	PTBP1	primary	Uncertain Significance (VUS)	start_lost		1218	
-SYN-101	ABCA4	primary	Pathogenic	splice_acceptor_variant		1094	
-SYN-102	ABCB7	primary	Uncertain Significance (VUS)	missense_variant		1165	
-SYN-103	ABCC8	primary	Uncertain Significance (VUS)	missense_variant		1139	
-SYN-104	ACBD6	primary	Pathogenic	stop_gained		1195	
-SYN-105	ACTA1	primary	Uncertain Significance (VUS)	missense_variant		1187	
-SYN-106	ACTB	primary	Likely Pathogenic	missense_variant		1128	
-SYN-107	ACTN1	primary	Uncertain Significance (VUS)	missense_variant		1187	
-SYN-108	ACVR1	primary	Uncertain Significance (VUS)	missense_variant		1002	
-SYN-109	ADA	absent				1191	
-SYN-110	ADA2	primary	Uncertain Significance (VUS)	missense_variant		1199	
-SYN-111	ADAMTS10	primary	Likely Pathogenic	missense_variant		1206	
-SYN-112	ADAMTS15	primary	Pathogenic	stop_gained		1207	
-SYN-113	ADAMTSL2	primary	Pathogenic	stop_gained		1149	
-SYN-114	ADGRG1	primary	Pathogenic	stop_gained		1084	
-SYN-115	ADRA2A	primary	Uncertain Significance (VUS)	missense_variant		1122	
-SYN-116	AFG3L2	primary	Uncertain Significance (VUS)	missense_variant		1136	
-SYN-117	AGRN	primary	Uncertain Significance (VUS)	missense_variant		1211	
-SYN-118	AIRE	primary	Uncertain Significance (VUS)	start_lost		1169	
-SYN-119	AK9	primary	Uncertain Significance (VUS)	conservative_inframe_deletion		1129	
-SYN-120	AKT1	primary	Uncertain Significance (VUS)	missense_variant		1194	
-SYN-121	ALG9	primary	Uncertain Significance (VUS)	missense_variant		1185	
-SYN-122	AMN	primary	Pathogenic	frameshift_variant		1134	
-SYN-123	AMOTL1	primary	Uncertain Significance (VUS)	missense_variant		1205	
-SYN-124	AMT	other	Uncertain Significance (VUS)	missense_variant		1193	
-SYN-125	APOA1	primary	Uncertain Significance (VUS)	missense_variant		1158	
-SYN-126	APOA4	primary	Uncertain Significance (VUS)	missense_variant		1133	
-SYN-127	ARHGEF15	primary	Uncertain Significance (VUS)	missense_variant		1198	
-SYN-128	ARMC9	other	Benign	missense_variant		1215	
-SYN-129	ASAH1	primary	Uncertain Significance (VUS)	missense_variant		1146	
-SYN-130	ASCC3	primary	Pathogenic	stop_gained		1201	
-SYN-131	ASS1	primary	Uncertain Significance (VUS)	missense_variant		1192	
-SYN-132	ATG4D	primary	Uncertain Significance (VUS)	missense_variant		1213	
-SYN-133	ATP13A2	primary	Pathogenic	frameshift_variant		1137	
-SYN-134	ATP2A2	primary	Uncertain Significance (VUS)	missense_variant		1193	
-SYN-135	ATP5F1B	primary	Uncertain Significance (VUS)	missense_variant		1157	
-SYN-136	ATP6V0C	primary	Uncertain Significance (VUS)	stop_lost		1151	
-SYN-137	ATP6V1A	probable_vus	Uncertain Significance (VUS)	missense_variant		1199	
-SYN-138	ATP6V1E1	primary	Uncertain Significance (VUS)	missense_variant		1222	
-SYN-139	B2M	primary	Uncertain Significance (VUS)	missense_variant		1160	
-SYN-140	BAG3	primary	Uncertain Significance (VUS)	missense_variant		1199	
-SYN-141	BAIAP2	primary	Uncertain Significance (VUS)	missense_variant		1221	
-SYN-142	BBS1	absent				1189	
-SYN-143	BBS5	primary	Pathogenic	splice_donor_variant		1140	
-SYN-144	BCKDHB	primary	Uncertain Significance (VUS)	missense_variant		1112	
-SYN-145	BCKDK	primary	Uncertain Significance (VUS)	missense_variant		1232	
-SYN-146	BNIP1	absent				1173	
-SYN-147	CAD	primary	Pathogenic	splice_acceptor_variant		1251	
-SYN-148	CALM1	primary	Uncertain Significance (VUS)	missense_variant		1238	
-SYN-149	CALM2	primary	Uncertain Significance (VUS)	missense_variant		1116	
-SYN-150	CAPNS1	primary	Pathogenic	splice_acceptor_variant		1231	
-SYN-151	COL6A2	primary	Pathogenic	splice_acceptor_variant		1232	
-SYN-152	COMP	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion		1238	
-SYN-153	GNAO1	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion		1207	
-SYN-154	POPDC2	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion		1298	
-SYN-155	RGS9BP	primary	Uncertain Significance (VUS)	conservative_inframe_deletion		1169	
-SYN-156	SLC35C1	primary	Pathogenic	stop_gained		1207	
-SYN-157	TPM2	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion		1184	
-SYN-158	TYRP1	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion		1232	
-SYN-159	UMOD	primary	Uncertain Significance (VUS)	missense_variant		1155	
-SYN-160	WFS1	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion		1200	
-SYN-161	ZIC2	absent				1211	
-SYN-162	APTX	primary	Pathogenic	stop_gained		1181	
-SYN-163	ARHGEF18	primary	Pathogenic	stop_gained		1236	
-SYN-164	ATRX	primary	Pathogenic	stop_gained		1159	
-SYN-165	ATXN7L3	primary	Pathogenic	stop_gained		1201	
-SYN-166	AXIN1	primary	Pathogenic	stop_gained		1204	
-SYN-167	BUD13	primary	Pathogenic	stop_gained		1216	
-SYN-168	CAPRIN1	primary	Pathogenic	stop_gained		1235	
-SYN-169	CASP2	primary	Pathogenic	stop_gained		1174	
-SYN-170	CDK4	primary	Pathogenic	stop_gained		1193	
-SYN-171	CFAP57	primary	Pathogenic	stop_gained		1171	
-SYN-172	CHD7	primary	Pathogenic	stop_gained		1187	
-SYN-173	CHST14	primary	Likely Pathogenic	frameshift_variant		1121	
-SYN-174	CHUK	primary	Pathogenic	stop_gained		1227	
-SYN-175	AAGAB	primary	Pathogenic	frameshift_variant		1249	
-SYN-176	ALPK3	primary	Pathogenic	frameshift_variant		1253	
-SYN-177	ANTXR2	other	Likely Pathogenic	frameshift_variant		1165	
-SYN-178	ARHGAP19	primary	Pathogenic	frameshift_variant		1187	
-SYN-179	ASPM	primary	Pathogenic	frameshift_variant		1199	
-SYN-180	BRD4	primary	Pathogenic	frameshift_variant		1140	
-SYN-181	BRPF1	other	Likely Pathogenic	frameshift_variant		1149	
-SYN-182	C10ORF71	absent				1193	
-SYN-183	CAPN1	primary	Pathogenic	frameshift_variant		1268	
-SYN-184	CCDC146	primary	Pathogenic	frameshift_variant		1247	
-SYN-185	CCT3	primary	Pathogenic	frameshift_variant		1094	
-SYN-186	CEP295	primary	Pathogenic	frameshift_variant		1237	
-SYN-187	CFAP206	primary	Pathogenic	frameshift_variant		1199	
-SYN-188	CHRDL1	primary	Pathogenic	frameshift_variant		1162	
-SYN-189	CNTNAP2	primary	Pathogenic	frameshift_variant		1171	
-SYN-190	CMPK2	primary	Uncertain Significance (VUS)	start_lost		1184	
-SYN-191	COQ7	primary	Uncertain Significance (VUS)	start_lost		1182	
-SYN-192	GLUL	primary	Uncertain Significance (VUS)	initiator_codon_variant		1179	
-SYN-193	KRT9	primary	Uncertain Significance (VUS)	missense_variant		1142	
-SYN-194	SPG7	probable_vus	Uncertain Significance (VUS)	missense_variant		1155	
-SYN-195	CCIN	probable_vus	Uncertain Significance (VUS)	missense_variant		1188	
-SYN-196	FLNB	primary	Uncertain Significance (VUS)	missense_variant		1239	
-SYN-197	SPINT2	carrier	Pathogenic	frameshift_variant		1187	
-SYN-198	SLC6A17	primary	Likely Pathogenic	missense_variant		1254	
-SYN-199	HMGCR	primary	Uncertain Significance (VUS)	missense_variant		1286	
-SYN-200	FRYL	primary	Uncertain Significance (VUS)	missense_variant		1144	
+syn_id	gene	outcome	tier	consequence	tier_source	withheld_tier	candidates	error
+SYN-001	TM2D3	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1217	
+SYN-002	GTPBP2	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1148	
+SYN-003	MDGA2	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1082	
+SYN-004	NIPBL	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1160	
+SYN-005	SON	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1133	
+SYN-006	ROR2	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1104	
+SYN-007	ANKRD11	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1180	
+SYN-008	WSB2	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1181	
+SYN-009	POGZ	primary	Likely Pathogenic	stop_gained	planted-locus	Likely Pathogenic	1154	
+SYN-010	ARPC5	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1150	
+SYN-011	IRF1	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1182	
+SYN-012	GTPBP1	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1176	
+SYN-013	PI4K2A	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1241	
+SYN-014	ANTXR1	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1153	
+SYN-015	PAN2	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1191	
+SYN-016	WDR26	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1178	
+SYN-017	RC3H1	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1215	
+SYN-018	PLAAT3	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1270	
+SYN-019	HIVEP2	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1199	
+SYN-020	SMAD2	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1178	
+SYN-021	UNC13A	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1148	
+SYN-022	MAU2	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1181	
+SYN-023	COPZ1	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1171	
+SYN-024	GTF2H5	primary	Likely Pathogenic	stop_gained	planted-locus	Likely Pathogenic	1148	
+SYN-025	JPH1	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1208	
+SYN-026	BORCS8	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1185	
+SYN-027	ZRSR2	primary	Likely Pathogenic	frameshift_variant	planted-locus	Likely Pathogenic	1215	
+SYN-028	LZTFL1	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1168	
+SYN-029	CILK1	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1189	
+SYN-030	INPP4A	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1176	
+SYN-031	GUK1	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1209	
+SYN-032	FBXO22	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1189	
+SYN-033	UGGT1	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1166	
+SYN-034	RNU5B-1	absent					1256	
+SYN-035	ESAM	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1158	
+SYN-036	AHDC1	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1205	
+SYN-037	DVL1	primary	Uncertain Significance (VUS)	frameshift_variant	planted-locus	Uncertain Significance (VUS)	1159	
+SYN-038	ZFX	primary	Likely Pathogenic	frameshift_variant	planted-locus	Likely Pathogenic	1151	
+SYN-039	IFT140	primary	Likely Pathogenic	frameshift_variant	planted-locus	Likely Pathogenic	1292	
+SYN-040	FAAP100	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1330	
+SYN-041	RFC4	primary	Pathogenic	splice_donor_variant	planted-locus	Pathogenic	1268	
+SYN-042	RNU4-2	absent	Uncertain Significance (VUS)	downstream_gene_variant	planted-locus	Uncertain Significance (VUS)	1300	
+SYN-043	EMILIN1	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1272	
+SYN-044	FGD1	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1249	
+SYN-045	DMRT2	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1316	
+SYN-046	SUPT7L	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1311	
+SYN-047	TGFB2	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1328	
+SYN-048	DNA2	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1280	
+SYN-049	TAF4	primary	Likely Pathogenic	frameshift_variant	planted-locus	Likely Pathogenic	1298	
+SYN-050	STXBP1	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1299	
+SYN-051	PIGA	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1346	
+SYN-052	DONSON	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1318	
+SYN-053	RAP1B	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1311	
+SYN-054	U2AF2	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1305	
+SYN-055	FBXL4	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1316	
+SYN-056	GON4L	primary	Pathogenic	splice_donor_variant	planted-locus	Pathogenic	1323	
+SYN-057	DOT1L	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1248	
+SYN-058	MED16	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1289	
+SYN-059	SETD2	other	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1269	
+SYN-060	TGFBR2	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1285	
+SYN-061	FBXO11	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1281	
+SYN-062	SMARCC2	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1271	
+SYN-063	SETBP1	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1324	
+SYN-064	MCCC1	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1310	
+SYN-065	BRAF	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1211	
+SYN-066	WDR83OS	primary	Pathogenic	splice_donor_variant	planted-locus	Pathogenic	1371	
+SYN-067	CACHD1	primary	Pathogenic	splice_donor_variant	planted-locus	Pathogenic	1278	
+SYN-068	IKZF2	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1307	
+SYN-069	MAN2B2	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1285	
+SYN-070	RBSN	probable_vus	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1362	
+SYN-071	FDXR	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1309	
+SYN-072	FASTKD5	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1281	
+SYN-073	BBS2	primary	Pathogenic	splice_acceptor_variant	planted-locus	Pathogenic	1291	
+SYN-074	NAA80	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1221	
+SYN-075	TRAF7	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1158	
+SYN-076	MTOR	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1239	
+SYN-077	OAS2	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1405	
+SYN-078	KMT2D	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1327	
+SYN-079	SC5D	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1308	
+SYN-080	ITGAV	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1257	
+SYN-081	MAPK8IP3	other	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1231	
+SYN-082	MOCS3	other	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1277	
+SYN-083	ERI1	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1244	
+SYN-084	CDK10	primary	Pathogenic	splice_donor_variant	planted-locus	Pathogenic	1217	
+SYN-085	CRELD1	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1198	
+SYN-086	SMC3	primary	Uncertain Significance (VUS)	disruptive_inframe_insertion	planted-locus	Uncertain Significance (VUS)	1252	
+SYN-087	SMARCB1	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1243	
+SYN-088	TOP2B	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1308	
+SYN-089	ETFB	other	Uncertain Significance (VUS)	disruptive_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1236	
+SYN-090	LZTR1	primary	Uncertain Significance (VUS)	conservative_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1321	
+SYN-091	ELFN1	probable_vus	Uncertain Significance (VUS)	conservative_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1172	
+SYN-092	ANKH	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1252	
+SYN-093	TGFBR1	primary	Uncertain Significance (VUS)	conservative_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1138	
+SYN-094	B3GALT6	primary	Uncertain Significance (VUS)	conservative_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1258	
+SYN-095	SPINK5	primary	Pathogenic	splice_donor_variant	planted-locus	Pathogenic	1161	
+SYN-096	DCLRE1C	primary	Uncertain Significance (VUS)	start_lost	planted-locus	Uncertain Significance (VUS)	1152	
+SYN-097	TRA2B	primary	Uncertain Significance (VUS)	start_lost	planted-locus	Uncertain Significance (VUS)	1260	
+SYN-098	GCSH	primary	Uncertain Significance (VUS)	start_lost	planted-locus	Uncertain Significance (VUS)	1273	
+SYN-099	MSL2	primary	Uncertain Significance (VUS)	start_lost	planted-locus	Uncertain Significance (VUS)	1314	
+SYN-100	PTBP1	primary	Uncertain Significance (VUS)	start_lost	planted-locus	Uncertain Significance (VUS)	1218	
+SYN-101	ABCA4	primary	Pathogenic	splice_acceptor_variant	planted-locus	Pathogenic	1094	
+SYN-102	ABCB7	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1165	
+SYN-103	ABCC8	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1139	
+SYN-104	ACBD6	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1195	
+SYN-105	ACTA1	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1187	
+SYN-106	ACTB	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1128	
+SYN-107	ACTN1	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1187	
+SYN-108	ACVR1	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1002	
+SYN-109	ADA	absent					1191	
+SYN-110	ADA2	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1199	
+SYN-111	ADAMTS10	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1206	
+SYN-112	ADAMTS15	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1207	
+SYN-113	ADAMTSL2	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1149	
+SYN-114	ADGRG1	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1084	
+SYN-115	ADRA2A	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1122	
+SYN-116	AFG3L2	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1136	
+SYN-117	AGRN	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1211	
+SYN-118	AIRE	primary	Uncertain Significance (VUS)	start_lost	planted-locus	Uncertain Significance (VUS)	1169	
+SYN-119	AK9	primary	Uncertain Significance (VUS)	conservative_inframe_deletion	gene-fallback	Uncertain Significance (VUS)	1129	
+SYN-120	AKT1	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1194	
+SYN-121	ALG9	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1185	
+SYN-122	AMN	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1134	
+SYN-123	AMOTL1	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1205	
+SYN-124	AMT	other	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1193	
+SYN-125	APOA1	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1158	
+SYN-126	APOA4	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1133	
+SYN-127	ARHGEF15	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1198	
+SYN-128	ARMC9	other	Benign	missense_variant	gene-fallback	Benign	1215	
+SYN-129	ASAH1	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1146	
+SYN-130	ASCC3	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1201	
+SYN-131	ASS1	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1192	
+SYN-132	ATG4D	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1213	
+SYN-133	ATP13A2	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1137	
+SYN-134	ATP2A2	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1193	
+SYN-135	ATP5F1B	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1157	
+SYN-136	ATP6V0C	primary	Uncertain Significance (VUS)	stop_lost	planted-locus	Uncertain Significance (VUS)	1151	
+SYN-137	ATP6V1A	probable_vus	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1199	
+SYN-138	ATP6V1E1	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1222	
+SYN-139	B2M	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1160	
+SYN-140	BAG3	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1199	
+SYN-141	BAIAP2	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1221	
+SYN-142	BBS1	absent					1189	
+SYN-143	BBS5	primary	Pathogenic	splice_donor_variant	planted-locus	Pathogenic	1140	
+SYN-144	BCKDHB	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1112	
+SYN-145	BCKDK	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1232	
+SYN-146	BNIP1	absent					1173	
+SYN-147	CAD	primary	Pathogenic	splice_acceptor_variant	planted-locus	Pathogenic	1251	
+SYN-148	CALM1	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1238	
+SYN-149	CALM2	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1116	
+SYN-150	CAPNS1	primary	Pathogenic	splice_acceptor_variant	planted-locus	Pathogenic	1231	
+SYN-151	COL6A2	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1232	
+SYN-152	COMP	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1238	
+SYN-153	GNAO1	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1207	
+SYN-154	POPDC2	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1298	
+SYN-155	RGS9BP	primary	Uncertain Significance (VUS)	conservative_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1169	
+SYN-156	SLC35C1	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1207	
+SYN-157	TPM2	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1184	
+SYN-158	TYRP1	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1232	
+SYN-159	UMOD	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1155	
+SYN-160	WFS1	primary	Uncertain Significance (VUS)	disruptive_inframe_deletion	planted-locus	Uncertain Significance (VUS)	1200	
+SYN-161	ZIC2	absent					1211	
+SYN-162	APTX	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1181	
+SYN-163	ARHGEF18	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1236	
+SYN-164	ATRX	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1159	
+SYN-165	ATXN7L3	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1201	
+SYN-166	AXIN1	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1204	
+SYN-167	BUD13	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1216	
+SYN-168	CAPRIN1	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1235	
+SYN-169	CASP2	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1174	
+SYN-170	CDK4	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1193	
+SYN-171	CFAP57	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1171	
+SYN-172	CHD7	primary	Pathogenic	stop_gained	planted-locus	Likely Pathogenic	1187	
+SYN-173	CHST14	primary	Likely Pathogenic	frameshift_variant	planted-locus	Likely Pathogenic	1121	
+SYN-174	CHUK	primary	Pathogenic	stop_gained	planted-locus	Pathogenic	1227	
+SYN-175	AAGAB	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1249	
+SYN-176	ALPK3	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1253	
+SYN-177	ANTXR2	other	Likely Pathogenic	frameshift_variant	planted-locus	Likely Pathogenic	1165	
+SYN-178	ARHGAP19	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1187	
+SYN-179	ASPM	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1199	
+SYN-180	BRD4	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1140	
+SYN-181	BRPF1	other	Likely Pathogenic	frameshift_variant	planted-locus	Likely Pathogenic	1149	
+SYN-182	C10ORF71	primary	Uncertain Significance (VUS)	frameshift_variant	planted-locus	Uncertain Significance (VUS)	1193	
+SYN-183	CAPN1	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1268	
+SYN-184	CCDC146	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1247	
+SYN-185	CCT3	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1094	
+SYN-186	CEP295	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1237	
+SYN-187	CFAP206	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1199	
+SYN-188	CHRDL1	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1162	
+SYN-189	CNTNAP2	primary	Pathogenic	frameshift_variant	planted-locus	Pathogenic	1171	
+SYN-190	CMPK2	primary	Uncertain Significance (VUS)	start_lost	planted-locus	Uncertain Significance (VUS)	1184	
+SYN-191	COQ7	primary	Uncertain Significance (VUS)	start_lost	planted-locus	Uncertain Significance (VUS)	1182	
+SYN-192	GLUL	primary	Uncertain Significance (VUS)	initiator_codon_variant	planted-locus	Uncertain Significance (VUS)	1179	
+SYN-193	KRT9	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1142	
+SYN-194	SPG7	probable_vus	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1155	
+SYN-195	CCIN	probable_vus	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1188	
+SYN-196	FLNB	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1239	
+SYN-197	SPINT2	carrier	Pathogenic	frameshift_variant	planted-locus	Likely Pathogenic	1187	
+SYN-198	SLC6A17	primary	Likely Pathogenic	missense_variant	planted-locus	Likely Pathogenic	1254	
+SYN-199	HMGCR	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1286	
+SYN-200	FRYL	primary	Uncertain Significance (VUS)	missense_variant	planted-locus	Uncertain Significance (VUS)	1144	

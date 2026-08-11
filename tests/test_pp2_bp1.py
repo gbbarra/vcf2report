@@ -11,6 +11,7 @@ Both read gnomAD per-gene missense constraint baked into the Annotation:
 They are mutually exclusive by construction — a gene cannot be both depleted of and
 tolerant to missense — so no variant ever earns PP2 and BP1 together.
 """
+
 from vcf2report.acmg.criteria import all_criteria
 from vcf2report.annotate import extra
 from vcf2report.models import Annotation, Variant
@@ -20,14 +21,24 @@ _bp1 = all_criteria()["BP1"]
 
 
 def _v(consequence="missense_variant", gene="TESTG"):
-    return Variant(chrom="1", pos=100, ref="A", alt="G", gene=gene,
-                   consequence=consequence, zygosity="het")
+    return Variant(
+        chrom="1",
+        pos=100,
+        ref="A",
+        alt="G",
+        gene=gene,
+        consequence=consequence,
+        zygosity="het",
+    )
 
 
 # --- PP2 --------------------------------------------------------------------
 def test_pp2_met_missense_in_constrained_gene():
-    a = Annotation(gene_mis_z=5.5, gene_missense_constrained=True,
-                   source={"gene_constraint": "gnomAD v2.1.1 constraint (local)"})
+    a = Annotation(
+        gene_mis_z=5.5,
+        gene_missense_constrained=True,
+        source={"gene_constraint": "gnomAD v2.1.1 constraint (local)"},
+    )
     cr = _pp2(_v(), a)
     assert cr.applies and cr.met
     assert cr.applied_strength == "supporting"
@@ -55,9 +66,13 @@ def test_pp2_not_met_when_no_metric():
 
 # --- BP1 --------------------------------------------------------------------
 def test_bp1_met_missense_in_lof_intolerant_tolerant_gene():
-    a = Annotation(gene_lof_intolerant=True, gene_oe_mis_upper=1.08,
-                   gene_missense_tolerant=True, gene_missense_constrained=False,
-                   source={"gene_constraint": "gnomAD v2.1.1 constraint (local)"})
+    a = Annotation(
+        gene_lof_intolerant=True,
+        gene_oe_mis_upper=1.08,
+        gene_missense_tolerant=True,
+        gene_missense_constrained=False,
+        source={"gene_constraint": "gnomAD v2.1.1 constraint (local)"},
+    )
     cr = _bp1(_v(), a)
     assert cr.applies and cr.met
     assert cr.applied_strength == "supporting"
@@ -79,17 +94,28 @@ def test_bp1_not_met_when_gene_not_lof_intolerant():
 
 def test_bp1_not_met_when_gene_missense_constrained():
     # A missense-constrained gene is never BP1, even if oe_mis flag were somehow set.
-    a = Annotation(gene_lof_intolerant=True, gene_missense_tolerant=True,
-                   gene_missense_constrained=True)
+    a = Annotation(
+        gene_lof_intolerant=True,
+        gene_missense_tolerant=True,
+        gene_missense_constrained=True,
+    )
     assert not _bp1(_v(), a).met
 
 
 def test_pp2_bp1_mutually_exclusive():
     # PP2's constrained gate and BP1's tolerant gate can never both be True.
-    constrained = Annotation(gene_mis_z=5.5, gene_missense_constrained=True,
-                             gene_lof_intolerant=True, gene_missense_tolerant=False)
-    tolerant = Annotation(gene_lof_intolerant=True, gene_missense_tolerant=True,
-                          gene_missense_constrained=False, gene_oe_mis_upper=1.08)
+    constrained = Annotation(
+        gene_mis_z=5.5,
+        gene_missense_constrained=True,
+        gene_lof_intolerant=True,
+        gene_missense_tolerant=False,
+    )
+    tolerant = Annotation(
+        gene_lof_intolerant=True,
+        gene_missense_tolerant=True,
+        gene_missense_constrained=False,
+        gene_oe_mis_upper=1.08,
+    )
     assert _pp2(_v(), constrained).met and not _bp1(_v(), constrained).met
     assert _bp1(_v(), tolerant).met and not _pp2(_v(), tolerant).met
 

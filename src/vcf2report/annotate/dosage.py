@@ -13,6 +13,7 @@ curated gene→mechanism statement PVS1 wants — an expert panel's judgement th
 disease. This module exposes that set (418 genes) as a third, authoritative PVS1 mechanism route,
 alongside constraint and the recessive-phenotype route.
 """
+
 from __future__ import annotations
 
 from typing import Optional

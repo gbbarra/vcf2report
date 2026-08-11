@@ -12,6 +12,7 @@ HPO file is left lying next to a VCF.
 
 Idempotent. Reports any row whose HPO column is empty (left untouched, flagged).
 """
+
 import csv
 import sys
 from pathlib import Path

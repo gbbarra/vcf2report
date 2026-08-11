@@ -6,6 +6,7 @@ matrix / metrics / gross-discordance detection are locked regardless of bundled
 data), and the real frozen panel — once built — is guarded by a hard invariant:
 the engine must never flip a ClinVar-benign variant to Pathogenic or vice-versa.
 """
+
 import importlib.util
 import types
 from pathlib import Path
@@ -14,10 +15,19 @@ import pytest
 
 from vcf2report import concordance
 from vcf2report.acmg.rules import (
-    BENIGN, LIKELY_BENIGN, LIKELY_PATHOGENIC, PATHOGENIC, VUS,
+    BENIGN,
+    LIKELY_BENIGN,
+    LIKELY_PATHOGENIC,
+    PATHOGENIC,
+    VUS,
 )
 from vcf2report.concordance import (
-    BEN, PATH, UNCERTAIN, PanelEntry, collapse_clinvar, collapse_engine_tier,
+    BEN,
+    PATH,
+    UNCERTAIN,
+    PanelEntry,
+    collapse_clinvar,
+    collapse_engine_tier,
 )
 from vcf2report.models import Variant
 
@@ -35,8 +45,14 @@ def _load_builder():
 def _entry(key, gene, consequence, truth_sig):
     chrom, pos, ref, alt = key.split("-")
     return PanelEntry(
-        variant=Variant(chrom=chrom, pos=int(pos), ref=ref, alt=alt,
-                        gene=gene, consequence=consequence),
+        variant=Variant(
+            chrom=chrom,
+            pos=int(pos),
+            ref=ref,
+            alt=alt,
+            gene=gene,
+            consequence=consequence,
+        ),
         truth_significance=truth_sig,
         truth_class=collapse_clinvar(truth_sig),
     )
@@ -70,20 +86,28 @@ def test_collapse_clinvar():
 # ---------------------------------------------------------------------------
 def test_matrix_and_metrics(monkeypatch):
     entries = [
-        _entry("1-1-A-T", "G1", "missense_variant", "Pathogenic"),        # e1 -> PATH
-        _entry("1-2-A-T", "G2", "missense_variant", "Pathogenic"),        # e2 -> VUS
-        _entry("1-3-A-T", "G3", "stop_gained", "Pathogenic"),             # e3 -> PATH (LoF)
-        _entry("1-4-A-T", "G4", "missense_variant", "Benign"),            # e4 -> BEN
-        _entry("1-5-A-T", "G5", "missense_variant", "Benign"),            # e5 -> VUS
-        _entry("1-6-A-T", "G6", "missense_variant", "Benign"),            # e6 -> PATH (GROSS)
+        _entry("1-1-A-T", "G1", "missense_variant", "Pathogenic"),  # e1 -> PATH
+        _entry("1-2-A-T", "G2", "missense_variant", "Pathogenic"),  # e2 -> VUS
+        _entry("1-3-A-T", "G3", "stop_gained", "Pathogenic"),  # e3 -> PATH (LoF)
+        _entry("1-4-A-T", "G4", "missense_variant", "Benign"),  # e4 -> BEN
+        _entry("1-5-A-T", "G5", "missense_variant", "Benign"),  # e5 -> VUS
+        _entry("1-6-A-T", "G6", "missense_variant", "Benign"),  # e6 -> PATH (GROSS)
     ]
     tiers = {
-        "1-1-A-T": LIKELY_PATHOGENIC, "1-2-A-T": VUS, "1-3-A-T": PATHOGENIC,
-        "1-4-A-T": BENIGN, "1-5-A-T": VUS, "1-6-A-T": PATHOGENIC,
+        "1-1-A-T": LIKELY_PATHOGENIC,
+        "1-2-A-T": VUS,
+        "1-3-A-T": PATHOGENIC,
+        "1-4-A-T": BENIGN,
+        "1-5-A-T": VUS,
+        "1-6-A-T": PATHOGENIC,
     }
-    monkeypatch.setattr(concordance, "classify_entry", lambda e, withhold_clinvar=True:
-                        types.SimpleNamespace(
-                            tier=tiers[e.variant.key], rule_path="mock", met_codes=[]))
+    monkeypatch.setattr(
+        concordance,
+        "classify_entry",
+        lambda e, withhold_clinvar=True: types.SimpleNamespace(
+            tier=tiers[e.variant.key], rule_path="mock", met_codes=[]
+        ),
+    )
 
     res = concordance.evaluate_panel(entries)
     m = res.metrics
@@ -100,30 +124,50 @@ def test_matrix_and_metrics(monkeypatch):
     # Decisiveness / precision framing (4 decisive: e1,e3,e4,e6).
     assert m["decisiveness"] == pytest.approx(4 / 6, abs=1e-4)
     assert m["concordance_when_decisive"] == pytest.approx(3 / 4)  # e6 is the miss
-    assert m["pathogenic_precision"] == pytest.approx(2 / 3, abs=1e-4)  # engine PATH: e1,e3,e6
+    assert m["pathogenic_precision"] == pytest.approx(
+        2 / 3, abs=1e-4
+    )  # engine PATH: e1,e3,e6
     assert m["benign_precision"] == pytest.approx(1.0)  # engine BEN: e4
 
 
 def test_gross_discordance_surfaced(monkeypatch):
     entries = [_entry("1-6-A-T", "G6", "missense_variant", "Benign")]
-    monkeypatch.setattr(concordance, "classify_entry", lambda e, withhold_clinvar=True:
-                        types.SimpleNamespace(tier=PATHOGENIC, rule_path="x", met_codes=[]))
+    monkeypatch.setattr(
+        concordance,
+        "classify_entry",
+        lambda e, withhold_clinvar=True: types.SimpleNamespace(
+            tier=PATHOGENIC, rule_path="x", met_codes=[]
+        ),
+    )
     res = concordance.evaluate_panel(entries)
     gross = res.gross_discordances
-    assert len(gross) == 1 and gross[0].truth_class == BEN and gross[0].engine_class == PATH
+    assert (
+        len(gross) == 1
+        and gross[0].truth_class == BEN
+        and gross[0].engine_class == PATH
+    )
     assert "Gross discordances" in res.to_markdown()
 
 
 def test_gross_discordance_pathogenic_called_benign(monkeypatch):
     """The most dangerous direction: engine calls a ClinVar-pathogenic variant Benign."""
     entries = [_entry("1-7-A-T", "G7", "missense_variant", "Pathogenic")]
-    monkeypatch.setattr(concordance, "classify_entry", lambda e, withhold_clinvar=True:
-                        types.SimpleNamespace(tier=BENIGN, rule_path="x", met_codes=[]))
+    monkeypatch.setattr(
+        concordance,
+        "classify_entry",
+        lambda e, withhold_clinvar=True: types.SimpleNamespace(
+            tier=BENIGN, rule_path="x", met_codes=[]
+        ),
+    )
     res = concordance.evaluate_panel(entries)
     assert res.matrix[PATH][BEN] == 1
     assert res.metrics["gross_discordances"] == 1
     gross = res.gross_discordances
-    assert len(gross) == 1 and gross[0].truth_class == PATH and gross[0].engine_class == BEN
+    assert (
+        len(gross) == 1
+        and gross[0].truth_class == PATH
+        and gross[0].engine_class == BEN
+    )
     assert "Gross discordances" in res.to_markdown()
 
 
@@ -131,16 +175,29 @@ def test_gross_discordance_pathogenic_called_benign(monkeypatch):
 # The real engine path on controlled inputs (constraint / local cohort patched)
 # ---------------------------------------------------------------------------
 def _patch_local(monkeypatch, lof_intolerant, local_cohort_af=0.0):
-    monkeypatch.setattr(concordance.extra, "gene_constraint",
-                        lambda gene: {"lof_intolerant": lof_intolerant, "_source": "test"})
-    monkeypatch.setattr(concordance.local_cohort, "lookup",
-                        lambda v: {"af": local_cohort_af, "_source": "test"})
+    monkeypatch.setattr(
+        concordance.extra,
+        "gene_constraint",
+        lambda gene: {"lof_intolerant": lof_intolerant, "_source": "test"},
+    )
+    monkeypatch.setattr(
+        concordance.local_cohort,
+        "lookup",
+        lambda v: {"af": local_cohort_af, "_source": "test"},
+    )
 
 
 def test_engine_calls_rare_lof_pathogenic(monkeypatch):
     _patch_local(monkeypatch, lof_intolerant=True)
     e = _entry("2-100-C-T", "TESTLOF", "stop_gained", "Pathogenic")
-    e.frozen_gnomad = {"af": 0.0, "faf95": 0.0, "ac": 0, "an": 152000, "hom": 0, "pop": None}
+    e.frozen_gnomad = {
+        "af": 0.0,
+        "faf95": 0.0,
+        "ac": 0,
+        "an": 152000,
+        "hom": 0,
+        "pop": None,
+    }
     c = concordance.classify_entry(e, withhold_clinvar=True)
     assert collapse_engine_tier(c.tier) == PATH
     assert "PVS1" in c.met_codes and "PM2" in c.met_codes
@@ -149,8 +206,14 @@ def test_engine_calls_rare_lof_pathogenic(monkeypatch):
 def test_engine_calls_common_benign(monkeypatch):
     _patch_local(monkeypatch, lof_intolerant=False)
     e = _entry("3-200-A-G", "TESTBEN", "missense_variant", "Benign")
-    e.frozen_gnomad = {"af": 0.12, "faf95": 0.11, "ac": 18000, "an": 150000,
-                       "hom": 50, "pop": "nfe"}
+    e.frozen_gnomad = {
+        "af": 0.12,
+        "faf95": 0.11,
+        "ac": 18000,
+        "an": 150000,
+        "hom": 50,
+        "pop": "nfe",
+    }
     c = concordance.classify_entry(e, withhold_clinvar=True)
     assert collapse_engine_tier(c.tier) == BEN
     assert "BA1" in c.met_codes
@@ -161,7 +224,14 @@ def test_clinvar_withheld_suppresses_pp5(monkeypatch):
     e = _entry("2-166003360-C-T", "SCN1A", "stop_gained", "Pathogenic")
     e.review_status = "criteria provided, multiple submitters, no conflicts"
     e.accession = "VCV000012345"
-    e.frozen_gnomad = {"af": 0.0, "faf95": 0.0, "ac": 0, "an": 152000, "hom": 0, "pop": None}
+    e.frozen_gnomad = {
+        "af": 0.0,
+        "faf95": 0.0,
+        "ac": 0,
+        "an": 152000,
+        "hom": 0,
+        "pop": None,
+    }
 
     withheld = concordance.classify_entry(e, withhold_clinvar=True)
     assert "PP5" not in withheld.met_codes
@@ -173,8 +243,18 @@ def test_clinvar_withheld_suppresses_pp5(monkeypatch):
 def test_frozen_alphamissense_recovers_missense(monkeypatch):
     _patch_local(monkeypatch, lof_intolerant=False)
     e = _entry("5-100-A-T", "TESTG", "missense_variant", "Pathogenic")
-    e.frozen_gnomad = {"af": 0.0, "faf95": 0.0, "ac": 0, "an": 152000, "hom": 0, "pop": None}
-    e.frozen_alphamissense = {"am_pathogenicity": 0.999, "am_class": "likely_pathogenic"}
+    e.frozen_gnomad = {
+        "af": 0.0,
+        "faf95": 0.0,
+        "ac": 0,
+        "an": 152000,
+        "hom": 0,
+        "pop": None,
+    }
+    e.frozen_alphamissense = {
+        "am_pathogenicity": 0.999,
+        "am_class": "likely_pathogenic",
+    }
     c = concordance.classify_entry(e, withhold_clinvar=True)
     assert "PP3" in c.met_codes and "PM2" in c.met_codes
     # Default (PM2 Supporting): a strong predictor + rarity alone is one point short of LP -> VUS.
@@ -187,11 +267,15 @@ def test_frozen_alphamissense_recovers_missense(monkeypatch):
 
 def test_load_panel_attaches_alphamissense(tmp_path):
     gt = tmp_path / "ground_truth.tsv"
-    gt.write_text("# h\n2-166003360-C-T\tSCN1A\tmissense_variant\t\tPathogenic\tcrit\tVCV1\tx\n")
+    gt.write_text(
+        "# h\n2-166003360-C-T\tSCN1A\tmissense_variant\t\tPathogenic\tcrit\tVCV1\tx\n"
+    )
     frozen = tmp_path / "gnomad.json"
     frozen.write_text('{"2-166003360-C-T": {"af": 0.0}}')
     am = tmp_path / "am.json"
-    am.write_text('{"2-166003360-C-T": {"am_pathogenicity": 0.97, "am_class": "likely_pathogenic"}}')
+    am.write_text(
+        '{"2-166003360-C-T": {"am_pathogenicity": 0.97, "am_class": "likely_pathogenic"}}'
+    )
     entries = concordance.load_panel(gt, frozen, am)
     assert len(entries) == 1
     assert entries[0].frozen_alphamissense["am_pathogenicity"] == pytest.approx(0.97)
@@ -227,40 +311,92 @@ def test_builder_grch38_snv_and_consequence():
     build = _load_builder()
     assert build._reviewed("criteria provided, single submitter") is True
     assert build._reviewed("no assertion criteria provided") is False
-    vset = [{"variation_loc": [{"assembly_name": "GRCh38", "chr": "2",
-                                "start": "166003360", "ref": "C", "alt": "T"}]}]
+    vset = [
+        {
+            "variation_loc": [
+                {
+                    "assembly_name": "GRCh38",
+                    "chr": "2",
+                    "start": "166003360",
+                    "ref": "C",
+                    "alt": "T",
+                }
+            ]
+        }
+    ]
     assert build._grch38_snv(vset) == ("2-166003360-C-T", "C", "T")
     # indel rejected in v1
-    vset_indel = [{"variation_loc": [{"assembly_name": "GRCh38", "chr": "2",
-                                      "start": "10", "ref": "CA", "alt": "C"}]}]
+    vset_indel = [
+        {
+            "variation_loc": [
+                {
+                    "assembly_name": "GRCh38",
+                    "chr": "2",
+                    "start": "10",
+                    "ref": "CA",
+                    "alt": "C",
+                }
+            ]
+        }
+    ]
     assert build._grch38_snv(vset_indel) is None
     # Real ClinVar shape is molecular_consequence_list (a list).
-    assert build._consequence_from({"molecular_consequence_list": ["nonsense"]}) == "stop_gained"
+    assert (
+        build._consequence_from({"molecular_consequence_list": ["nonsense"]})
+        == "stop_gained"
+    )
     # Most severe consequence wins when several are co-listed (LoF not masked).
-    assert build._consequence_from(
-        {"molecular_consequence_list": ["missense variant", "splice donor variant"]}
-    ) == "splice_donor_variant"
+    assert (
+        build._consequence_from(
+            {"molecular_consequence_list": ["missense variant", "splice donor variant"]}
+        )
+        == "splice_donor_variant"
+    )
     # The singular key is still honoured as a defensive fallback.
-    assert build._consequence_from({"molecular_consequence": ["nonsense"]}) == "stop_gained"
+    assert (
+        build._consequence_from({"molecular_consequence": ["nonsense"]})
+        == "stop_gained"
+    )
 
 
 def test_builder_harvest_gene_mocked(monkeypatch):
     build = _load_builder()
-    esummary = {"result": {"uids": ["1"], "1": {
-        "accession": "VCV000012345",
-        "molecular_consequence_list": ["nonsense"],
-        "title": "NM_006920.6(SCN1A):c.1834C>T (p.Arg612Ter)",
-        "germline_classification": {
-            "description": "Pathogenic",
-            "review_status": "criteria provided, multiple submitters, no conflicts",
-            "trait_set": [{"trait_name": "Dravet syndrome"}]},
-        "variation_set": [{"variation_loc": [{
-            "assembly_name": "GRCh38", "chr": "2", "start": "166003360",
-            "ref": "C", "alt": "T"}]}],
-    }}}
+    esummary = {
+        "result": {
+            "uids": ["1"],
+            "1": {
+                "accession": "VCV000012345",
+                "molecular_consequence_list": ["nonsense"],
+                "title": "NM_006920.6(SCN1A):c.1834C>T (p.Arg612Ter)",
+                "germline_classification": {
+                    "description": "Pathogenic",
+                    "review_status": "criteria provided, multiple submitters, no conflicts",
+                    "trait_set": [{"trait_name": "Dravet syndrome"}],
+                },
+                "variation_set": [
+                    {
+                        "variation_loc": [
+                            {
+                                "assembly_name": "GRCh38",
+                                "chr": "2",
+                                "start": "166003360",
+                                "ref": "C",
+                                "alt": "T",
+                            }
+                        ]
+                    }
+                ],
+            },
+        }
+    }
     monkeypatch.setattr(build._http, "throttle", lambda *a, **k: None)
-    monkeypatch.setattr(build._http, "get_json", lambda url, params, **k: (
-        {"esearchresult": {"idlist": ["1"]}} if "esearch" in url else esummary))
+    monkeypatch.setattr(
+        build._http,
+        "get_json",
+        lambda url, params, **k: (
+            {"esearchresult": {"idlist": ["1"]}} if "esearch" in url else esummary
+        ),
+    )
 
     rows = build._harvest_gene("SCN1A", "pathogenic", want=5, seen=set())
     assert len(rows) == 1
@@ -304,6 +440,7 @@ def test_panel_headline_metrics_are_pinned():
     Update these numbers ONLY together with the docs, and only when the change is understood.
     """
     from vcf2report.concordance import evaluate_panel, load_panel
+
     m = evaluate_panel(load_panel()).metrics
 
     assert m["n"] == 200 and m["n_pathogenic"] == 100 and m["n_benign"] == 100
@@ -320,8 +457,11 @@ def test_panel_safety_properties_hold():
     pathogenic scored benign, no benign scored pathogenic.
     """
     from vcf2report.concordance import evaluate_panel, load_panel
+
     res = evaluate_panel(load_panel())
-    assert res.gross_discordances == [], "a flipped call is a real error, not conservatism"
+    assert res.gross_discordances == [], (
+        "a flipped call is a real error, not conservatism"
+    )
     assert res.metrics["pathogenic_precision"] == 1.0
     assert res.metrics["benign_precision"] == 1.0
     assert res.matrix["PATH"]["BEN"] == 0 and res.matrix["BEN"]["PATH"] == 0
@@ -337,19 +477,25 @@ def test_panel_exercises_the_gene_constraint_criteria():
     ClinVar label the panel is scored against.
     """
     from vcf2report.concordance import evaluate_panel, load_panel
+
     rows = evaluate_panel(load_panel()).rows
-    assert sum(1 for r in rows if "PP2" in r.met_codes) > 0, "PP2 unreachable in the panel"
+    assert sum(1 for r in rows if "PP2" in r.met_codes) > 0, (
+        "PP2 unreachable in the panel"
+    )
 
     # ...and the residue criteria stay OUT: they read ClinVar for other variants at the same
     # position, which is the leakage this panel exists to exclude.
     for code in ("PS1", "PM5", "PM1"):
-        assert not any(code in r.met_codes for r in rows), f"{code} would leak ClinVar into the panel"
+        assert not any(code in r.met_codes for r in rows), (
+            f"{code} would leak ClinVar into the panel"
+        )
 
 
 # ------------------------------------------------- what the 61% floor is actually made of
 
+
 def test_every_missed_pathogenic_is_one_criterion_short():
-    """"61% sensitivity" invites the reading that the engine FAILS on 39 of 100. It does not.
+    """ "61% sensitivity" invites the reading that the engine FAILS on 39 of 100. It does not.
 
     Each miss is one line of evidence short of Likely Pathogenic, and none is misclassified
     toward benign. If a future change made a miss need TWO additions, the engine would have
@@ -357,13 +503,15 @@ def test_every_missed_pathogenic_is_one_criterion_short():
     """
     import sys
     from pathlib import Path
+
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
     from analyse_panel_misses import analyse
 
     r = analyse()
     assert r["n_missed"] > 0
     assert "unreachable with one line" not in r["by_strength"], (
-        "a pathogenic panel entry is now more than one criterion from Likely Pathogenic")
+        "a pathogenic panel entry is now more than one criterion from Likely Pathogenic"
+    )
     assert sum(r["by_strength"].values()) == r["n_missed"]
 
 
@@ -373,15 +521,19 @@ def test_phenotype_alone_recovers_the_cheapest_misses():
     engine, so nobody 'fixes' the sensitivity by relaxing the combining rules."""
     import sys
     from pathlib import Path
+
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
     from analyse_panel_misses import analyse
 
     recovered = analyse()["with_phenotype"]
-    assert recovered, "no miss is one Supporting away — has the panel or the combiner changed?"
+    assert recovered, (
+        "no miss is one Supporting away — has the panel or the combiner changed?"
+    )
     for x in recovered:
         assert x["before"].startswith("Uncertain")
         assert x["after"] in ("Likely Pathogenic", "Pathogenic"), (
-            f"{x['gene']} {x['hgvs_p']} no longer recovers on phenotype alone: {x}")
+            f"{x['gene']} {x['hgvs_p']} no longer recovers on phenotype alone: {x}"
+        )
 
 
 def test_concordance_doc_does_not_publish_the_floor_as_the_accuracy():
@@ -389,4 +541,6 @@ def test_concordance_doc_does_not_publish_the_floor_as_the_accuracy():
     doc = (Path(__file__).resolve().parents[1] / "docs/CONCORDANCE.md").read_text()
     assert "floor" in doc.lower()
     assert "no phenotype" in doc.lower() or "supplies **no" in doc.lower()
-    assert "analyse_panel_misses" in doc, "the doc must name how to reproduce the breakdown"
+    assert "analyse_panel_misses" in doc, (
+        "the doc must name how to reproduce the breakdown"
+    )

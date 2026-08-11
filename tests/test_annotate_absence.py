@@ -8,6 +8,7 @@ controls") is the criterion most of them feed, and it fires on absence.
 Each test here is written from the dangerous direction: what would have to be true for a
 variant gnomAD/ClinVar/AlphaMissense actually knows about to be reported as unobserved.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -30,6 +31,7 @@ def _v(chrom="chr1", pos=100, ref="A", alt="G", **kw):
 
 # ----------------------------------------------------- 1 · ClinVar consulted the cache first
 
+
 def test_clinvar_prefers_the_local_store_over_a_stale_cache(monkeypatch):
     """The store is the versioned, refreshed source; data/cache/ is flat unversioned JSON.
 
@@ -38,14 +40,29 @@ def test_clinvar_prefers_the_local_store_over_a_stale_cache(monkeypatch):
     assertion under a _source that says nothing about its age.
     """
     v = _v()
-    monkeypatch.setattr(cache, "get", lambda src, key: {
-        "significance": "Benign", "review_status": "no assertion criteria provided"})
+    monkeypatch.setattr(
+        cache,
+        "get",
+        lambda src, key: {
+            "significance": "Benign",
+            "review_status": "no assertion criteria provided",
+        },
+    )
     from vcf2report.annotate import clinvar_parquet
-    monkeypatch.setattr(clinvar_parquet, "get", lambda key: {
-        "significance": "Pathogenic", "review_status": "reviewed by expert panel"})
+
+    monkeypatch.setattr(
+        clinvar_parquet,
+        "get",
+        lambda key: {
+            "significance": "Pathogenic",
+            "review_status": "reviewed by expert panel",
+        },
+    )
 
     got = clinvar.lookup(v)
-    assert got["significance"] == "Pathogenic", "the cache shadowed a fresh store answer"
+    assert got["significance"] == "Pathogenic", (
+        "the cache shadowed a fresh store answer"
+    )
     assert got["_source"] == "ClinVar (local)"
 
 
@@ -53,9 +70,16 @@ def test_clinvar_cache_is_still_used_when_no_store_answers(monkeypatch):
     """Reordering must not throw the cache away — it is the offline fallback that earns its
     keep when neither store has the variant."""
     v = _v()
-    monkeypatch.setattr(cache, "get", lambda src, key: {
-        "significance": "Likely pathogenic", "review_status": "criteria provided"})
+    monkeypatch.setattr(
+        cache,
+        "get",
+        lambda src, key: {
+            "significance": "Likely pathogenic",
+            "review_status": "criteria provided",
+        },
+    )
     from vcf2report.annotate import clinvar_parquet
+
     monkeypatch.setattr(clinvar_parquet, "get", lambda key: None)
     monkeypatch.setattr(clinvar, "_tabix_lookup", lambda variant: None)
     monkeypatch.setattr(config, "offline", lambda: True)
@@ -70,9 +94,17 @@ def test_a_legacy_poisoned_cache_entry_cannot_outrank_a_store(monkeypatch):
     """Caches written by the old warm_cache still exist on operators' disks, carrying
     {significance: None}. They must not read as "ClinVar says nothing"."""
     v = _v()
-    monkeypatch.setattr(cache, "get", lambda src, key: {
-        "significance": None, "review_status": None, "accession": None})
+    monkeypatch.setattr(
+        cache,
+        "get",
+        lambda src, key: {
+            "significance": None,
+            "review_status": None,
+            "accession": None,
+        },
+    )
     from vcf2report.annotate import clinvar_parquet
+
     monkeypatch.setattr(clinvar_parquet, "get", lambda key: None)
     monkeypatch.setattr(clinvar, "_tabix_lookup", lambda variant: None)
     monkeypatch.setattr(config, "offline", lambda: True)
@@ -84,6 +116,7 @@ def test_a_legacy_poisoned_cache_entry_cannot_outrank_a_store(monkeypatch):
 
 
 # --------------------------------------------------- 2 · warm_cache persisted the sentinels
+
 
 def test_warm_cache_does_not_persist_a_negative():
     """A cached miss is an absence of data stored where data is read from.
@@ -100,21 +133,33 @@ def test_warm_cache_does_not_persist_a_negative():
     for line in src.splitlines():
         if "cache.put(" in line:
             assert line.startswith(" " * 12), (
-                f"cache.put at top-level indent — outside the guard: {line!r}")
+                f"cache.put at top-level indent — outside the guard: {line!r}"
+            )
 
 
 def test_warm_cache_still_runs_and_reports_what_it_skipped(tmp_path):
     """It must stay usable: warm the bundled sample, and say out loud how many were left
     uncached rather than silently writing fewer entries."""
-    env = {"VCF2REPORT_CACHE": str(tmp_path / "cache"), "OFFLINE": "1",
-           "PATH": "/usr/bin:/bin", "HOME": str(tmp_path)}
-    p = subprocess.run([sys.executable, "scripts/warm_cache.py"], cwd=REPO,
-                       capture_output=True, text=True, timeout=600, env=env)
+    env = {
+        "VCF2REPORT_CACHE": str(tmp_path / "cache"),
+        "OFFLINE": "1",
+        "PATH": "/usr/bin:/bin",
+        "HOME": str(tmp_path),
+    }
+    p = subprocess.run(
+        [sys.executable, "scripts/warm_cache.py"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=600,
+        env=env,
+    )
     assert p.returncode == 0, p.stdout + p.stderr
     assert "Warmed cache" in p.stdout
 
 
 # ------------------------------------------ 3 · an AlphaMissense store miss silenced tabix
+
 
 def test_alphamissense_store_miss_falls_through_to_tabix(monkeypatch):
     """The store answers by LEFT JOIN, so it returns an entry for EVERY key — None for the
@@ -127,19 +172,26 @@ def test_alphamissense_store_miss_falls_through_to_tabix(monkeypatch):
     a, b = _v(pos=1), _v(pos=2)
     alphamissense.clear_primed()
     from vcf2report.annotate import alphamissense_parquet
+
     monkeypatch.setattr(alphamissense_parquet, "available", lambda: True)
     # Store knows `a`, has no row for `b`.
-    monkeypatch.setattr(alphamissense_parquet, "prime",
-                        lambda variants: {a.key: {"am_pathogenicity": 0.9}, b.key: None})
+    monkeypatch.setattr(
+        alphamissense_parquet,
+        "prime",
+        lambda variants: {a.key: {"am_pathogenicity": 0.9}, b.key: None},
+    )
     # Tabix DOES have `b`.
     monkeypatch.setattr(alphamissense, "_open", lambda: object())
     monkeypatch.setattr(alphamissense, "_fetch", lambda t, c, p: ["row"])
-    monkeypatch.setattr(alphamissense, "_best",
-                        lambda rows, v: {"am_pathogenicity": 0.77})
+    monkeypatch.setattr(
+        alphamissense, "_best", lambda rows, v: {"am_pathogenicity": 0.77}
+    )
 
     alphamissense.prime([a, b])
     assert alphamissense._primed[a.key]["am_pathogenicity"] == 0.9
-    assert alphamissense._primed[b.key] is not None, "store miss silenced the tabix fallback"
+    assert alphamissense._primed[b.key] is not None, (
+        "store miss silenced the tabix fallback"
+    )
     assert alphamissense._primed[b.key]["am_pathogenicity"] == 0.77
     alphamissense.clear_primed()
 
@@ -149,9 +201,13 @@ def test_alphamissense_skips_tabix_when_the_store_answered_everything(monkeypatc
     a = _v(pos=1)
     alphamissense.clear_primed()
     from vcf2report.annotate import alphamissense_parquet
+
     monkeypatch.setattr(alphamissense_parquet, "available", lambda: True)
-    monkeypatch.setattr(alphamissense_parquet, "prime",
-                        lambda variants: {a.key: {"am_pathogenicity": 0.5}})
+    monkeypatch.setattr(
+        alphamissense_parquet,
+        "prime",
+        lambda variants: {a.key: {"am_pathogenicity": 0.5}},
+    )
 
     def _boom():
         raise AssertionError("tabix opened even though the store answered every key")
@@ -163,6 +219,7 @@ def test_alphamissense_skips_tabix_when_the_store_answered_everything(monkeypatc
 
 
 # ------------------------------------------------- 4 · case-sensitive remote allele compare
+
 
 @pytest.mark.parametrize("ref,alt", [("a", "g"), ("A", "g"), ("a", "G")])
 def test_remote_matches_lowercase_alleles(ref, alt):
@@ -182,10 +239,16 @@ def test_remote_matches_lowercase_alleles(ref, alt):
 
 # ----------------------------------- 5 · _from_payload invented a confident zero-frequency
 
+
 def _payload(pops, hom=0):
-    return {"exome": {"homozygote_count": hom,
-                      "populations": [{"id": k, "ac": ac, "an": an}
-                                      for k, (ac, an) in pops.items()]}}
+    return {
+        "exome": {
+            "homozygote_count": hom,
+            "populations": [
+                {"id": k, "ac": ac, "an": an} for k, (ac, an) in pops.items()
+            ],
+        }
+    }
 
 
 def test_founder_only_allele_is_unknown_not_absent():
@@ -231,11 +294,15 @@ def test_homozygote_count_survives_an_unknown_frequency():
 
 # --------------------------------------------------- 6 · build guard missed real GRCh37 names
 
-@pytest.mark.parametrize("token", [
-    "hs37d5",                                   # 1000 Genomes phase-2 decoy reference
-    "Homo_sapiens_assembly19.fasta",            # the Broad/GATK bundle name
-    "HS37D5",                                   # case must not matter
-])
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        "hs37d5",  # 1000 Genomes phase-2 decoy reference
+        "Homo_sapiens_assembly19.fasta",  # the Broad/GATK bundle name
+        "HS37D5",  # case must not matter
+    ],
+)
 def test_common_grch37_reference_names_are_detected(token):
     """A header naming only these fell through to None — "build not declared" instead of
     "this is GRCh37". A GRCh37 callset that slips the guard is classified against GRCh38
@@ -252,6 +319,7 @@ def test_grch38_still_wins_and_unknown_stays_unknown():
 
 # ------------------------------- 7 · pysam RAISES on an undeclared INFO key, and that killed
 #                                     every live gnomAD v4.1 lookup
+
 
 class _FakeInfo(dict):
     """pysam's behaviour: a declared-but-empty key returns None; an UNDECLARED key raises.
@@ -277,13 +345,23 @@ class _FakeRec:
 
 def _rec():
     """A real gnomAD v4.1 chr16 record: grpmax is published, faf95_grpmax is NOT declared."""
-    return _FakeRec(_FakeInfo(
-        declared={"grpmax": ("nfe",), "AF_grpmax": (8.9928198576672e-07,),
-                  "AC_grpmax": (1,), "AN_grpmax": (1111998,), "nhomalt_grpmax": (0,),
-                  "fafmax_faf95_max": None,
-                  "AF": (1.3681200243809144e-06,), "AC": (2,), "AN": 1461862,
-                  "nhomalt": (0,)},
-        undeclared={"faf95_grpmax", "faf95_max"}))
+    return _FakeRec(
+        _FakeInfo(
+            declared={
+                "grpmax": ("nfe",),
+                "AF_grpmax": (8.9928198576672e-07,),
+                "AC_grpmax": (1,),
+                "AN_grpmax": (1111998,),
+                "nhomalt_grpmax": (0,),
+                "fafmax_faf95_max": None,
+                "AF": (1.3681200243809144e-06,),
+                "AC": (2,),
+                "AN": 1461862,
+                "nhomalt": (0,),
+            },
+            undeclared={"faf95_grpmax", "faf95_max"},
+        )
+    )
 
 
 def test_an_undeclared_info_key_does_not_lose_the_frequency():
@@ -311,22 +389,34 @@ def test_a_declared_filtering_af_is_still_read():
 
     rec = _rec()
     rec.info["fafmax_faf95_max"] = (0.00016636999498587102,)
-    assert gnomad_remote._best_from_record(rec)["faf95"] == pytest.approx(0.000166369994985871)
+    assert gnomad_remote._best_from_record(rec)["faf95"] == pytest.approx(
+        0.000166369994985871
+    )
 
 
 # ------------------------------------------- a gnomAD site filter is not a retracted observation
 
+
 def _ann(**kw):
     """An Annotation carrying only what the frequency criteria read."""
     from vcf2report.models import Annotation
+
     return Annotation(**kw)
 
 
 def _classify(consequence="splice_acceptor_variant", gene="FIG4", **ann_kw):
     from vcf2report.acmg.engine import classify
     from vcf2report.models import Variant
-    v = Variant(chrom="chr6", pos=109732621, ref="G", alt="GT", gene=gene,
-                consequence=consequence, zygosity="hom")
+
+    v = Variant(
+        chrom="chr6",
+        pos=109732621,
+        ref="G",
+        alt="GT",
+        gene=gene,
+        consequence=consequence,
+        zygosity="hom",
+    )
     return classify(v, _ann(**ann_kw))
 
 
@@ -343,43 +433,60 @@ def test_a_filtered_gnomad_record_still_argues_benign():
     """
     from vcf2report.acmg.criteria import _benign_af
 
-    a = _ann(gnomad_af_filtered=0.547255, gnomad_homozygotes_filtered=24987,
-             gnomad_filter="InbreedingCoeff")
+    a = _ann(
+        gnomad_af_filtered=0.547255,
+        gnomad_homozygotes_filtered=24987,
+        gnomad_filter="InbreedingCoeff",
+    )
     af, basis = _benign_af(a)
     assert af == pytest.approx(0.547255), "the filtered frequency was discarded"
     assert "InbreedingCoeff" in basis and "not a retracted observation" in basis, (
-        "the trail must say the record was filtered, not pass it off as authoritative")
+        "the trail must say the record was filtered, not pass it off as authoritative"
+    )
 
 
 def test_the_filtered_frequency_reaches_BA1_and_BS2_and_defeats_a_lone_PVS1():
-    res = _classify(gnomad_af_filtered=0.547255, gnomad_homozygotes_filtered=24987,
-                    gnomad_filter="InbreedingCoeff")
+    res = _classify(
+        gnomad_af_filtered=0.547255,
+        gnomad_homozygotes_filtered=24987,
+        gnomad_filter="InbreedingCoeff",
+    )
     met = {r.code for r in res.criteria if r.met}
-    assert "PVS1" in met, "the fixture must still be a LoF consequence, else it proves nothing"
+    assert "PVS1" in met, (
+        "the fixture must still be a LoF consequence, else it proves nothing"
+    )
     assert "BA1" in met, "a 54.7% allele did not reach BA1"
     assert "BS2" in met, "24,987 homozygotes did not reach BS2"
     assert not res.tier.startswith(("Pathogenic", "Likely Pathogenic")), (
-        f"a 54.7% allele with 24,987 homozygotes is still {res.tier}")
+        f"a 54.7% allele with 24,987 homozygotes is still {res.tier}"
+    )
 
 
 def test_the_filtered_record_is_still_withheld_from_PM2():
     """The whole point is that this is ONE-WAY. A filtered record may argue common (benign);
     it must never license the rarity claim, because a non-PASS AF is not a filtering AF.
     """
-    res = _classify(gnomad_af_filtered=0.547255, gnomad_homozygotes_filtered=24987,
-                    gnomad_filter="InbreedingCoeff")
+    res = _classify(
+        gnomad_af_filtered=0.547255,
+        gnomad_homozygotes_filtered=24987,
+        gnomad_filter="InbreedingCoeff",
+    )
     pm2 = next(r for r in res.criteria if r.code == "PM2")
-    assert not pm2.met, "a filtered record licensed PM2 — the fallback leaked to the rare side"
+    assert not pm2.met, (
+        "a filtered record licensed PM2 — the fallback leaked to the rare side"
+    )
 
 
 def test_an_authoritative_frequency_still_wins_over_the_filtered_one():
     """The fallback is last-resort. A PASS record must not be displaced by a filtered one."""
     from vcf2report.acmg.criteria import _benign_af
 
-    af, basis = _benign_af(_ann(gnomad_faf95=0.001, gnomad_af_filtered=0.9,
-                                gnomad_filter="AS_VQSR"))
+    af, basis = _benign_af(
+        _ann(gnomad_faf95=0.001, gnomad_af_filtered=0.9, gnomad_filter="AS_VQSR")
+    )
     assert af == pytest.approx(0.001) and "filtering AF" in basis, (
-        "the filtered fallback overrode an authoritative filtering AF")
+        "the filtered fallback overrode an authoritative filtering AF"
+    )
 
 
 def test_no_filtered_record_still_reports_unavailable():

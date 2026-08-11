@@ -1,5 +1,6 @@
 """CLI HPO-term resolution: a file OR an inline HP: list — never silently dropped
 (an inline list treated as a bogus path would disable PP4 without warning)."""
+
 from vcf2report.cli import read_hpo_file
 
 

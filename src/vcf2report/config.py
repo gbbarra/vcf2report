@@ -3,6 +3,7 @@
 Everything that a deployment might want to point elsewhere lives here so the
 rest of the code never hardcodes a path or a URL.
 """
+
 from __future__ import annotations
 
 import os
@@ -30,8 +31,11 @@ GNOMAD_LOCAL = DATA_DIR / "gnomad" / "gnomad_cache.json"
 # scripts/build_gnomad_local.py. Offline, authoritative when present. Overridable so
 # a large full build can live on an external disk. Schema (tabix -s1 -b2 -e2):
 #   #chrom  pos  ref  alt  af  ac  an  hom  faf95  pop
-GNOMAD_LOCAL_TABIX = Path(os.environ.get(
-    "VCF2REPORT_GNOMAD_TABIX", str(DATA_DIR / "gnomad" / "gnomad_freq.local.tsv.gz")))
+GNOMAD_LOCAL_TABIX = Path(
+    os.environ.get(
+        "VCF2REPORT_GNOMAD_TABIX", str(DATA_DIR / "gnomad" / "gnomad_freq.local.tsv.gz")
+    )
+)
 # gnomAD frequencies as a DuckDB/Parquet store (built by scripts/build_gnomad_parquet.py,
 # or an existing lakehouse gnomad_freq.parquet). A single .parquet file or a Hive-
 # partitioned dir (chrom=chrN/). Whole-exome frequencies come from one vectorised join
@@ -51,11 +55,15 @@ def _resolve_gnomad_parquet():
 GNOMAD_PARQUET = _resolve_gnomad_parquet()
 # A local cohort the OPERATOR supplies; this project ships none. See
 # annotate/local_cohort.py for the format.
-LOCAL_COHORT = Path(os.environ.get("VCF2REPORT_LOCAL_COHORT")) \
-    if os.environ.get("VCF2REPORT_LOCAL_COHORT") \
+LOCAL_COHORT = (
+    Path(os.environ.get("VCF2REPORT_LOCAL_COHORT"))
+    if os.environ.get("VCF2REPORT_LOCAL_COHORT")
     else DATA_DIR / "local_cohort" / "frequencies.tsv"
+)
 HPO_GENES_LOCAL = DATA_DIR / "hpo" / "genes_to_phenotype.tsv.gz"
-HPO_GRAPH_LOCAL = DATA_DIR / "hpo" / "hpo_graph.tsv.gz"  # ontology + IC (build_hpo_graph.py)
+HPO_GRAPH_LOCAL = (
+    DATA_DIR / "hpo" / "hpo_graph.tsv.gz"
+)  # ontology + IC (build_hpo_graph.py)
 # Report routing: a gene is "phenotype-related" (-> primary findings) when its
 # best-match-AVERAGE over the patient's terms (hpo_match_score) is at/above this. The
 # average — not the single strongest match — is what makes the signal specific: a decoy
@@ -73,21 +81,34 @@ INSILICO_LOCAL = DATA_DIR / "insilico" / "insilico.tsv"
 # store) and, when present, augments the frozen slice. Both absent -> PS1/PM5 degrade to
 # "index unavailable" (surfaced, not-met), never a fabricated match.
 CLINVAR_RESIDUE_FROZEN = DATA_DIR / "clinvar" / "clinvar_residue_frozen.tsv.gz"
-CLINVAR_RESIDUE_LOCAL = Path(os.environ.get(
-    "VCF2REPORT_CLINVAR_RESIDUE", DATA_DIR / "clinvar" / "clinvar_residue.tsv.gz"))
+CLINVAR_RESIDUE_LOCAL = Path(
+    os.environ.get(
+        "VCF2REPORT_CLINVAR_RESIDUE", DATA_DIR / "clinvar" / "clinvar_residue.tsv.gz"
+    )
+)
 # AlphaMissense hg38 predictions (CC BY 4.0) — tabix-indexed, fetched once via
 # scripts/fetch_alphamissense.sh. Absent by default; the client degrades to None.
-ALPHAMISSENSE_LOCAL = Path(os.environ.get(
-    "VCF2REPORT_ALPHAMISSENSE", DATA_DIR / "alphamissense" / "AlphaMissense_hg38.tsv.gz"))
+ALPHAMISSENSE_LOCAL = Path(
+    os.environ.get(
+        "VCF2REPORT_ALPHAMISSENSE",
+        DATA_DIR / "alphamissense" / "AlphaMissense_hg38.tsv.gz",
+    )
+)
 
 # Per-source Parquet stores for the batch DuckDB annotate join (kept SEPARATE, not one
 # unified table — see docs/DATA_ARCHITECTURE.md). Built by scripts/build_alphamissense_parquet.py
 # (MAX-per-locus) and scripts/build_clinvar_parquet.py (review_stars precomputed, weekly).
 # Absent by default; the tabix clients remain the offline fallback.
-ALPHAMISSENSE_PARQUET = Path(os.environ.get(
-    "VCF2REPORT_ALPHAMISSENSE_PARQUET", DATA_DIR / "alphamissense" / "am_parquet"))
-CLINVAR_PARQUET = Path(os.environ.get(
-    "VCF2REPORT_CLINVAR_PARQUET", DATA_DIR / "clinvar" / "clinvar_parquet"))
+ALPHAMISSENSE_PARQUET = Path(
+    os.environ.get(
+        "VCF2REPORT_ALPHAMISSENSE_PARQUET", DATA_DIR / "alphamissense" / "am_parquet"
+    )
+)
+CLINVAR_PARQUET = Path(
+    os.environ.get(
+        "VCF2REPORT_CLINVAR_PARQUET", DATA_DIR / "clinvar" / "clinvar_parquet"
+    )
+)
 
 # ---------------------------------------------------------------------------
 # Genome build — the whole pipeline assumes GRCh38 to match gnomAD r4 / ClinVar.
@@ -103,6 +124,7 @@ NCBI_EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 NCBI_API_KEY = os.environ.get("NCBI_API_KEY")  # optional; raises 3->10 req/s
 NCBI_EMAIL = os.environ.get("NCBI_EMAIL", "vcf2report@example.org")
 HPO_API = "https://ontology.jax.org/api"
+
 
 # ---------------------------------------------------------------------------
 # Behaviour flags
@@ -159,10 +181,10 @@ def pm2_strength() -> str:
 # ---------------------------------------------------------------------------
 # Filtering / QC thresholds (documented so the report can cite them)
 # ---------------------------------------------------------------------------
-QC_MIN_DP = 10          # minimum read depth
-QC_MIN_GQ = 20          # minimum genotype quality
-QC_AB_MIN = 0.25        # het allele balance lower bound
-QC_AB_MAX = 0.75        # het allele balance upper bound
+QC_MIN_DP = 10  # minimum read depth
+QC_MIN_GQ = 20  # minimum genotype quality
+QC_AB_MIN = 0.25  # het allele balance lower bound
+QC_AB_MAX = 0.75  # het allele balance upper bound
 
 # Population-frequency cutoffs for candidate rarity (popmax AF).
 AF_DOMINANT_MAX = 0.001
@@ -180,9 +202,9 @@ AF_BA1 = 0.05
 # These are pragmatic gnomAD-based heuristics, not a per-gene max-credible-AF
 # derived from prevalence/penetrance — the report labels them as such.
 # ---------------------------------------------------------------------------
-BS1_AF_DOMINANT = 0.001     # rare dominant disorder: even ~0.1% is too common
-BS1_AF_RECESSIVE = 0.01     # recessive: carrier frequency runs higher
-BS1_AF_DEFAULT = 0.005      # inheritance unknown → conservative middle ground
+BS1_AF_DOMINANT = 0.001  # rare dominant disorder: even ~0.1% is too common
+BS1_AF_RECESSIVE = 0.01  # recessive: carrier frequency runs higher
+BS1_AF_DEFAULT = 0.005  # inheritance unknown → conservative middle ground
 
 # Hand-curated mode-of-inheritance, kept as the AUTHORITATIVE layer: these entries win
 # over the HPO-derived table below. "AD"/"AR"/"XL". Genes here are the demo/secondary-
@@ -190,12 +212,24 @@ BS1_AF_DEFAULT = 0.005      # inheritance unknown → conservative middle ground
 # gene_inheritance(), which falls back to the ~4.7k genes HPO annotates offline.
 GENE_INHERITANCE = {
     # DEE / seizure primaries (haploinsufficiency-driven dominant)
-    "SCN1A": "AD", "SCN2A": "AD", "KCNQ2": "AD", "STXBP1": "AD",
-    "SLC2A1": "AD", "CACNA1A": "AD", "PAX6": "AD",
+    "SCN1A": "AD",
+    "SCN2A": "AD",
+    "KCNQ2": "AD",
+    "STXBP1": "AD",
+    "SLC2A1": "AD",
+    "CACNA1A": "AD",
+    "PAX6": "AD",
     # ACMG SF secondaries used in the synthetic cases
-    "RB1": "AD", "APC": "AD", "STK11": "AD", "WT1": "AD", "FBN1": "AD",
+    "RB1": "AD",
+    "APC": "AD",
+    "STK11": "AD",
+    "WT1": "AD",
+    "FBN1": "AD",
     # a couple of well-known recessive genes for contrast/tests
-    "CFTR": "AR", "HFE": "AR", "GJB2": "AR", "MUTYH": "AR",
+    "CFTR": "AR",
+    "HFE": "AR",
+    "GJB2": "AR",
+    "MUTYH": "AR",
 }
 
 
@@ -218,6 +252,7 @@ def gene_inheritance_modes(gene: str | None) -> frozenset:
     if curated:
         return frozenset({curated})
     from .annotate.inheritance import modes
+
     return modes(gene)
 
 
@@ -261,9 +296,9 @@ def bs1_af_cutoff(gene: str | None) -> tuple[float, str | None]:
 # tolerates a higher AF (carriers are common in the general population) before a
 # variant stops looking rare, whereas a dominant disorder needs near-absence.
 # ---------------------------------------------------------------------------
-PM2_AF_DOMINANT = 1e-4      # dominant: absent / ultra-rare
-PM2_AF_RECESSIVE = 1e-3     # recessive: carrier frequency tolerated
-PM2_AF_DEFAULT = 1e-4       # inheritance unknown → strict default
+PM2_AF_DOMINANT = 1e-4  # dominant: absent / ultra-rare
+PM2_AF_RECESSIVE = 1e-3  # recessive: carrier frequency tolerated
+PM2_AF_DEFAULT = 1e-4  # inheritance unknown → strict default
 
 
 def pm2_af_ceiling(gene: str | None) -> tuple[float, str | None]:
@@ -280,6 +315,7 @@ def pm2_af_ceiling(gene: str | None) -> tuple[float, str | None]:
         return PM2_AF_RECESSIVE, "AR"
     return PM2_AF_DEFAULT, None
 
+
 # ---------------------------------------------------------------------------
 # ACMG SF v3.2 (Miller et al., 2023) secondary-findings genes. A P/LP variant in
 # one of these, unrelated to the indication, is a reportable secondary finding
@@ -288,18 +324,90 @@ def pm2_af_ceiling(gene: str | None) -> tuple[float, str | None]:
 # ---------------------------------------------------------------------------
 ACMG_SF_GENES = {
     # Hereditary cancer
-    "APC", "MUTYH", "BMPR1A", "SMAD4", "BRCA1", "BRCA2", "PALB2", "MLH1", "MSH2",
-    "MSH6", "PMS2", "MEN1", "RET", "NF2", "SDHB", "SDHC", "SDHD", "SDHAF2", "MAX",
-    "TMEM127", "VHL", "WT1", "TP53", "STK11", "PTEN", "CDH1", "RB1", "TSC1", "TSC2",
+    "APC",
+    "MUTYH",
+    "BMPR1A",
+    "SMAD4",
+    "BRCA1",
+    "BRCA2",
+    "PALB2",
+    "MLH1",
+    "MSH2",
+    "MSH6",
+    "PMS2",
+    "MEN1",
+    "RET",
+    "NF2",
+    "SDHB",
+    "SDHC",
+    "SDHD",
+    "SDHAF2",
+    "MAX",
+    "TMEM127",
+    "VHL",
+    "WT1",
+    "TP53",
+    "STK11",
+    "PTEN",
+    "CDH1",
+    "RB1",
+    "TSC1",
+    "TSC2",
     # Cardiovascular
-    "FBN1", "TGFBR1", "TGFBR2", "SMAD3", "ACTA2", "MYH11", "COL3A1", "LDLR", "APOB",
-    "PCSK9", "MYH7", "MYBPC3", "TNNT2", "TNNI3", "TPM1", "MYL3", "ACTC1", "PRKAG2",
-    "MYL2", "LMNA", "RYR2", "PKP2", "DSP", "DSC2", "TMEM43", "DSG2", "KCNQ1", "KCNH2",
-    "SCN5A", "CASQ2", "TRDN", "CALM1", "CALM2", "CALM3", "TNNC1", "BAG3", "DES", "FLNC",
-    "RBM20", "TTN",
+    "FBN1",
+    "TGFBR1",
+    "TGFBR2",
+    "SMAD3",
+    "ACTA2",
+    "MYH11",
+    "COL3A1",
+    "LDLR",
+    "APOB",
+    "PCSK9",
+    "MYH7",
+    "MYBPC3",
+    "TNNT2",
+    "TNNI3",
+    "TPM1",
+    "MYL3",
+    "ACTC1",
+    "PRKAG2",
+    "MYL2",
+    "LMNA",
+    "RYR2",
+    "PKP2",
+    "DSP",
+    "DSC2",
+    "TMEM43",
+    "DSG2",
+    "KCNQ1",
+    "KCNH2",
+    "SCN5A",
+    "CASQ2",
+    "TRDN",
+    "CALM1",
+    "CALM2",
+    "CALM3",
+    "TNNC1",
+    "BAG3",
+    "DES",
+    "FLNC",
+    "RBM20",
+    "TTN",
     # Malignant hyperthermia, metabolic, other
-    "RYR1", "CACNA1S", "OTC", "GAA", "GLA", "ATP7B", "BTD", "RPE65", "TTR",
-    "HFE", "ACVRL1", "ENG", "HNF1A",
+    "RYR1",
+    "CACNA1S",
+    "OTC",
+    "GAA",
+    "GLA",
+    "ATP7B",
+    "BTD",
+    "RPE65",
+    "TTR",
+    "HFE",
+    "ACVRL1",
+    "ENG",
+    "HNF1A",
 }
 
 # ---------------------------------------------------------------------------
@@ -308,10 +416,24 @@ ACMG_SF_GENES = {
 # VCF fully offline — no per-variant DB lookups. Extend for your annotation.
 # ---------------------------------------------------------------------------
 INFO_ALIASES = {
-    "gnomad_af": ["gnomad_AF", "gnomAD_AF", "gnomADg_AF", "gnomad4_AF", "AF_gnomad", "gnomad_af"],
+    "gnomad_af": [
+        "gnomad_AF",
+        "gnomAD_AF",
+        "gnomADg_AF",
+        "gnomad4_AF",
+        "AF_gnomad",
+        "gnomad_af",
+    ],
     # gnomAD filtering AF (95% CI, grpmax) — the ClinGen-recommended field for BS1/BA1.
-    "gnomad_faf95": ["gnomad_faf95", "fafmax_faf95_max", "faf95_max", "faf95_grpmax",
-                     "gnomad_faf95_max", "AF_grpmax_faf95", "faf95"],
+    "gnomad_faf95": [
+        "gnomad_faf95",
+        "fafmax_faf95_max",
+        "faf95_max",
+        "faf95_grpmax",
+        "gnomad_faf95_max",
+        "AF_grpmax_faf95",
+        "faf95",
+    ],
     "gnomad_ac": ["gnomad_AC", "gnomAD_AC", "gnomad_ac"],
     "gnomad_an": ["gnomad_AN", "gnomAD_AN", "gnomad_an"],
     "gnomad_hom": ["gnomad_nhomalt", "gnomAD_nhomalt", "gnomad_hom", "nhomalt"],
@@ -322,9 +444,19 @@ INFO_ALIASES = {
     "clinvar_accession": ["CLNVI", "ALLELEID", "clinvar_VCV"],
     "revel": ["REVEL", "dbNSFP_REVEL_score", "revel"],
     "cadd": ["CADD_PHRED", "CADD_phred", "cadd_phred", "CADD_PHRED_score"],
-    "am_pathogenicity": ["am_pathogenicity", "AlphaMissense", "AlphaMissense_score",
-                         "dbNSFP_AlphaMissense_score", "alphamissense"],
-    "am_class": ["am_class", "AlphaMissense_class", "AlphaMissense_pred", "am_classification"],
+    "am_pathogenicity": [
+        "am_pathogenicity",
+        "AlphaMissense",
+        "AlphaMissense_score",
+        "dbNSFP_AlphaMissense_score",
+        "alphamissense",
+    ],
+    "am_class": [
+        "am_class",
+        "AlphaMissense_class",
+        "AlphaMissense_pred",
+        "am_classification",
+    ],
 }
 
 # ---------------------------------------------------------------------------
@@ -345,13 +477,13 @@ INFO_ALIASES = {
 # (pm2_strength(), tuned separately against the specificity benchmark), and Strong + Supporting
 # satisfies no Table 5 rule — so with stock settings this pair yields VUS, not Likely
 # Pathogenic. Set VCF2REPORT_PM2_STRENGTH=moderate to get the behaviour described here.
-AM_PP3_STRONG = 0.99        # >= this -> PP3 at Strong
-AM_PP3_MODERATE = 0.90      # >= this -> PP3 at Moderate
-AM_PP3_SUPPORTING = 0.564   # >= this -> PP3 at Supporting (tool's likely_pathogenic)
+AM_PP3_STRONG = 0.99  # >= this -> PP3 at Strong
+AM_PP3_MODERATE = 0.90  # >= this -> PP3 at Moderate
+AM_PP3_SUPPORTING = 0.564  # >= this -> PP3 at Supporting (tool's likely_pathogenic)
 # Richards 2015 Table 5 has no benign "moderate" bucket, so AlphaMissense benign
 # evidence is capped at Supporting here (a documented limitation of the classic
 # combining rules vs. ClinGen's points framework).
-AM_BP4_SUPPORTING = 0.34    # <= this -> BP4 at Supporting (tool's likely_benign)
+AM_BP4_SUPPORTING = 0.34  # <= this -> BP4 at Supporting (tool's likely_benign)
 
 
 def am_pp3_strength(am: float | None) -> str | None:

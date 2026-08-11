@@ -4,6 +4,7 @@ Every annotator checks the cache first. ``warm_cache.py`` pre-fills it so a live
 demo is network-independent while the code remains *capable* of real calls.
 Set ``OFFLINE=1`` to force cache/local-only (no network at all).
 """
+
 from __future__ import annotations
 
 import json

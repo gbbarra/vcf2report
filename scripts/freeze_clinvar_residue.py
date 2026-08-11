@@ -10,6 +10,7 @@ committed so PS1/PM5 fire out-of-the-box on the shipped examples with no downloa
     python scripts/freeze_clinvar_residue.py --genes BRCA1 TP53 SCN1A
     python scripts/freeze_clinvar_residue.py --in data/clinvar/clinvar_residue.tsv.gz
 """
+
 from __future__ import annotations
 
 import argparse
@@ -22,19 +23,42 @@ OUT = REPO / "data" / "clinvar" / "clinvar_residue_frozen.tsv.gz"
 
 # Genes exercised by the committed examples (data/example) and the e2e regression suite.
 DEMO_GENES = [
-    "SCN1A", "RB1", "KCNQ2", "APC", "SCN2A", "STK11", "STXBP1", "WT1", "SLC2A1", "FBN1",
-    "NIPBL", "PIGA", "BBS2", "TGFBR1", "SPINT2", "RBSN",
+    "SCN1A",
+    "RB1",
+    "KCNQ2",
+    "APC",
+    "SCN2A",
+    "STK11",
+    "STXBP1",
+    "WT1",
+    "SLC2A1",
+    "FBN1",
+    "NIPBL",
+    "PIGA",
+    "BBS2",
+    "TGFBR1",
+    "SPINT2",
+    "RBSN",
 ]
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Freeze a small ClinVar residue slice for the demo.")
-    ap.add_argument("--in", dest="src", default=str(DEFAULT_IN), help="full residue index (.tsv.gz)")
+    ap = argparse.ArgumentParser(
+        description="Freeze a small ClinVar residue slice for the demo."
+    )
+    ap.add_argument(
+        "--in", dest="src", default=str(DEFAULT_IN), help="full residue index (.tsv.gz)"
+    )
     ap.add_argument("--out", default=str(OUT), help="frozen slice output (.tsv.gz)")
-    ap.add_argument("--genes", nargs="+", default=DEMO_GENES, help="gene symbols to keep")
-    ap.add_argument("--all", action="store_true",
-                    help="keep EVERY gene (ship the residue index genome-wide, ~1 MB) instead of "
-                         "the demo subset — PS1/PM5 then fire for all genes out-of-the-box")
+    ap.add_argument(
+        "--genes", nargs="+", default=DEMO_GENES, help="gene symbols to keep"
+    )
+    ap.add_argument(
+        "--all",
+        action="store_true",
+        help="keep EVERY gene (ship the residue index genome-wide, ~1 MB) instead of "
+        "the demo subset — PS1/PM5 then fire for all genes out-of-the-box",
+    )
     args = ap.parse_args(argv)
 
     src = Path(args.src)
@@ -48,7 +72,9 @@ def main(argv=None) -> int:
     label = "genome-wide" if args.all else "FROZEN demo slice"
     with gzip.open(src, "rt") as fh, gzip.open(args.out, "wt") as w:
         w.write(f"# ClinVar residue index (PS1/PM5) — {label}.\n")
-        w.write("# Columns: gene\taa_pos\tref_aa\talt_aa\tstars\tgenomic_key\taccession\n")
+        w.write(
+            "# Columns: gene\taa_pos\tref_aa\talt_aa\tstars\tgenomic_key\taccession\n"
+        )
         for line in fh:
             if line.startswith("#") or not line.strip():
                 continue

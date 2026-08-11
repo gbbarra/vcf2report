@@ -11,6 +11,7 @@ no bcftools, no reference FASTA, no 440 MB download of the whole file.
     VCF2REPORT_ALLOW_NETWORK=1 python scripts/build_dragen_exome.py \
         --sample NA12878 --bed data/gnomad/exome_hg38.bed --out data/real/NA12878_exome.vcf
 """
+
 from __future__ import annotations
 
 import argparse
@@ -19,8 +20,10 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-DRAGEN = ("https://1000genomes-dragen-v4-4-7.s3.amazonaws.com/data/individuals/"
-          "hg38-alt_masked.cnv.graph.hla.methyl_cg.rna-11-r5.0-2/{s}/{s}.hard-filtered.vcf.gz")
+DRAGEN = (
+    "https://1000genomes-dragen-v4-4-7.s3.amazonaws.com/data/individuals/"
+    "hg38-alt_masked.cnv.graph.hla.methyl_cg.rna-11-r5.0-2/{s}/{s}.hard-filtered.vcf.gz"
+)
 AUTOSOMES = [f"chr{i}" for i in range(1, 23)] + ["chrX"]
 
 
@@ -30,7 +33,9 @@ def load_bed(path: Path) -> dict[str, list[tuple[int, int]]]:
         if not line or line.startswith(("#", "track", "browser")):
             continue
         f = line.split("\t")
-        by.setdefault(f[0], []).append((int(f[1]), int(f[2])))  # BED is 0-based half-open
+        by.setdefault(f[0], []).append(
+            (int(f[1]), int(f[2]))
+        )  # BED is 0-based half-open
     for c in by:
         by[c].sort()
     return by
@@ -38,7 +43,10 @@ def load_bed(path: Path) -> dict[str, list[tuple[int, int]]]:
 
 def _member(starts, ivs, pos1):
     import bisect
-    i = bisect.bisect_right(starts, pos1 - 1) - 1   # BED start is 0-based; VCF pos 1-based
+
+    i = (
+        bisect.bisect_right(starts, pos1 - 1) - 1
+    )  # BED start is 0-based; VCF pos 1-based
     return i >= 0 and (pos1 - 1) < ivs[i][1]
 
 
@@ -51,6 +59,7 @@ def main() -> int:
     args = ap.parse_args()
 
     from vcf2report import config
+
     if config.offline():
         raise SystemExit("network egress required: set VCF2REPORT_ALLOW_NETWORK=1")
     import pysam
@@ -71,7 +80,7 @@ def main() -> int:
         starts = [s for s, _ in ivs]
         lo, hi = ivs[0][0], ivs[-1][1]
         n = kept = 0
-        for rec in vf.fetch(c, lo, hi):          # one streamed pass over the exome span
+        for rec in vf.fetch(c, lo, hi):  # one streamed pass over the exome span
             n += 1
             if list(rec.filter.keys()) not in ([], ["PASS"]):
                 continue
@@ -91,25 +100,46 @@ def main() -> int:
                 gq = smp.get("GQ") or "."
                 ad = smp.get("AD")
                 ads = f"{ad[0]},{ad[ai]}" if ad and len(ad) > ai else "."
-                rows.append("\t".join([c, str(rec.pos), ".", rec.ref, alt, "999", "PASS",
-                                       ".", "GT:DP:GQ:AD", f"{gts}:{dp}:{gq}:{ads}"]))
+                rows.append(
+                    "\t".join(
+                        [
+                            c,
+                            str(rec.pos),
+                            ".",
+                            rec.ref,
+                            alt,
+                            "999",
+                            "PASS",
+                            ".",
+                            "GT:DP:GQ:AD",
+                            f"{gts}:{dp}:{gq}:{ads}",
+                        ]
+                    )
+                )
                 kept += 1
-        print(f"  {c}: {kept} exome variants ({n} scanned) [{time.time()-t0:.0f}s]", flush=True)
+        print(
+            f"  {c}: {kept} exome variants ({n} scanned) [{time.time() - t0:.0f}s]",
+            flush=True,
+        )
 
     contigs = "\n".join(f"##contig=<ID={c}>" for c in chroms)
-    header = (f"##fileformat=VCFv4.2\n##reference=GRCh38\n"
-              f"##source=1000G DRAGEN v4.4.7 {args.sample}, subset to the MANE/GENCODE exome (GENCODE v46, ±50bp)\n"
-              f"##note=Real per-sample genotypes (DRAGEN 4.4.7); PASS variants inside the exome BED.\n"
-              f"{contigs}\n"
-              "##FILTER=<ID=PASS,Description=\"All filters passed\">\n"
-              "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"
-              "##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"Read depth\">\n"
-              "##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Genotype quality\">\n"
-              "##FORMAT=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths\">\n"
-              f"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{args.sample}\n")
+    header = (
+        f"##fileformat=VCFv4.2\n##reference=GRCh38\n"
+        f"##source=1000G DRAGEN v4.4.7 {args.sample}, subset to the MANE/GENCODE exome (GENCODE v46, ±50bp)\n"
+        f"##note=Real per-sample genotypes (DRAGEN 4.4.7); PASS variants inside the exome BED.\n"
+        f"{contigs}\n"
+        '##FILTER=<ID=PASS,Description="All filters passed">\n'
+        '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
+        '##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">\n'
+        '##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality">\n'
+        '##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">\n'
+        f"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{args.sample}\n"
+    )
     out.write_text(header + "\n".join(rows) + "\n")
-    print(f"\nWrote {len(rows)} real exome variants for {args.sample} to {out} "
-          f"in {time.time()-t0:.0f}s")
+    print(
+        f"\nWrote {len(rows)} real exome variants for {args.sample} to {out} "
+        f"in {time.time() - t0:.0f}s"
+    )
     return 0
 
 

@@ -4,6 +4,7 @@ If the operator points VCF2REPORT_GNOMAD_PARQUET at a store that is missing (e.g
 unmounted drive), silent fall-through would make every variant look absent from gnomAD
 -> spurious PM2 everywhere -> gross over-calling. The pipeline must warn instead.
 """
+
 import pytest
 
 from vcf2report import config, pipeline
@@ -38,6 +39,7 @@ def _big_vcf(tmp_path, n=60):
 
 def _reset():
     from vcf2report.annotate import gnomad_parquet
+
     gnomad_parquet._reset_for_tests()
 
 
@@ -45,7 +47,9 @@ def test_configured_but_missing_parquet_warns(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "GNOMAD_PARQUET", str(tmp_path / "nope.parquet"))
     _reset()
     report = pipeline.run_pipeline(_big_vcf(tmp_path))
-    assert any("resolved from it" in w and "OVER-calls" in w for w in report.qc.warnings)
+    assert any(
+        "resolved from it" in w and "OVER-calls" in w for w in report.qc.warnings
+    )
     _reset()
 
 
@@ -64,6 +68,7 @@ def test_present_store_but_duckdb_missing_blames_duckdb(tmp_path, monkeypatch):
     store.mkdir()
     monkeypatch.setattr(config, "GNOMAD_PARQUET", str(store))
     from vcf2report.annotate import gnomad_parquet
+
     monkeypatch.setattr(gnomad_parquet, "_get_duckdb", lambda: None)
     _reset()
     report = pipeline.run_pipeline(_big_vcf(tmp_path))

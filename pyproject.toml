@@ -34,9 +34,21 @@ parquet = ["duckdb>=0.9"]
 # modules silently skipped in CI, and docs/LOCAL_ANNOTATION.md called it "already a dep".
 tabix = ["pysam>=0.22"]
 # The live GraphQL/E-utilities clients use only the standard library.
-dev = ["pytest>=7.0", "hypothesis>=6.0"]
+# As ferramentas de qualidade abaixo implementam os gates do CLAUDE.md §4.6. Ficam aqui, e
+# não instaladas ad hoc, porque um gate que só existe na máquina de quem rodou não é gate:
+# durante o levantamento da linha de base o container reiniciou e apagou todas elas, e a
+# medição deixou de ser reproduzível no meio do trabalho.
+dev = ["pytest>=7.0", "hypothesis>=6.0",
+       "pytest-cov>=5.0",       # §4.3 cobertura de branches
+       "ruff>=0.6",             # §4.6 lint + formatação
+       "mypy>=1.10",            # §4.6 tipagem estática
+       "bandit>=1.7",           # §4.6 segurança
+       "detect-secrets>=1.5"]   # §4.6 segredos commitados
+# Sob demanda, fora do loop de desenvolvimento (§4.4 e §4.5): mutação e métricas.
+qa = ["mutmut>=3.0", "radon>=6.0"]
 all = ["cyvcf2>=0.30", "mcp[cli]>=1.2", "duckdb>=0.9", "pysam>=0.22",
-       "pytest>=7.0", "hypothesis>=6.0"]
+       "pytest>=7.0", "hypothesis>=6.0", "pytest-cov>=5.0", "ruff>=0.6",
+       "mypy>=1.10", "bandit>=1.7", "detect-secrets>=1.5"]
 
 [project.scripts]
 vcf2report = "vcf2report.cli:main"

@@ -13,6 +13,7 @@ file is absent it falls back to exact term overlap, so this build is optional.
 
     VCF2REPORT_ALLOW_NETWORK=1 python3 scripts/build_hpo_graph.py
 """
+
 from __future__ import annotations
 
 import gzip
@@ -30,7 +31,11 @@ ROOT = "HP:0000118"  # Phenotypic abnormality
 
 
 def _require_network() -> None:
-    if os.environ.get("VCF2REPORT_ALLOW_NETWORK", "").strip().lower() not in {"1", "true", "yes"}:
+    if os.environ.get("VCF2REPORT_ALLOW_NETWORK", "").strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+    }:
         sys.exit("Refusing to hit the network. Re-run with VCF2REPORT_ALLOW_NETWORK=1")
 
 
@@ -65,7 +70,9 @@ def parse_obo(text: str) -> tuple[dict[str, list[str]], dict[str, str]]:
     return parents, names
 
 
-def ancestors(term: str, parents: dict[str, list[str]], cache: dict[str, set]) -> set[str]:
+def ancestors(
+    term: str, parents: dict[str, list[str]], cache: dict[str, set]
+) -> set[str]:
     """Transitive is_a closure incl. self. Iterative + visited-set so a corrupted
     graph with a cycle degrades instead of blowing the stack; DAG multi-parents ok."""
     if term in cache:
@@ -82,9 +89,12 @@ def ancestors(term: str, parents: dict[str, list[str]], cache: dict[str, set]) -
     return seen
 
 
-def compute_ic(parents: dict[str, list[str]], gene_terms: list[str]) -> dict[str, float]:
+def compute_ic(
+    parents: dict[str, list[str]], gene_terms: list[str]
+) -> dict[str, float]:
     """IC(t) = -log( genes annotated to t-or-a-descendant / total genes )."""
     from collections import defaultdict
+
     ann: dict[str, set] = defaultdict(set)
     cache: dict[str, set] = {}
     # gene_terms is a flat list of (gene, hpo_id); propagate each to its ancestors.
@@ -135,14 +145,20 @@ def main() -> None:
     out_fp = config.HPO_GRAPH_LOCAL
     out_fp.parent.mkdir(parents=True, exist_ok=True)
     with gzip.open(out_fp, "wt") as fh:
-        fh.write("# HPO ontology graph for ontology-aware matching. "
-                 "Columns: hpo_id\tname\tic\tparents(|)\n")
+        fh.write(
+            "# HPO ontology graph for ontology-aware matching. "
+            "Columns: hpo_id\tname\tic\tparents(|)\n"
+        )
         for hid in sorted(parents):
-            row = [hid, names.get(hid, ""), f"{ic.get(hid, 0.0):g}",
-                   "|".join(parents.get(hid, []))]
+            row = [
+                hid,
+                names.get(hid, ""),
+                f"{ic.get(hid, 0.0):g}",
+                "|".join(parents.get(hid, [])),
+            ]
             fh.write("\t".join(row) + "\n")
     size = out_fp.stat().st_size
-    print(f"Wrote {out_fp} ({size/1024:.0f} KB, {len(parents)} terms)")
+    print(f"Wrote {out_fp} ({size / 1024:.0f} KB, {len(parents)} terms)")
 
 
 if __name__ == "__main__":

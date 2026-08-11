@@ -24,6 +24,7 @@ ClinGen's gene-disease-validity + dosage-sensitivity curation, which is what a c
 deployment should key PVS1 on. It replaces a proxy that is systematically wrong for
 recessive genes with one that is usually right; both are labelled as such in the report.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -35,11 +36,11 @@ from .hpo import _read_lines
 # collapse to "XL": the engine only distinguishes recessive-style carrier frequencies from
 # dominant-style near-absence, and a hemizygous male is dominant-like either way.
 _TERMS = {
-    "HP:0000006": "AD",    # autosomal dominant inheritance
-    "HP:0000007": "AR",    # autosomal recessive inheritance
-    "HP:0001417": "XL",    # X-linked inheritance
-    "HP:0001419": "XL",    # X-linked recessive inheritance
-    "HP:0001423": "XL",    # X-linked dominant inheritance
+    "HP:0000006": "AD",  # autosomal dominant inheritance
+    "HP:0000007": "AR",  # autosomal recessive inheritance
+    "HP:0001417": "XL",  # X-linked inheritance
+    "HP:0001419": "XL",  # X-linked recessive inheritance
+    "HP:0001423": "XL",  # X-linked dominant inheritance
 }
 
 _gene_moi: Optional[dict[str, frozenset]] = None
@@ -60,7 +61,9 @@ def _load() -> dict[str, frozenset]:
                 moi = _TERMS.get(parts[1])
                 if moi:
                     d.setdefault(parts[0].upper(), set()).add(moi)
-        _gene_moi = {g: frozenset(v) for g, v in d.items()}  # publish only when fully built
+        _gene_moi = {
+            g: frozenset(v) for g, v in d.items()
+        }  # publish only when fully built
     return _gene_moi
 
 

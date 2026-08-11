@@ -6,6 +6,7 @@ VCF, the same data the MCP inspect_vcf / analysis_capabilities tools return.
 
 --hpo signals that phenotype terms were supplied (affects the PP4 capability).
 """
+
 import json
 import sys
 from pathlib import Path

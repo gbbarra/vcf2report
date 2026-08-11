@@ -1,4 +1,5 @@
 """Ontology-aware HPO matching (Lin/IC) with exact-overlap fallback."""
+
 import pytest
 
 from vcf2report import config
@@ -29,10 +30,10 @@ def test_lin_similarity(graph):
     parents, ic, names = hpo._load_graph()
     cache = {}
     L = lambda a, b: round(hpo._lin(a, b, parents, ic, cache), 3)
-    assert L("HP:11", "HP:11") == 1.0                     # identity
-    assert L("HP:1", "HP:11") == 0.667                    # parent<->child
-    assert L("HP:11", "HP:12") == 0.444                   # siblings share Seizure
-    assert L("HP:11", "HP:2") == 0.0                      # only the root in common
+    assert L("HP:11", "HP:11") == 1.0  # identity
+    assert L("HP:1", "HP:11") == 0.667  # parent<->child
+    assert L("HP:11", "HP:12") == 0.444  # siblings share Seizure
+    assert L("HP:11", "HP:2") == 0.0  # only the root in common
 
 
 def test_bma_no_dilution(graph):
@@ -62,7 +63,7 @@ def test_fallback_exact_overlap_when_no_graph(tmp_path, monkeypatch):
     monkeypatch.setattr(hpo, "_graph", None)
     monkeypatch.setattr(hpo, "_gene_terms", None)
     monkeypatch.setattr(hpo, "_term_names", {})
-    r = hpo.match("G", ["HP:11", "HP:88"])   # 1 of 2 patient terms overlaps exactly
+    r = hpo.match("G", ["HP:11", "HP:88"])  # 1 of 2 patient terms overlaps exactly
     assert r["_source"].startswith("HPO genes_to_phenotype")
     assert r["score"] == 0.5
 
@@ -98,15 +99,22 @@ def test_ancestors_cycle_safe():
 def test_defect1_unannotated_ic_is_high_not_zero():
     import importlib.util
     from pathlib import Path
+
     fp = Path(__file__).resolve().parent.parent / "scripts" / "build_hpo_graph.py"
     spec = importlib.util.spec_from_file_location("build_hpo_graph", fp)
     bhg = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(bhg)
-    parents = {"HP:0": [], "HP:1": ["HP:0"], "HP:11": ["HP:1"], "HP:12": ["HP:1"], "HP:2": ["HP:0"]}
+    parents = {
+        "HP:0": [],
+        "HP:1": ["HP:0"],
+        "HP:11": ["HP:1"],
+        "HP:12": ["HP:1"],
+        "HP:2": ["HP:0"],
+    }
     ic = bhg.compute_ic(parents, [("G1", "HP:11"), ("G2", "HP:2")])
-    assert ic["HP:12"] > 0                  # unannotated term is specific, not IC=0
-    assert ic["HP:12"] >= ic["HP:1"]        # IC monotonic non-decreasing downward
-    assert ic["HP:0"] == 0.0                # root stays uninformative
+    assert ic["HP:12"] > 0  # unannotated term is specific, not IC=0
+    assert ic["HP:12"] >= ic["HP:1"]  # IC monotonic non-decreasing downward
+    assert ic["HP:0"] == 0.0  # root stays uninformative
 
 
 def test_real_graph_discriminates(monkeypatch):
@@ -115,5 +123,5 @@ def test_real_graph_discriminates(monkeypatch):
     monkeypatch.setattr(hpo, "_graph", None)
     monkeypatch.setattr(hpo, "_gene_terms", None)
     epilepsy = ["HP:0001250", "HP:0002133", "HP:0011097"]
-    assert hpo.match("SCN1A", epilepsy)["score"] >= 0.9          # clearly related
+    assert hpo.match("SCN1A", epilepsy)["score"] >= 0.9  # clearly related
     assert hpo.match("BRCA1", epilepsy)["score"] < config.HPO_RELATED_MIN  # incidental

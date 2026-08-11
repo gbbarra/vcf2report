@@ -1,16 +1,29 @@
 """Configurable ACMG combining model: Richards Table 5 vs ClinGen/Tavtigian points."""
+
 import pytest
 
 from vcf2report import config
 from vcf2report.acmg import rules
 from vcf2report.acmg.engine import classify
-from vcf2report.acmg.rules import BENIGN, LIKELY_BENIGN, LIKELY_PATHOGENIC, PATHOGENIC, VUS
+from vcf2report.acmg.rules import (
+    BENIGN,
+    LIKELY_BENIGN,
+    LIKELY_PATHOGENIC,
+    PATHOGENIC,
+    VUS,
+)
 from vcf2report.models import Annotation, CriterionResult, Variant
 
 
 def _cr(code, strength):
-    return CriterionResult(code=code, name="", default_strength=strength, applies=True,
-                           met=True, applied_strength=strength)
+    return CriterionResult(
+        code=code,
+        name="",
+        default_strength=strength,
+        applies=True,
+        met=True,
+        applied_strength=strength,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -21,7 +34,9 @@ def test_acmg_model_toggle(monkeypatch):
     monkeypatch.delenv("VCF2REPORT_PM2_STRENGTH", raising=False)
     monkeypatch.setenv("VCF2REPORT_ACMG_MODEL", "richards")
     assert config.acmg_model() == "richards"
-    assert config.pm2_strength() == "supporting"   # default: ClinGen SVI 2020, decoupled from the combiner
+    assert (
+        config.pm2_strength() == "supporting"
+    )  # default: ClinGen SVI 2020, decoupled from the combiner
     monkeypatch.setenv("VCF2REPORT_ACMG_MODEL", "clingen")
     assert config.acmg_model() == "clingen" and config.pm2_strength() == "supporting"
     monkeypatch.setenv("VCF2REPORT_ACMG_MODEL", "points")
@@ -36,16 +51,22 @@ def test_acmg_model_toggle(monkeypatch):
 # ---------------------------------------------------------------------------
 def test_points_thresholds():
     P = rules._combine_points
-    assert P([_cr("PVS1", "very_strong")])[0] == LIKELY_PATHOGENIC            # 8
-    assert P([_cr("PVS1", "very_strong"), _cr("PM2", "moderate")])[0] == PATHOGENIC   # 10
-    assert P([_cr("PM2", "supporting"), _cr("PP3", "strong")])[0] == VUS      # 5 (one short of LP)
-    assert P([_cr("PM2", "supporting"), _cr("PP3", "strong"),
-              _cr("PP4", "supporting")])[0] == LIKELY_PATHOGENIC              # 6
-    assert P([_cr("BA1", "stand_alone")])[0] == BENIGN                        # -8
-    assert P([_cr("BS1", "strong")])[0] == LIKELY_BENIGN                      # -4
-    assert P([_cr("BS1", "strong"), _cr("BS2", "strong")])[0] == BENIGN       # -8
+    assert P([_cr("PVS1", "very_strong")])[0] == LIKELY_PATHOGENIC  # 8
+    assert (
+        P([_cr("PVS1", "very_strong"), _cr("PM2", "moderate")])[0] == PATHOGENIC
+    )  # 10
+    assert (
+        P([_cr("PM2", "supporting"), _cr("PP3", "strong")])[0] == VUS
+    )  # 5 (one short of LP)
+    assert (
+        P([_cr("PM2", "supporting"), _cr("PP3", "strong"), _cr("PP4", "supporting")])[0]
+        == LIKELY_PATHOGENIC
+    )  # 6
+    assert P([_cr("BA1", "stand_alone")])[0] == BENIGN  # -8
+    assert P([_cr("BS1", "strong")])[0] == LIKELY_BENIGN  # -4
+    assert P([_cr("BS1", "strong"), _cr("BS2", "strong")])[0] == BENIGN  # -8
     # conflicting nets out
-    assert P([_cr("PVS1", "very_strong"), _cr("BS1", "strong")])[0] == VUS    # +4
+    assert P([_cr("PVS1", "very_strong"), _cr("BS1", "strong")])[0] == VUS  # +4
 
 
 # ---------------------------------------------------------------------------
@@ -68,7 +89,9 @@ def test_clingen_lof_stays_lp(monkeypatch):
 def test_clingen_missense_strong_am_is_vus(monkeypatch):
     # PM2_Supporting(1) + PP3_Strong(4) = 5 points -> VUS (the missense-recovery loss).
     monkeypatch.setenv("VCF2REPORT_ACMG_MODEL", "clingen")
-    v = Variant(chrom="1", pos=1, ref="A", alt="T", gene="G", consequence="missense_variant")
+    v = Variant(
+        chrom="1", pos=1, ref="A", alt="T", gene="G", consequence="missense_variant"
+    )
     c = classify(v, _ann(gnomad_af=0.0, gnomad_faf95=0.0, am_pathogenicity=0.999))
     assert c.tier == VUS
 
@@ -76,7 +99,9 @@ def test_clingen_missense_strong_am_is_vus(monkeypatch):
 def test_richards_missense_pm2_strength(monkeypatch):
     # Richards Table-5 combiner, rare missense + strong AlphaMissense = PM2 + PP3_Strong.
     monkeypatch.setenv("VCF2REPORT_ACMG_MODEL", "richards")
-    v = Variant(chrom="1", pos=1, ref="A", alt="T", gene="G", consequence="missense_variant")
+    v = Variant(
+        chrom="1", pos=1, ref="A", alt="T", gene="G", consequence="missense_variant"
+    )
     a = _ann(gnomad_af=0.0, gnomad_faf95=0.0, am_pathogenicity=0.999)
     # Default PM2 Supporting: one point short of LP -> held at VUS (the probable-pathogenic VUS).
     monkeypatch.delenv("VCF2REPORT_PM2_STRENGTH", raising=False)
@@ -91,6 +116,7 @@ def test_richards_missense_pm2_strength(monkeypatch):
 # ---------------------------------------------------------------------------
 def test_panel_zero_gross_both_models(monkeypatch):
     from vcf2report import concordance
+
     if not concordance.FROZEN_GNOMAD.exists() or not concordance.GROUND_TRUTH.exists():
         pytest.skip("panel not frozen")
     entries = concordance.load_panel()

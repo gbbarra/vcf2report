@@ -1,4 +1,5 @@
 """T4: GA4GH Phenopacket -> pipeline inputs."""
+
 from vcf2report import config
 from vcf2report.phenopacket import load_phenopacket, write_inputs
 from vcf2report.vcf.parse import parse_vcf
@@ -13,7 +14,12 @@ def test_load_extracts_hpo_and_variant():
     assert data["hpo_terms"] == ["HP:0001250", "HP:0001263", "HP:0002133"]
     assert len(data["variants"]) == 1
     v = data["variants"][0]
-    assert v["chrom"] == "2" and v["pos"] == 166003360 and v["ref"] == "C" and v["alt"] == "T"
+    assert (
+        v["chrom"] == "2"
+        and v["pos"] == 166003360
+        and v["ref"] == "C"
+        and v["alt"] == "T"
+    )
     assert v["gene"] == "SCN1A"
     assert v["hgvs_p"] == "p.Arg612Ter"
     assert v["zygosity"] == "het"
@@ -39,7 +45,9 @@ def test_phenopacket_end_to_end_and_annotation_dependency(tmp_path):
 
     # After annotation (the consequence SnpEff/VEP would add) -> Pathogenic.
     annotated = tmp_path / "c.annotated.vcf"
-    annotated.write_text(vcf.read_text().replace("GENE=SCN1A;", "GENE=SCN1A;CSQ=stop_gained;"))
+    annotated.write_text(
+        vcf.read_text().replace("GENE=SCN1A;", "GENE=SCN1A;CSQ=stop_gained;")
+    )
     ann = run_pipeline(annotated, hpo_terms=data["hpo_terms"])
     scn_ann = next(c for c in ann.classifications if c.variant.gene == "SCN1A")
     assert scn_ann.tier == "Pathogenic"
